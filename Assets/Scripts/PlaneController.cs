@@ -1,5 +1,5 @@
 using UnityEngine;
-using UnityEngine.InputSystem; // We need this namespace now!
+using UnityEngine.InputSystem;
 
 public class PlaneController : MonoBehaviour
 {
@@ -10,7 +10,7 @@ public class PlaneController : MonoBehaviour
     public float yawSpeed = 30f;
 
     [Header("Controls")]
-    // These create handy drop-downs in the Inspector to assign your keys
+    // These create handy drop-downs in the Inspector to assign our keys
     public InputAction flightControls; // For Pitch (Up/Down) and Roll (Left/Right)
     public InputAction rudderControls; // For Yaw (Turning left/right)
 
@@ -30,13 +30,13 @@ public class PlaneController : MonoBehaviour
     void Update()
     {
         // Constant Forward Movement
-        transform.Translate(Vector3.forward * forwardSpeed * Time.deltaTime);
+        transform.Translate(forwardSpeed * Time.deltaTime * Vector3.forward);
 
         // Read the new input values
-        // flightControls will read a Vector2 (X and Y axis) from WASD or a thumbstick
+        // flightControls will read a Vector2 (X and Y axis) from WASD (or a thumbstick, but we don't use that)
         Vector2 flightInput = flightControls.ReadValue<Vector2>();
 
-        // rudderControls will read a single float (1D axis) from Q/E or triggers
+        // rudderControls will read a single float (1D axis) from Q/E (or, again, triggers which we won't use)
         float yawInput = rudderControls.ReadValue<float>();
 
         // Calculate Rotations
