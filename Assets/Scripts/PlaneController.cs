@@ -4,12 +4,13 @@ using UnityEngine.InputSystem;
 [RequireComponent(typeof(Rigidbody))] // Automatically adds a Rigidbody to our plane. Not truly necessary, but good practice
 public class PlaneController : MonoBehaviour
 {
+    // TODO public to private
     [Header("Physics Forces")]
     // These numbers must be high to move a heavy Rigidbody (I set mass to 10)
     public float forwardThrust = 1000f;
     public float pitchTorque = 1000f;
-    public float rollTorque = 500;
-    public float yawTorque = 750;
+    public float rollTorque = 500f;
+    public float yawTorque = 750f;
 
     [Header("Aerodynamics")]
     // How much upward push we get per unit of forward speed
@@ -22,6 +23,7 @@ public class PlaneController : MonoBehaviour
     public InputAction flightControls; // For Pitch (Up/Down) and Roll (Left/Right)
     public InputAction rudderControls; // For Yaw (Turning left/right)
 
+    // TODO look at this shit again
     private Rigidbody rb;
     // Variables to hold our input between Update and FixedUpdate
     private Vector2 flightInput;
@@ -73,6 +75,7 @@ public class PlaneController : MonoBehaviour
         // Apply twisting force along local axes (X = Pitch, Y = Yaw, Z = Roll)
         rb.AddRelativeTorque(pitch, yaw, roll);
 
+        // TODO can we simplify?
         // Lift: Find out how fast we are moving strictly in the direction the nose is pointing
         float forwardSpeed = Vector3.Dot(rb.linearVelocity, transform.forward);
 
