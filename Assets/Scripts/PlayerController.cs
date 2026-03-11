@@ -10,25 +10,36 @@ public class PlayerController : MonoBehaviour
     public InputAction flightControls;
     public InputAction rudderControls;
 
+    [Header("Weapon Controls")]
+    public InputAction fireAction;
+    public InputAction switchWeaponAction;
+
     private Vector2 flightInput;
     private float yawInput;
 
+    // Reference to the weapon system (can be null)
+    private WeaponSystem weapons;
+
     private void Awake()
     {
-        // Link the required JetPhysics component
         physics = GetComponent<JetPhysics>();
+        TryGetComponent(out weapons);
     }
 
     private void OnEnable()
     {
         flightControls.Enable();
         rudderControls.Enable();
+        fireAction.Enable();
+        switchWeaponAction.Enable();
     }
 
     private void OnDisable()
     {
         flightControls.Disable();
         rudderControls.Disable();
+        fireAction.Disable();
+        switchWeaponAction.Disable();
     }
 
     public void Update()
@@ -36,6 +47,21 @@ public class PlayerController : MonoBehaviour
         // Read Inputs (Happens every visual frame)
         flightInput = flightControls.ReadValue<Vector2>();
         yawInput = rudderControls.ReadValue<float>();
+
+        if (weapons != null)
+        {
+            // Switch weapon on single button press
+            if (switchWeaponAction.WasPressedThisFrame())
+            {
+                weapons.SwitchWeapon();
+            }
+
+            // Fire weapons (continuous press for machine guns, single fire for missiles handled in WeaponSystem)
+            if (fireAction.IsPressed())
+            {
+                weapons.Fire();
+            }
+        }
     }
 
     public void FixedUpdate()
