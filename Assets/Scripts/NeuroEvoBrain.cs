@@ -67,6 +67,20 @@ public class NeuroEvoBrain : IEvolvableBrain
         return weights;
     }
 
+    public int[] GetShape()
+    {
+        int[] shape = new int[weights.Length + 1];
+        
+        for (int i = 0; i < weights.Length; i++)
+        {
+            shape[i] = weights[i].Length;
+        }
+
+        shape[weights.Length] = weights[weights.Length - 1][0].Length;
+
+        return shape;
+    }
+
     // TODO potentially add clamp to regularize the weights
     public void Mutate(float rate)
     {
