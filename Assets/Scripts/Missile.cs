@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 
 [RequireComponent(typeof(Rigidbody))]
 public class Missile : MonoBehaviour
@@ -7,25 +8,33 @@ public class Missile : MonoBehaviour
     public float thrust = 1500f; // High thrust to outrun the plane
     public float lifeTime = 5f;  // Self-destruct timer if it misses
 
-    [Header("Effects")]
-    public GameObject explosionPrefab; // Drag an explosion particle system here
+    [Header("Effects & Components")]
+    public GameObject explosionPrefab; // When we have an explosion particle system, we'll drag it here
+    private TrailRenderer trail;
+    private Rigidbody rb;
+    private Collider myCollider;
+    private MeshRenderer myMesh;
+
+    [Header("Combat Settings")]
     public float damage = 50f;
 
-    private Rigidbody rb;
+    // Track if the missile is already 'dead' to prevent multiple collisions
+    private bool isExploding = false;
 
     private void Awake()
     {
         rb = GetComponent<Rigidbody>();
+        trail = GetComponent<TrailRenderer>();
+        myCollider = GetComponentInChildren<Collider>();
+        myMesh = GetComponentInChildren<MeshRenderer>(); // Assumes mesh is on self or first child
 
-        // A missile should be light compared to the plane (mass 10)
         rb.mass = 1f;
-
-        // Low drag so it slices through the air
         rb.linearDamping = 0.5f;
         rb.angularDamping = 0.5f;
 
-        // Destroy the missile after a few seconds to prevent memory leaks in the scene
-        Destroy(gameObject, lifeTime);
+        // Note: We don't use Destroy(gameObject, lifeTime) here because 
+        // we need the trail to fade out if it expires too.
+        Invoke("Explode", lifeTime);
     }
 
     // We will call this from the plane so the missile doesn't start at 0 mph
@@ -37,12 +46,27 @@ public class Missile : MonoBehaviour
 
     private void FixedUpdate()
     {
-        // The rocket motor constantly pushes it forward
-        rb.AddRelativeForce(Vector3.forward * thrust);
+        // The rocket motor constantly pushes it forward (if we haven't exploded yet)
+        if (!isExploding)
+        {
+            rb.AddRelativeForce(Vector3.forward * thrust);
+        }
     }
 
     private void OnCollisionEnter(Collision collision)
     {
+        // Prevents hitting multiple objects in the same physics frame
+        if (isExploding) return;
+
+        CancelInvoke("Explode"); // Stop the lifetime timer
+        Explode();
+    }
+
+    private void Explode()
+    {
+        if (isExploding) return;
+        isExploding = true;
+
         // Spawn Explosion visual/audio
         if (explosionPrefab != null)
         {
@@ -58,8 +82,30 @@ public class Missile : MonoBehaviour
         }
         */
 
-        // Destroy the missile immediately upon impact
-        Debug.Log(collision.gameObject.name);
+        // Turn off the "Missile" parts instantly
+        if (myMesh != null) myMesh.enabled = false;
+        if (myCollider != null) myCollider.enabled = false;
+
+        // Stop movement but don't delete the rigidbody yet, just in case
+        rb.isKinematic = true;
+
+        // Start the cleanup process in the background
+        StartCoroutine(CleanupMissileAfterTrail());
+    }
+
+    private IEnumerator CleanupMissileAfterTrail()
+    {
+        if (trail != null)
+        {
+            // Stop generating *new* smoke, but let existing smoke fade
+            trail.emitting = false;
+
+            // Wait until the trail's total 'Time' has passed (e.g., if Time is 2.0s, we wait 2.0s)
+            // We add 0.1s extra buffer just to be clean.
+            yield return new WaitForSeconds(trail.time + 0.1f);
+        }
+
+        // Finally, destroy the actual GameObject now that the trail is gone
         Destroy(gameObject);
     }
 }
