@@ -6,11 +6,6 @@ public class NeuroEvoBrain : IEvolvableBrain
 {
     private float[][][] weights;
 
-    public NeuroEvoBrain()
-    {
-
-    }
-
     public NeuroEvoBrain(int[] shape)
     {
         InitializeWeights(shape);
