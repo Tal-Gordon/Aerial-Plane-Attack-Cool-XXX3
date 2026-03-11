@@ -8,6 +8,8 @@ public class PauseMenu : MonoBehaviour
 
     public GameObject pauseMenuUI;
 
+    private string mainMenuSceneName = "MainMenu";
+
     [Header("Input")]
     public InputAction pauseAction;
 
@@ -58,7 +60,7 @@ public class PauseMenu : MonoBehaviour
         IsGamePaused = false;
 
         Debug.Log("Loading menu...");
-        SceneManager.LoadScene("Main Menu");
+        SceneManager.LoadScene(mainMenuSceneName);
     }
 
     public void QuitGame()
