@@ -1,10 +1,15 @@
-using System;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Windows;
-public class NeuroEvoBrain
+using System.Collections.Generic;
+public class NeuroEvoBrain : IEvolvableBrain
 {
     private float[][][] weights;
+
+    public NeuroEvoBrain()
+    {
+
+    }
 
     public NeuroEvoBrain(int[] shape)
     {
@@ -36,7 +41,7 @@ public class NeuroEvoBrain
         }
     }
 
-    public NeuroEvoBrain Copy()
+    public IEvolvableBrain Copy()
     {
         float[][][] weightsCopy = new float[weights.Length][][];
 
@@ -62,6 +67,7 @@ public class NeuroEvoBrain
         return weights;
     }
 
+    // TODO potentially add clamp to regularize the weights
     public void Mutate(float rate)
     {
         for (int i = 0; i < weights.Length; i++)
@@ -135,5 +141,40 @@ public class NeuroEvoBrain
         }
 
         return outputs;
+    }
+
+    public float[] ExtractWeights()
+    {
+        List<float> flatWeights = new();
+
+        for (int i = 0; i < weights.Length; i++)
+        {
+            for (int j = 0; j < weights[i].Length; j++)
+            {
+                for (int k = 0; k < weights[i][j].Length; k++)
+                {
+                    flatWeights.Add(weights[i][j][k]);
+                }
+            }
+        }
+
+        return flatWeights.ToArray();
+    }
+
+    public void InjectWeights(float[] savedWeights)
+    {
+        int index = 0;
+
+        for (int i = 0; i < weights.Length; i++)
+        {
+            for (int j = 0; j < weights[i].Length; j++)
+            {
+                for (int k = 0; k < weights[i][j].Length; k++)
+                {
+                    weights[i][j][k] = savedWeights[index];
+                    index++;
+                }
+            }
+        }
     }
 }
