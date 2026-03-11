@@ -158,6 +158,7 @@ GameObject:
   - component: {fileID: 8855146171020656657}
   - component: {fileID: 750141280383753152}
   - component: {fileID: 51786765447122003}
+  - component: {fileID: -6804175627640702855}
   m_Layer: 0
   m_Name: Bullet
   m_TagString: Untagged
@@ -342,3 +343,15 @@ TrailRenderer:
   m_Autodestruct: 0
   m_Emitting: 1
   m_ApplyActiveColorSpace: 1
+--- !u!114 &-6804175627640702855
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6974318200105834428}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a417d87f2a84f3429a5b9fe85b1c05f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TrailHelper
