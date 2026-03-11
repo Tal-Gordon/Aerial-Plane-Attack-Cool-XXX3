@@ -394,10 +394,13 @@ PrefabInstance:
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 835737604007996434, guid: 33d2fc1d0c07999469310c08d25cdf22, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1182997152}
+      addedObject: {fileID: 1182997151}
     - targetCorrespondingSourceObject: {fileID: 835737604007996434, guid: 33d2fc1d0c07999469310c08d25cdf22, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1182997151}
+      addedObject: {fileID: 1182997154}
+    - targetCorrespondingSourceObject: {fileID: 835737604007996434, guid: 33d2fc1d0c07999469310c08d25cdf22, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1182997153}
   m_SourcePrefab: {fileID: 100100000, guid: 33d2fc1d0c07999469310c08d25cdf22, type: 3}
 --- !u!1 &391225061
 GameObject:
@@ -603,8 +606,6 @@ MonoBehaviour:
       Input:
         InputAction: {fileID: -5630151704836100654, guid: 1d6e640e716dc4ff6989b73d02023f2b, type: 3}
         Gain: 1
-        LegacyInput: 
-        LegacyGain: 1
         CancelDeltaTime: 0
       InputValue: 0
       Driver:
@@ -616,8 +617,6 @@ MonoBehaviour:
       Input:
         InputAction: {fileID: -5630151704836100654, guid: 1d6e640e716dc4ff6989b73d02023f2b, type: 3}
         Gain: -1
-        LegacyInput: 
-        LegacyGain: 1
         CancelDeltaTime: 0
       InputValue: 0
       Driver:
@@ -629,8 +628,6 @@ MonoBehaviour:
       Input:
         InputAction: {fileID: 5082991133974614888, guid: 1d6e640e716dc4ff6989b73d02023f2b, type: 3}
         Gain: -1
-        LegacyInput: 
-        LegacyGain: 1
         CancelDeltaTime: 0
       InputValue: 0
       Driver:
@@ -1112,7 +1109,7 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
---- !u!114 &1182997152
+--- !u!114 &1182997153
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1121,25 +1118,37 @@ MonoBehaviour:
   m_GameObject: {fileID: 1182997149}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 533a9fbd12b20994eb52d5c9b81c54b7, type: 3}
+  m_Script: {fileID: 11500000, guid: 8c395c543e3f6524cb9e3fbdcf26a2a7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
-  forwardThrust: 1000
+  thrustPower: 1000
   pitchTorque: 1000
   rollTorque: 500
   yawTorque: 750
   liftPower: 1
   lateralDrag: 1
+--- !u!114 &1182997154
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1182997149}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5b62ea31cd834cc4180546f71fd3c020, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: '::'
   flightControls:
     m_Name: Flight Controls
     m_Type: 0
     m_ExpectedControlType: 
-    m_Id: aecc5043-6caf-4ed6-9c90-99e35b3f0743
+    m_Id: 506df43f-cc0f-48bb-96f0-0af11dedee67
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings:
     - m_Name: 2D Vector
-      m_Id: 22f8ea3b-703d-4280-88b8-471111ef4bb2
+      m_Id: 0aa2a577-fd5d-4952-8e64-14501a791893
       m_Path: 2DVector
       m_Interactions: 
       m_Processors: 
@@ -1147,7 +1156,7 @@ MonoBehaviour:
       m_Action: Flight Controls
       m_Flags: 4
     - m_Name: up
-      m_Id: dfc42e79-4c01-4c5c-90b4-53331d9fdef2
+      m_Id: 12185099-db8b-4d2e-95ec-153bb455e5b7
       m_Path: <Keyboard>/w
       m_Interactions: 
       m_Processors: 
@@ -1155,7 +1164,7 @@ MonoBehaviour:
       m_Action: Flight Controls
       m_Flags: 8
     - m_Name: down
-      m_Id: ae458a06-693a-49a3-a4bd-10a7bf0eb9de
+      m_Id: c8052505-a389-465e-8d33-795175285c55
       m_Path: <Keyboard>/s
       m_Interactions: 
       m_Processors: 
@@ -1163,7 +1172,7 @@ MonoBehaviour:
       m_Action: Flight Controls
       m_Flags: 8
     - m_Name: left
-      m_Id: 6e040827-c207-422c-af50-315cc22195fa
+      m_Id: 95f3f886-87cd-4e67-9ef1-304a6bdb702b
       m_Path: <Keyboard>/a
       m_Interactions: 
       m_Processors: 
@@ -1171,7 +1180,7 @@ MonoBehaviour:
       m_Action: Flight Controls
       m_Flags: 8
     - m_Name: right
-      m_Id: 0ec3780b-5433-4f98-8f91-0eb05b1c3fe0
+      m_Id: b2fb3449-fe2b-4119-9950-8f3b8972cc3e
       m_Path: <Keyboard>/d
       m_Interactions: 
       m_Processors: 
@@ -1182,13 +1191,13 @@ MonoBehaviour:
   rudderControls:
     m_Name: Rudder Controls
     m_Type: 0
-    m_ExpectedControlType: Axis
-    m_Id: ddd65ab3-e8df-47a6-9b49-c69e12c81a29
+    m_ExpectedControlType: 
+    m_Id: e14a3b08-f0a4-402e-b933-c93ef18dbd16
     m_Processors: 
     m_Interactions: 
     m_SingletonActionBindings:
     - m_Name: 1D Axis
-      m_Id: e7acadcd-0e88-44fb-87bd-a0f271323492
+      m_Id: b72640df-9079-4492-a2f8-14ef5cb4e8b2
       m_Path: 1DAxis
       m_Interactions: 
       m_Processors: 
@@ -1196,7 +1205,7 @@ MonoBehaviour:
       m_Action: Rudder Controls
       m_Flags: 4
     - m_Name: negative
-      m_Id: c637595a-156b-43a6-a87b-68649627a9d9
+      m_Id: 4d9a7810-d7ac-45bb-80a8-bf68aad0dee3
       m_Path: <Keyboard>/q
       m_Interactions: 
       m_Processors: 
@@ -1204,7 +1213,7 @@ MonoBehaviour:
       m_Action: Rudder Controls
       m_Flags: 8
     - m_Name: positive
-      m_Id: 60b7178f-e02d-48f2-9430-65829e25ca92
+      m_Id: 5320affd-ba9b-422c-8a30-bd8128cf6bc9
       m_Path: <Keyboard>/e
       m_Interactions: 
       m_Processors: 
