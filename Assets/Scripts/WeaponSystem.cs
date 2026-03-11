@@ -11,7 +11,7 @@ public class WeaponSystem : MonoBehaviour
 
     [Header("Machine Gun Settings")]
     public Transform gunMuzzle; // Where the bullets come from
-    public float machineGunRange = 1000f;
+    public GameObject bulletPrefab;
     public float fireRate = 0.1f; // Seconds between bullets
     private float nextFireTime;
 
@@ -54,14 +54,18 @@ public class WeaponSystem : MonoBehaviour
         if (Time.time < nextFireTime) return;
         nextFireTime = Time.time + fireRate;
 
+        if (bulletPrefab == null) return;
+
         // Visuals/Audio would go here (e.g., muzzle flash particle system, bang sound effect)
 
-        // Perform the Raycast (Hitscan)
-        RaycastHit hit;
-        if (Physics.Raycast(gunMuzzle.position, gunMuzzle.forward, out hit, machineGunRange))
+        // Spawn the bullet
+        GameObject spawnedBullet = Instantiate(bulletPrefab, gunMuzzle.position, gunMuzzle.rotation);
+
+        // Add the plane's current velocity so the bullet starts at the plane's speed
+        Rigidbody bulletRb = spawnedBullet.GetComponent<Rigidbody>();
+        if (bulletRb != null && planeRb != null)
         {
-            Debug.Log("Machine Gun hit: " + hit.collider.name);
-            // Example: hit.collider.GetComponent<Health>()?.TakeDamage(10);
+            bulletRb.linearVelocity = planeRb.linearVelocity;
         }
     }
 
