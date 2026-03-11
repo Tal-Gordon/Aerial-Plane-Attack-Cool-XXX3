@@ -59,6 +59,7 @@ public class Missile : MonoBehaviour
         */
 
         // Destroy the missile immediately upon impact
+        Debug.Log(collision.gameObject.name);
         Destroy(gameObject);
     }
 }
