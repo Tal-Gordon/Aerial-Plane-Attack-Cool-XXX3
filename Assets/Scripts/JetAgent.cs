@@ -15,12 +15,15 @@ public class JetAgent : MonoBehaviour
         set { currentSensor = value; }
     }
 
+
     public bool hasCrashed;
 
     private IBrain currentBrain;
     private ISensor currentSensor;
     private JetPhysics physics;
     private WeaponSystem weapons;
+    public float timeAlive = 0f;
+    public Vector3 startingPosition;
 
     // Used to prevent the AI from rapidly toggling weapons every physics frame
     // Technically, this avoids weapon cooldown
@@ -30,11 +33,15 @@ public class JetAgent : MonoBehaviour
     {
         physics = GetComponent<JetPhysics>();
         TryGetComponent(out weapons);
+
+        startingPosition = transform.position;
     }
 
     public void FixedUpdate()
     {
         if (hasCrashed) return;
+
+        timeAlive += Time.fixedDeltaTime;
 
         if (currentBrain != null && currentSensor != null && physics != null)
         {
