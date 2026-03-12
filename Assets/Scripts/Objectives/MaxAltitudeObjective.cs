@@ -1,6 +1,7 @@
 using UnityEngine;
 
-public class MaxAltitudeObjective
+[System.Serializable]
+public class MaxAltitudeObjective : IObjective
 {
     [SerializeField]
     private float maxTimeAllowed = 10f;
@@ -10,9 +11,10 @@ public class MaxAltitudeObjective
         return agent.transform.position.y - agent.startingPosition.y;
     }
 
+    // TODO implement GetStepReward using the jet's rigid body
     public float GetStepReward(JetAgent agent)
     {
-        return -1f;
+        return 0f;
     }
 
     public bool CheckTerminalState(JetAgent agent)
@@ -23,6 +25,7 @@ public class MaxAltitudeObjective
         if (agent.timeAlive > maxTimeAllowed)
             return true;
 
+        // Stop the jet if it gets far below the starting point
         if (agent.transform.position.y < agent.startingPosition.y - 5f)
             return true;
 
