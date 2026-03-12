@@ -14,8 +14,6 @@ public class GeneticManager : MonoBehaviour
 
     private List<JetAgent> population;
 
-
-
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
@@ -27,4 +25,6 @@ public class GeneticManager : MonoBehaviour
     {
         
     }
+
+    public SpawnPopulation()
 }
