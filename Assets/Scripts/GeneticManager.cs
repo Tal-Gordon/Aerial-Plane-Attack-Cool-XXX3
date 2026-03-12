@@ -8,7 +8,7 @@ public class GeneticManager : MonoBehaviour
 
     public int aliveCount;
 
-    // private SimulationSettings currentSettings;
+    private SimulationSettings currentSettings;
 
     private IObjective currentObjective;
 
@@ -17,7 +17,8 @@ public class GeneticManager : MonoBehaviour
     // Start is called once before the first execution of Update after the MonoBehaviour is created
     void Start()
     {
-        
+        //currentGeneration = 1;
+        //currentSettings = DataManager.LoadSettings();
     }
 
     // Update is called once per frame
@@ -25,6 +26,4 @@ public class GeneticManager : MonoBehaviour
     {
         
     }
-
-    public SpawnPopulation()
 }
