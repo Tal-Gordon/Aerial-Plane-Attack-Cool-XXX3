@@ -7,4 +7,6 @@ public interface IObjective
     public float GetStepReward(JetAgent agent);
 
     public bool CheckTerminalState(JetAgent agent);
+
+    public void SetStartingState(JetAgent agent, int index, int totalPopulation, Vector3 centerPoint);
 }

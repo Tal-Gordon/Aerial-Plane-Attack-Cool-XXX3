@@ -5,10 +5,10 @@ public class BasicFlightSensors : MonoBehaviour, ISensor
     private Rigidbody rb;
 
     // Normalization maximums
-    private float maxSpeed = 200f;
-    private float maxPitchRate = 5f;
-    private float maxYawRate = 2f;
-    private float maxRollRate = 10f;
+    private float maxSpeed = 1000f;
+    private float maxPitchRate = 3f;
+    private float maxYawRate = 1f;
+    private float maxRollRate = 8f;
 
     void Awake()
     {

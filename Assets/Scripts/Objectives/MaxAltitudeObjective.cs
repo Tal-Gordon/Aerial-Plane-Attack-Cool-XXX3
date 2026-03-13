@@ -1,10 +1,12 @@
 using UnityEngine;
+using UnityEngine.UIElements;
 
 [System.Serializable]
 public class MaxAltitudeObjective : IObjective
 {
     [SerializeField]
     private float maxTimeAllowed = 10f;
+    private int spawnRadius = 0;
 
     public float CalculateTotalFitness(JetAgent agent)
     {
@@ -26,9 +28,32 @@ public class MaxAltitudeObjective : IObjective
             return true;
 
         // Stop the jet if it gets far below the starting point
-        if (agent.transform.position.y < agent.startingPosition.y - 5f)
+        if (agent.transform.position.y < agent.startingPosition.y - 50f)
             return true;
 
         return false;
+    }
+
+    public void SetStartingState(JetAgent agent, int index, int totalPopulation, Vector3 centerPoint)
+    {
+        // Extract and calculate position of the jet
+        Vector2 randomDisk = UnityEngine.Random.insideUnitCircle * spawnRadius;
+        Vector3 spawnPosition = centerPoint + new Vector3(randomDisk.x, 200f, randomDisk.y);
+
+        // Move the jet to that position
+        agent.transform.position = spawnPosition;
+
+        // Face north
+        agent.transform.rotation = Quaternion.identity;
+
+        // Give it 150 speed so it doesn't stall, and clear any spin
+        Rigidbody rb = agent.GetComponent<Rigidbody>();
+        rb.linearVelocity = agent.transform.forward * 0;
+        rb.angularVelocity = Vector3.zero;
+
+        // Update the Jet's memory so CalculateTotalFitness works
+        agent.startingPosition = agent.transform.position;
+
+        Debug.Log("I was here");
     }
 }
