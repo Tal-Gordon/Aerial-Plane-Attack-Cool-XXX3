@@ -7,9 +7,9 @@ public class JetPhysics : MonoBehaviour
 
     [Header("Physics Forces")]
     public float thrustPower = 1000f; // Renamed from forwardThrust to match UML
-    public float pitchTorque = 1000f;
-    public float rollTorque = 500f;
-    public float yawTorque = 750f;
+    public float pitchTorque = 3f;
+    public float rollTorque = 8f;
+    public float yawTorque = 1f;
 
     [Header("Aerodynamics")]
     public float liftPower = 1f;

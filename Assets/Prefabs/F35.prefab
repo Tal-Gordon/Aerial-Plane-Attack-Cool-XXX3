@@ -101,6 +101,8 @@ GameObject:
   - component: {fileID: 7695393515152731759}
   - component: {fileID: 4376219240529951198}
   - component: {fileID: 4450701645668443857}
+  - component: {fileID: 1472819202763001518}
+  - component: {fileID: 3641281719087979610}
   m_Layer: 0
   m_Name: F35
   m_TagString: Untagged
@@ -160,7 +162,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 835737604007996434}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5b62ea31cd834cc4180546f71fd3c020, type: 3}
   m_Name: 
@@ -294,9 +296,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: '::'
   thrustPower: 1000
-  pitchTorque: 1000
-  rollTorque: 500
-  yawTorque: 750
+  pitchTorque: 3
+  rollTorque: 8
+  yawTorque: 1
   liftPower: 1
   lateralDrag: 1
 --- !u!114 &4450701645668443857
@@ -313,13 +315,41 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::WeaponSystem
   currentWeapon: 0
   gunMuzzle: {fileID: 1029387239299196186}
-  machineGunRange: 1000
+  bulletPrefab: {fileID: 0}
   fireRate: 0.1
   missilePrefab: {fileID: 678009933457937356, guid: 0f33e55528980194494754cd2da131b6, type: 3}
   missileHardpoints:
   - {fileID: 9176838902411234597}
   - {fileID: 8467582480057991895}
   missileCooldown: 1.5
+--- !u!114 &1472819202763001518
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 835737604007996434}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 96b7039e567549746bd1ce50afaff1c0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::JetAgent
+  hasCrashed: 0
+  timeAlive: 0
+  startingPosition: {x: 0, y: 0, z: 0}
+  currentFitness: 0
+--- !u!114 &3641281719087979610
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 835737604007996434}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ef0255d5f5eb61d4ab9e3cdde636bda6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BasicFlightSensors
 --- !u!1 &1926233024234982582
 GameObject:
   m_ObjectHideFlags: 0
@@ -388,7 +418,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &944116083120448783
 Transform:
   m_ObjectHideFlags: 0
