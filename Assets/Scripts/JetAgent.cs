@@ -24,6 +24,7 @@ public class JetAgent : MonoBehaviour
     private WeaponSystem weapons;
     public float timeAlive = 0f;
     public Vector3 startingPosition;
+    public float currentFitness;
 
     // Used to prevent the AI from rapidly toggling weapons every physics frame
     // Technically, this avoids weapon cooldown
@@ -33,6 +34,8 @@ public class JetAgent : MonoBehaviour
     {
         physics = GetComponent<JetPhysics>();
         TryGetComponent(out weapons);
+
+        currentSensor = GetComponent<ISensor>();
 
         startingPosition = transform.position;
     }
@@ -91,5 +94,12 @@ public class JetAgent : MonoBehaviour
                 Debug.LogError("Brain did not return enough control outputs for flight.");
             }
         }
+    }
+
+    public void ResetAgent()
+    {
+        hasCrashed = false;
+        timeAlive = 0f;
+        currentFitness = 0f;
     }
 }

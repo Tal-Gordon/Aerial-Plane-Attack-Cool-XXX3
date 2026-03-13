@@ -43,8 +43,8 @@ public static class DataManager
             {
                 PopulationSize = 20,
                 MutationRate = 0.05f,
-                NetworkShape = new[] { 6, 8, 4 },   // inputs, hidden, outputs
-                AIType = AIType.Neuroevolution,
+                NetworkShape = new[] { 12, 8, 4 },   // inputs, hidden, outputs
+                AIType = AIType.FixedNeuroEvo,
                 SpawnRadius = 50f,
                 SpawnFormation = SpawnFormation.Random,
             },
@@ -53,7 +53,7 @@ public static class DataManager
                 PopulationSize = 10,
                 MutationRate = 0.08f,
                 NetworkShape = new[] { 12, 16, 4 },
-                AIType = AIType.Neuroevolution,
+                AIType = AIType.FixedNeuroEvo,
                 SpawnRadius = 200f,
                 SpawnFormation = SpawnFormation.Opposing,
             },
@@ -192,9 +192,13 @@ public static class DataManager
 
 public enum AIType
 {
-    Neuroevolution,
-    ReinforcementLearning,
-    // Extend as needed
+    // Evolvable Brains
+    FixedNeuroEvo,
+    NEAT,
+
+    // RL Brains
+    PPO_MLAgents,
+    SAC_MLAgents
 }
 
 public enum SpawnFormation
@@ -211,7 +215,7 @@ public class SimulationSettings
     public int PopulationSize = 10;
     public float MutationRate = 0.05f;
     public int[] NetworkShape = { 6, 8, 4 };
-    public AIType AIType = AIType.Neuroevolution;
+    public AIType AIType = AIType.FixedNeuroEvo;
     public float SpawnRadius = 100f;
     public SpawnFormation SpawnFormation = SpawnFormation.Random;
 
