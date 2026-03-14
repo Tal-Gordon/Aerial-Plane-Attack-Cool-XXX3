@@ -7,10 +7,13 @@ public class MaxAltitudeObjective : IObjective
     [SerializeField]
     private float maxTimeAllowed = 10f;
     private int spawnRadius = 0;
+    private float lambda = 0.2f;
 
     public float CalculateTotalFitness(JetAgent agent)
     {
-        return agent.transform.position.y - agent.startingPosition.y;
+        float heightScore = agent.transform.position.y - agent.startingPosition.y;
+        float l2Panelty = lambda * agent.totalControlEffort;
+        return heightScore - l2Panelty;
     }
 
     // TODO implement GetStepReward using the jet's rigid body
@@ -53,7 +56,5 @@ public class MaxAltitudeObjective : IObjective
 
         // Update the Jet's memory so CalculateTotalFitness works
         agent.startingPosition = agent.transform.position;
-
-        Debug.Log("I was here");
     }
 }

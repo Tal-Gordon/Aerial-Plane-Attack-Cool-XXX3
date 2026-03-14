@@ -42,8 +42,8 @@ public static class DataManager
             [GameMode.FlightSchool] = new SimulationSettings
             {
                 PopulationSize = 20,
-                MutationRate = 0.05f,
-                NetworkShape = new[] { 12, 8, 4 },   // inputs, hidden, outputs
+                MutationRate = 0.5f,
+                NetworkShape = new[] { 12, 24, 12, 4 },   // inputs, hidden, outputs
                 AIType = AIType.FixedNeuroEvo,
                 SpawnRadius = 50f,
                 SpawnFormation = SpawnFormation.Random,
@@ -213,7 +213,7 @@ public enum SpawnFormation
 public class SimulationSettings
 {
     public int PopulationSize = 10;
-    public float MutationRate = 0.05f;
+    public float MutationRate = 0.1f;
     public int[] NetworkShape = { 6, 8, 4 };
     public AIType AIType = AIType.FixedNeuroEvo;
     public float SpawnRadius = 100f;

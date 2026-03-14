@@ -25,6 +25,7 @@ public class JetAgent : MonoBehaviour
     public float timeAlive = 0f;
     public Vector3 startingPosition;
     public float currentFitness;
+    public float totalControlEffort = 0f;
 
     // Used to prevent the AI from rapidly toggling weapons every physics frame
     // Technically, this avoids weapon cooldown
@@ -62,7 +63,9 @@ public class JetAgent : MonoBehaviour
                 float pitch = actions[0];
                 float roll = actions[1];
                 float yaw = actions[2];
-                float throttle = actions[3];
+                float throttle = Mathf.Max(0, actions[3]);
+
+                totalControlEffort += (pitch * pitch) + (roll * roll) + (yaw * yaw);
 
                 physics.ApplyControlInputs(pitch, roll, yaw, throttle);
 
@@ -101,5 +104,6 @@ public class JetAgent : MonoBehaviour
         hasCrashed = false;
         timeAlive = 0f;
         currentFitness = 0f;
+        totalControlEffort = 0f;
     }
 }

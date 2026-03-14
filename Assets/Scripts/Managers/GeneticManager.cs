@@ -18,6 +18,9 @@ public class GeneticManager : MonoBehaviour
 
     void Start()
     {
+        // TEMPORARY FIX: Force the DataManager to wipe the old file and save the new defaults!
+        currentSettings = DataManager.ResetToDefaults(activeMode);
+
         population = new List<JetAgent>();
 
         // LoadSettings for this specific mode
@@ -100,7 +103,7 @@ public class GeneticManager : MonoBehaviour
 
     public void SpawnPopulation()
     {
-        // SAFETY FIX: Loop strictly through the list count, not the settings!
+        // Loop strictly through the list count, not the settings!
         for (int i = 0; i < population.Count; i++)
         {
             JetAgent jet = population[i];
@@ -120,16 +123,16 @@ public class GeneticManager : MonoBehaviour
 
     public void EvolvePopulation()
     {
-        // SAFETY FIX: Don't evolve if the list is completely empty
+        // Don't evolve if the list is completely empty
         if (population.Count == 0) return;
 
         // Sort population based on fitness
         population.Sort((a, b) => b.currentFitness.CompareTo(a.currentFitness));
 
-        // SAFETY FIX: Mathf.Max prevents a Divide By Zero crash if you test with under 5 jets!
+        // Mathf.Max prevents a Divide By Zero crash if you test with under 5 jets!
         int numParents = Mathf.Max(1, population.Count / 5);
 
-        // SAFETY FIX: Loop strictly through the list count!
+        // Loop strictly through the list count!
         for (int i = numParents; i < population.Count; i++)
         {
             int parentIndex = i % numParents;
@@ -142,6 +145,7 @@ public class GeneticManager : MonoBehaviour
                 float[] winningWeights = parentBrain.ExtractWeights();
                 loserBrain.InjectWeights(winningWeights);
                 loserBrain.Mutate(currentSettings.MutationRate);
+                Debug.Log(currentSettings.MutationRate);
             }
         }
 
