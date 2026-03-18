@@ -31,8 +31,8 @@ public class MaxAltitudeObjective : IObjective
             return true;
 
         // Stop the jet if it gets far below the starting point
-        if (agent.transform.position.y < agent.StartingPosition.y - 50f)
-            return true;
+        //if (agent.transform.position.y < agent.StartingPosition.y - 50f)
+        //    return true;
 
         return false;
     }
@@ -51,7 +51,7 @@ public class MaxAltitudeObjective : IObjective
 
         // Give it 150 speed so it doesn't stall, and clear any spin
         Rigidbody rb = agent.GetComponent<Rigidbody>();
-        rb.linearVelocity = agent.transform.forward * 0;
+        rb.linearVelocity = agent.transform.forward * 150;
         rb.angularVelocity = Vector3.zero;
 
         // Update the Jet's memory so CalculateTotalFitness works
