@@ -11,8 +11,8 @@ public class MaxAltitudeObjective : IObjective
 
     public float CalculateTotalFitness(JetAgent agent)
     {
-        float heightScore = agent.transform.position.y - agent.startingPosition.y;
-        float l2Panelty = lambda * agent.totalControlEffort;
+        float heightScore = agent.transform.position.y - agent.StartingPosition.y;
+        float l2Panelty = lambda * agent.TotalControlEffort;
         return heightScore - l2Panelty;
     }
 
@@ -24,14 +24,14 @@ public class MaxAltitudeObjective : IObjective
 
     public bool CheckTerminalState(JetAgent agent)
     {
-        if (agent.hasCrashed)
+        if (agent.HasCrashed)
             return true;
 
-        if (agent.timeAlive > maxTimeAllowed)
+        if (agent.TimeAlive > maxTimeAllowed)
             return true;
 
         // Stop the jet if it gets far below the starting point
-        if (agent.transform.position.y < agent.startingPosition.y - 50f)
+        if (agent.transform.position.y < agent.StartingPosition.y - 50f)
             return true;
 
         return false;
@@ -55,6 +55,6 @@ public class MaxAltitudeObjective : IObjective
         rb.angularVelocity = Vector3.zero;
 
         // Update the Jet's memory so CalculateTotalFitness works
-        agent.startingPosition = agent.transform.position;
+        agent.StartingPosition = agent.transform.position;
     }
 }
