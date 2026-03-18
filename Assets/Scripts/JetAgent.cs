@@ -63,7 +63,7 @@ public class JetAgent : MonoBehaviour
                 float pitch = actions[0];
                 float roll = actions[1];
                 float yaw = actions[2];
-                float throttle = Mathf.Max(0, actions[3]);
+                float throttle = Mathf.Max(0, actions[3]); // TODO do it the right way
 
                 totalControlEffort += (pitch * pitch) + (roll * roll) + (yaw * yaw);
 
