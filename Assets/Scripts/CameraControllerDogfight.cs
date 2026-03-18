@@ -2,7 +2,7 @@ using System.Collections;
 using UnityEngine;
 
 [RequireComponent(typeof(Camera))]
-public class CameraControllerDogfights : MonoBehaviour
+public class CameraControllerDogfight : MonoBehaviour
 {
     [Header("Smart Zoom Settings")]
     [SerializeField] private float transitionDuration = 0.375f;
@@ -29,15 +29,15 @@ public class CameraControllerDogfights : MonoBehaviour
     // Subscribe to events
     private void OnEnable()
     {
-        SelectionManager.OnCubeSelected += FocusOnTarget;
-        SelectionManager.OnCubeDeselected += ResetView;
+        SelectionInputManager.OnCubeSelected += FocusOnTarget;
+        SelectionInputManager.OnCubeDeselected += ResetView;
     }
 
     // Unsubscribe to prevent memory leaks
     private void OnDisable()
     {
-        SelectionManager.OnCubeSelected -= FocusOnTarget;
-        SelectionManager.OnCubeDeselected -= ResetView;
+        SelectionInputManager.OnCubeSelected -= FocusOnTarget;
+        SelectionInputManager.OnCubeDeselected -= ResetView;
     }
 
     private void FocusOnTarget(Transform target)

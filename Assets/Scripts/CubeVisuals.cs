@@ -21,14 +21,14 @@ public class CubeVisuals : MonoBehaviour
 
     private void OnEnable()
     {
-        SelectionManager.OnCubeSelected += HandleSelection;
-        SelectionManager.OnCubeDeselected += HandleDeselection;
+        SelectionInputManager.OnCubeSelected += HandleSelection;
+        SelectionInputManager.OnCubeDeselected += HandleDeselection;
     }
 
     private void OnDisable()
     {
-        SelectionManager.OnCubeSelected -= HandleSelection;
-        SelectionManager.OnCubeDeselected -= HandleDeselection;
+        SelectionInputManager.OnCubeSelected -= HandleSelection;
+        SelectionInputManager.OnCubeDeselected -= HandleDeselection;
     }
 
     private void HandleSelection(Transform selectedCube)
