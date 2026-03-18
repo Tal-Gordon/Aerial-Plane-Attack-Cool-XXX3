@@ -1,31 +1,26 @@
 using UnityEngine;
+using static UnityEngine.Rendering.DebugUI;
 
 [RequireComponent(typeof(JetPhysics))]
 public class JetAgent : MonoBehaviour
 {
-    public IBrain Brain
-    {
-        get {  return currentBrain; }
-        set { currentBrain = value;  }
-    }
+    public IBrain Brain { get => currentBrain; set => currentBrain = value; }
+    public ISensor Sensor { get => currentSensor; set => currentSensor = value; }
+    public bool HasCrashed { get => hasCrashed; set => hasCrashed = value; }
+    public float TimeAlive { get => timeAlive; set => timeAlive = value; }
+    public Vector3 StartingPosition { get => startingPosition; set => startingPosition = value; }
+    public float CurrentFitness { get => currentFitness; set => currentFitness = value; }
+    public float TotalControlEffort { get => totalControlEffort; set => totalControlEffort = value; }
 
-    public ISensor Sensor
-    {
-        get { return currentSensor; }
-        set { currentSensor = value; }
-    }
-
-
-    public bool hasCrashed;
-
+    private bool hasCrashed;
     private IBrain currentBrain;
     private ISensor currentSensor;
     private JetPhysics physics;
     private WeaponSystem weapons;
-    public float timeAlive = 0f;
-    public Vector3 startingPosition;
-    public float currentFitness;
-    public float totalControlEffort = 0f;
+    private float timeAlive = 0f;
+    private Vector3 startingPosition;
+    private float currentFitness;
+    private float totalControlEffort = 0f;
 
     // Used to prevent the AI from rapidly toggling weapons every physics frame
     // Technically, this avoids weapon cooldown
@@ -63,7 +58,7 @@ public class JetAgent : MonoBehaviour
                 float pitch = actions[0];
                 float roll = actions[1];
                 float yaw = actions[2];
-                float throttle = Mathf.Max(0, actions[3]); // TODO do it the right way
+                float throttle = (actions[3] + 1) / 2; // TODO do it the right way
 
                 totalControlEffort += (pitch * pitch) + (roll * roll) + (yaw * yaw);
 
