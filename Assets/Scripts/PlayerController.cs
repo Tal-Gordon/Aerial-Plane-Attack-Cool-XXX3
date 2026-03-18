@@ -4,30 +4,35 @@ using UnityEngine.InputSystem;
 [RequireComponent(typeof(JetPhysics))]
 public class PlayerController : MonoBehaviour
 {
-    private JetPhysics physics;
+    private JetPhysics _physics;
+    private WeaponSystem _weapons; // Optional
 
-    [Header("Controls")]
-    public InputAction flightControls;
-    public InputAction rudderControls;
+    [Header("Throttle Control")]
+    [Range(0f, 1f)]
+    [Tooltip("1 = Full Afterburner, 0 = Engine Idle")]
+    public float thrustInput = 1f;
+
+    [Header("Flight Controls")]
+    public InputAction flightControls; // Vector2 (W/S Pitch, A/D Roll)
+    public InputAction rudderControls; // Float (Q/E Yaw)
 
     [Header("Weapon Controls")]
     public InputAction fireAction;
     public InputAction switchWeaponAction;
 
-    private Vector2 flightInput;
-    private float yawInput;
-
-    // Reference to the weapon system (can be null)
-    private WeaponSystem weapons;
+    // Internal state
+    private Vector2 _flightInput;
+    private float _yawInput;
 
     private void Awake()
     {
-        physics = GetComponent<JetPhysics>();
-        TryGetComponent(out weapons);
+        _physics = GetComponent<JetPhysics>();
+        TryGetComponent(out _weapons); // Will be null if no weapons are attached, which is fine
     }
 
     private void OnEnable()
     {
+        // Directly enable the actions
         flightControls.Enable();
         rudderControls.Enable();
         fireAction.Enable();
@@ -44,31 +49,29 @@ public class PlayerController : MonoBehaviour
 
     public void Update()
     {
-        // Read Inputs (Happens every visual frame)
-        flightInput = flightControls.ReadValue<Vector2>();
-        yawInput = rudderControls.ReadValue<float>();
+        // 1. Read Inputs (Happens every visual frame)
+        _flightInput = flightControls.ReadValue<Vector2>();
+        _yawInput = rudderControls.ReadValue<float>();
 
-        if (weapons != null)
+        // 2. Handle Weapons
+        if (_weapons != null)
         {
-            // Switch weapon on single button press
             if (switchWeaponAction.WasPressedThisFrame())
             {
-                weapons.SwitchWeapon();
+                _weapons.SwitchWeapon();
             }
 
-            // Fire weapons (continuous press for machine guns, single fire for missiles handled in WeaponSystem)
             if (fireAction.IsPressed())
             {
-                weapons.Fire();
+                _weapons.Fire();
             }
         }
     }
 
     public void FixedUpdate()
     {
-        // Pass the inputs to the physics script. 
-        // Our original script inverted the roll (-flightInput.x) and didn't use 
-        // a throttle input, so we pass '1f' to simulate constant max throttle.
-        physics.ApplyControlInputs(flightInput.y, -flightInput.x, yawInput, 1f);
+        // 3. Pass inputs to the physics engine
+        // X and Y are passed cleanly. Let JetPhysics handle any necessary inversions.
+        _physics.ApplyControlInputs(_flightInput.y, _flightInput.x, _yawInput, thrustInput);
     }
 }

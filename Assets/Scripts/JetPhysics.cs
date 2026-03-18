@@ -3,69 +3,146 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody))]
 public class JetPhysics : MonoBehaviour
 {
-    private Rigidbody rb;
+    // --- DEPENDENCIES ---
+    private Rigidbody _rb;
 
-    [Header("Physics Forces")]
-    public float thrustPower = 1000f; // Renamed from forwardThrust to match UML
-    public float pitchTorque = 3f;
-    public float rollTorque = 8f;
-    public float yawTorque = 1f;
+    // --- CONFIGURATION ---
+    [Header("Atmosphere Settings")]
+    [Tooltip("Sea-level air density in kg/m^3.")]
+    public float seaLevelDensity = 1.225f;
+    [Tooltip("The altitude interval where atmospheric pressure decreases by a factor of e.")]
+    public float scaleHeight = 8500f;
 
-    [Header("Aerodynamics")]
-    public float liftPower = 1f;
-    public float lateralDrag = 1f;
+    [Header("F-35 Specifications")]
+    [Tooltip("Reference wing area in square meters (S).")]
+    public float wingArea = 42.7f;
+    [Tooltip("Maximum engine thrust in Newtons.")]
+    public float maxThrust = 191000f; 
+    [Tooltip("Torque multipliers for pitch (X), yaw (Y), and roll (Z).")]
+    public Vector3 controlPower = new(15f, 5f, 20f);
+    [Tooltip("Caps the dynamic pressure for steering, simulating Fly-By-Wire and hydraulic limits.")]
+    public float maxControlPressure = 7500f;
 
-    // Internal variables to hold control states
-    private float currentPitch;
-    private float currentRoll;
-    private float currentYaw;
-    private float currentThrottle;
+    [Header("Aerodynamic Profiles")]
+    public AnimationCurve liftCurve;
+    public AnimationCurve dragCurve;
 
+    // --- AGENT STATE ---
+    // Underscores denote private class-level state variables
+    private float _pitchInput;
+    private float _rollInput;
+    private float _yawInput;
+    private float _throttleInput;
+
+    // --- INITIALIZATION ---
     private void Awake()
     {
-        rb = GetComponent<Rigidbody>();
+        _rb = GetComponent<Rigidbody>();
 
-        rb.linearDamping = 2f;
-        rb.angularDamping = 2f;
+        // Disable Unity's fake air friction
+        _rb.linearDamping = 0f;
+        _rb.angularDamping = 0f;
+
+        // Force the center of mass to be exactly at the transform's origin
+        _rb.centerOfMass = Vector3.zero;
+
+        // OVERRIDE: Hardcode the rotational inertia of a fighter jet
+        // This stops Unity from relying on your colliders to calculate spin resistance
+        _rb.inertiaTensor = new Vector3(80000f, 100000f, 25000f);
+        _rb.inertiaTensorRotation = Quaternion.identity;
     }
 
-    // Stores inputs to be applied on the next physics step
+    // --- PUBLIC INTERFACE ---
+    /// <summary>
+    /// Injects the AI's intended control axes for the current physics frame.
+    /// Expected ranges: Pitch/Roll/Yaw [-1.0 to 1.0], Throttle [0.0 to 1.0].
+    /// </summary>
     public void ApplyControlInputs(float pitch, float roll, float yaw, float throttle)
     {
-        currentPitch = pitch;
-        currentRoll = roll;
-        currentYaw = yaw;
-        currentThrottle = throttle;
+        _pitchInput = pitch;
+        _rollInput = roll;
+        _yawInput = yaw;
+        _throttleInput = throttle;
     }
 
+    // --- PHYSICS PIPELINE ---
     private void FixedUpdate()
     {
-        // Apply Thrust
-        rb.AddRelativeForce(Vector3.forward * thrustPower * currentThrottle);
+        // 1. Core State
+        Vector3 worldVelocity = _rb.linearVelocity;
+        Vector3 localVelocity = transform.InverseTransformDirection(worldVelocity);
+        float sqrSpeed = localVelocity.sqrMagnitude;
 
-        // Calculate and Apply Steering Torques
-        float pitchForce = currentPitch * pitchTorque;
-        float rollForce = currentRoll * rollTorque;
-        float yawForce = currentYaw * yawTorque;
+        // 2. Propulsion (Applied regardless of airspeed)
+        ApplyThrust();
 
-        rb.AddRelativeTorque(pitchForce, yawForce, rollForce);
+        // 3. Aerodynamics (Requires a minimum airspeed to avoid division by zero or NaN errors)
+        if (sqrSpeed > 0.1f)
+        {
+            float dynamicPressure = CalculateDynamicPressure(sqrSpeed);
+            float angleOfAttack = CalculateAngleOfAttack(localVelocity);
 
-        // Apply aerodynamics
-        CalculateLiftAndDrag();
+            ApplyAerodynamicForces(worldVelocity, dynamicPressure, angleOfAttack);
+            ApplyControlSurfaces(dynamicPressure);
+        }
     }
 
-    private void CalculateLiftAndDrag()
+    // --- WORKER METHODS ---
+    private void ApplyThrust()
     {
-        // LIFT
-        float forwardSpeed = Vector3.Dot(rb.linearVelocity, transform.forward);
-        if (forwardSpeed > 0)
-        {
-            float lift = forwardSpeed * liftPower;
-            rb.AddRelativeForce(Vector3.up * lift);
-        }
+        float currentThrust = _throttleInput * maxThrust;
+        _rb.AddForce(transform.forward * currentThrust, ForceMode.Force);
+    }
 
-        // LATERAL DRAG (Weather Vane Effect)
-        float sidewaysSpeed = Vector3.Dot(rb.linearVelocity, transform.right);
-        rb.AddForce(lateralDrag * sidewaysSpeed * -transform.right);
+    private void ApplyAerodynamicForces(Vector3 worldVelocity, float dynamicPressure, float aoa)
+    {
+        // Resolve coefficients based on current angle of attack
+        float liftCoefficient = liftCurve.Evaluate(aoa);
+        float dragCoefficient = dragCurve.Evaluate(aoa);
+
+        // Calculate force magnitudes (Force = q * S * Coefficient)
+        float liftForce = dynamicPressure * wingArea * liftCoefficient;
+        float dragForce = dynamicPressure * wingArea * dragCoefficient;
+
+        // Resolve global directions
+        Vector3 dragDirection = -worldVelocity.normalized;
+        // Cross product ensures lift is always perfectly perpendicular to both wind and the physical wings
+        Vector3 liftDirection = Vector3.Cross(worldVelocity, transform.right).normalized;
+
+        _rb.AddForce(liftDirection * liftForce, ForceMode.Force);
+        _rb.AddForce(dragDirection * dragForce, ForceMode.Force);
+    }
+
+    private void ApplyControlSurfaces(float dynamicPressure)
+    {
+        // Fly-By-Wire limit: Stop V^2 from infinitely scaling our torque
+        float fbwPressure = Mathf.Min(dynamicPressure, maxControlPressure);
+
+        Vector3 torque = new Vector3(
+            _pitchInput * controlPower.x,
+            _yawInput * controlPower.y,
+            -_rollInput * controlPower.z
+        ) * fbwPressure;
+
+        _rb.AddRelativeTorque(torque, ForceMode.Force);
+    }
+
+    // --- MATH UTILITIES ---
+    private float CalculateDynamicPressure(float sqrSpeed)
+    {
+        // Prevent negative altitude logic if the jet dips below the terrain floor
+        float currentAltitude = Mathf.Max(0f, _rb.position.y);
+        
+        // Barometric formula for atmospheric density decay
+        float currentAirDensity = seaLevelDensity * Mathf.Exp(-currentAltitude / scaleHeight);
+
+        // q = 1/2 * rho * v^2
+        return 0.5f * currentAirDensity * sqrSpeed;
+    }
+
+    private float CalculateAngleOfAttack(Vector3 localVelocity)
+    {
+        // We negate the Y velocity so that an upward-pitched nose results in a positive Angle of Attack.
+        return Mathf.Atan2(-localVelocity.y, localVelocity.z) * Mathf.Rad2Deg;
     }
 }
