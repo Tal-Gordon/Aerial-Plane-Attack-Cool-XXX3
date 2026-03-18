@@ -49,7 +49,7 @@ public class GeneticManager : MonoBehaviour
             {
                 if (currentObjective.CheckTerminalState(jet))
                 {
-                    jet.currentFitness = currentObjective.CalculateTotalFitness(jet);
+                    jet.CurrentFitness = currentObjective.CalculateTotalFitness(jet);
                     jet.gameObject.SetActive(false);
                     aliveCount--;
                 }
@@ -127,7 +127,7 @@ public class GeneticManager : MonoBehaviour
         if (population.Count == 0) return;
 
         // Sort population based on fitness
-        population.Sort((a, b) => b.currentFitness.CompareTo(a.currentFitness));
+        population.Sort((a, b) => b.CurrentFitness.CompareTo(a.CurrentFitness));
 
         // Mathf.Max prevents a Divide By Zero crash if you test with under 5 jets!
         int numParents = Mathf.Max(1, population.Count / 5);
@@ -149,6 +149,6 @@ public class GeneticManager : MonoBehaviour
             }
         }
 
-        Debug.Log($"Generation {currentGeneration} evolved. Champion Fitness: {population[0].currentFitness}");
+        Debug.Log($"Generation {currentGeneration} evolved. Champion Fitness: {population[0].CurrentFitness}");
     }
 }
