@@ -1,7 +1,7 @@
 using System.Collections;
 using UnityEngine;
 
-public class CameraControllerFlightSchool : MonoBehaviour
+public class CameraControllerFlight : MonoBehaviour
 {
     [Header("Movement Settings")]
     [Tooltip("How long it takes to move between waypoints in seconds.")]
@@ -21,6 +21,20 @@ public class CameraControllerFlightSchool : MonoBehaviour
         {
             JumpToWaypointImmediate(startingWaypoint);
         }
+    }
+
+    private void OnEnable()
+    {
+        // Subscribe to global events
+        FlightInputManager.OnNextCommand += GoToNextWaypoint;
+        FlightInputManager.OnPreviousCommand += GoToPreviousWaypoint;
+    }
+
+    private void OnDisable()
+    {
+        // Unsubscribe
+        FlightInputManager.OnNextCommand -= GoToNextWaypoint;
+        FlightInputManager.OnPreviousCommand -= GoToPreviousWaypoint;
     }
 
     public void GoToWaypoint(Waypoint targetWaypoint)
