@@ -51,7 +51,7 @@ public class MaxAltitudeObjective : IObjective
 
         // Give it 150 speed so it doesn't stall, and clear any spin
         Rigidbody rb = agent.GetComponent<Rigidbody>();
-        rb.linearVelocity = agent.transform.forward * 150;
+        rb.linearVelocity = agent.transform.forward * 600;
         rb.angularVelocity = Vector3.zero;
 
         // Update the Jet's memory so CalculateTotalFitness works
