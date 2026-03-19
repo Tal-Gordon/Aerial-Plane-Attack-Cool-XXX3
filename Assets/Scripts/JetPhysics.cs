@@ -21,7 +21,20 @@ public class JetPhysics : MonoBehaviour
     [Tooltip("Torque multipliers for pitch (X), yaw (Y), and roll (Z).")]
     public Vector3 controlPower = new(15f, 5f, 20f);
     [Tooltip("Caps the dynamic pressure for steering, simulating Fly-By-Wire and hydraulic limits.")]
-    public float maxControlPressure = 7500f;
+    public float maxControlPressure = 5000f;
+
+    [Header("Aerodynamic Stability & Damping")]
+    [Tooltip("How strongly the tail forces the nose back into the wind (Pitch, Yaw, Roll).")]
+    public Vector3 aerodynamicStability = new Vector3(0.05f, 0.05f, 0.01f);
+
+    [Tooltip("How strongly the air resists the jet spinning (Pitch, Yaw, Roll).")]
+    public Vector3 rotationalDamping = new Vector3(1.5f, 1.5f, 0.5f);
+
+    [Header("Stall & Turbulence Dynamics")]
+    [Tooltip("The Angle of Attack where smooth airflow detaches (Stall).")]
+    public float criticalStallAngle = 20f;
+    [Tooltip("How violently the jet shakes and tumbles when stalled.")]
+    public float stallBuffetMultiplier = 250000f;
 
     [Header("Aerodynamic Profiles")]
     public AnimationCurve liftCurve;
@@ -38,6 +51,9 @@ public class JetPhysics : MonoBehaviour
     private void Awake()
     {
         _rb = GetComponent<Rigidbody>();
+
+        // TODO delete
+        _rb.linearVelocity = transform.forward * 1000f;
 
         // Disable Unity's fake air friction
         _rb.linearDamping = 0f;
@@ -81,9 +97,11 @@ public class JetPhysics : MonoBehaviour
         {
             float dynamicPressure = CalculateDynamicPressure(sqrSpeed);
             float angleOfAttack = CalculateAngleOfAttack(localVelocity);
+            float sideslipAngle = Mathf.Atan2(localVelocity.x, localVelocity.z) * Mathf.Rad2Deg;
 
             ApplyAerodynamicForces(worldVelocity, dynamicPressure, angleOfAttack);
             ApplyControlSurfaces(dynamicPressure);
+            ApplyAerodynamicStability(dynamicPressure, angleOfAttack, sideslipAngle);
         }
     }
 
@@ -125,6 +143,35 @@ public class JetPhysics : MonoBehaviour
         ) * fbwPressure;
 
         _rb.AddRelativeTorque(torque, ForceMode.Force);
+    }
+
+    private void ApplyAerodynamicStability(float dynamicPressure, float aoa, float sideslip)
+    {
+        // 1. ROTATIONAL DAMPING (The Shock Absorbers)
+        // Damping SHOULD scale with raw dynamic pressure to stop high-speed death spins.
+        Vector3 localAngularVelocity = transform.InverseTransformDirection(_rb.angularVelocity);
+        Vector3 dampingTorque = new Vector3(
+            -localAngularVelocity.x * rotationalDamping.x,
+            -localAngularVelocity.y * rotationalDamping.y,
+            -localAngularVelocity.z * rotationalDamping.z
+        ) * dynamicPressure;
+
+        // 2. THE WEATHERVANE EFFECT (The Restoring Force)
+        // CRITICAL FIX: We clamp the pressure so the tail doesn't snap the jet in half at Mach 1.
+        // We can reuse the maxControlPressure variable we created earlier.
+        float stabilityPressure = Mathf.Min(dynamicPressure, maxControlPressure);
+
+        float pitchRestoringForce = -aoa * aerodynamicStability.x;
+        float yawRestoringForce = sideslip * aerodynamicStability.y;
+
+        float rollRestoringForce = -transform.localEulerAngles.z;
+        if (rollRestoringForce < -180f) rollRestoringForce += 360f;
+        rollRestoringForce *= aerodynamicStability.z;
+
+        Vector3 stabilityTorque = new Vector3(pitchRestoringForce, yawRestoringForce, rollRestoringForce) * stabilityPressure;
+
+        // Apply both forces
+        _rb.AddRelativeTorque(dampingTorque + stabilityTorque, ForceMode.Force);
     }
 
     // --- MATH UTILITIES ---
