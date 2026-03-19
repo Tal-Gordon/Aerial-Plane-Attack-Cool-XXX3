@@ -4,12 +4,34 @@ using UnityEngine.SceneManagement;
 public class MainMenuController : MonoBehaviour
 {
     public GameObject buttons;
+    public GameObject selectionWindow;
 
-    private string gameScene = "Game";
+    private GameModeSelectionController selectionController;
 
-    public void LoadGame()
+    private void Awake()
     {
-        SceneManager.LoadScene(gameScene);
+        selectionController = GetComponent<GameModeSelectionController>();
+    }
+
+    public void ToggleSelectionMenu()
+    {
+        selectionWindow.SetActive(!selectionWindow.activeSelf);
+        
+        // Reset the mode selection whenever the menu is toggled
+        if (selectionController != null)
+        {
+            selectionController.ResetSelection();
+        }
+    }
+
+    private void LoadScene(string sceneName)
+    {
+        SceneManager.LoadScene(sceneName);
+    }
+
+    public void OpenSettings()
+    {
+        // TODO
     }
 
     public void QuitGame()
