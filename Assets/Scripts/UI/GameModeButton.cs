@@ -11,16 +11,12 @@ public class GameModeButton : MonoBehaviour
     private GameModeSelectionController controller;
     private Button selfButton;
 
-    private void Awake()
-    {
-        selfButton = GetComponent<Button>();
-    }
-
     // The controller calls this when spawning the buttons
     public void Setup(GameModeData data, GameModeSelectionController mainController)
     {
         myData = data;
         controller = mainController;
+        selfButton = GetComponent<Button>();
 
         buttonText.text = data.modeName;
 
