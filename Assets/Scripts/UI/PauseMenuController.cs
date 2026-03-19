@@ -8,7 +8,7 @@ public class PauseMenuController : MonoBehaviour
 
     public GameObject pauseMenuUI;
 
-    private string mainMenuSceneName = "MainMenu";
+    private readonly string mainMenuSceneName = "MainMenu";
 
     [Header("Input")]
     public InputAction pauseAction;
