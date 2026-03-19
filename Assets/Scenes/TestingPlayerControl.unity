@@ -690,6 +690,30 @@ PrefabInstance:
       value: 7500
       objectReference: {fileID: 0}
     - target: {fileID: 4376219240529951198, guid: 0fdbe5b94ba85dc45b773bb0b40fae7a, type: 3}
+      propertyPath: rotationalDamping.x
+      value: 5
+      objectReference: {fileID: 0}
+    - target: {fileID: 4376219240529951198, guid: 0fdbe5b94ba85dc45b773bb0b40fae7a, type: 3}
+      propertyPath: rotationalDamping.y
+      value: 5
+      objectReference: {fileID: 0}
+    - target: {fileID: 4376219240529951198, guid: 0fdbe5b94ba85dc45b773bb0b40fae7a, type: 3}
+      propertyPath: rotationalDamping.z
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 4376219240529951198, guid: 0fdbe5b94ba85dc45b773bb0b40fae7a, type: 3}
+      propertyPath: aerodynamicStability.x
+      value: 0.05
+      objectReference: {fileID: 0}
+    - target: {fileID: 4376219240529951198, guid: 0fdbe5b94ba85dc45b773bb0b40fae7a, type: 3}
+      propertyPath: aerodynamicStability.y
+      value: 0.05
+      objectReference: {fileID: 0}
+    - target: {fileID: 4376219240529951198, guid: 0fdbe5b94ba85dc45b773bb0b40fae7a, type: 3}
+      propertyPath: aerodynamicStability.z
+      value: 0.01
+      objectReference: {fileID: 0}
+    - target: {fileID: 4376219240529951198, guid: 0fdbe5b94ba85dc45b773bb0b40fae7a, type: 3}
       propertyPath: m_EditorClassIdentifier
       value: Assembly-CSharp::JetPhysics
       objectReference: {fileID: 0}
