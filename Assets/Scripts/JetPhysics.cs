@@ -69,10 +69,6 @@ public class JetPhysics : MonoBehaviour
     }
 
     // --- PUBLIC INTERFACE ---
-    /// <summary>
-    /// Injects the AI's intended control axes for the current physics frame.
-    /// Expected ranges: Pitch/Roll/Yaw [-1.0 to 1.0], Throttle [0.0 to 1.0].
-    /// </summary>
     public void ApplyControlInputs(float pitch, float roll, float yaw, float throttle)
     {
         pitchInput = pitch;
