@@ -4,7 +4,7 @@ using UnityEngine;
 public class JetPhysics : MonoBehaviour
 {
     // --- DEPENDENCIES ---
-    private Rigidbody _rb;
+    private Rigidbody rb;
 
     // --- CONFIGURATION ---
     [Header("Atmosphere Settings")]
@@ -42,30 +42,30 @@ public class JetPhysics : MonoBehaviour
 
     // --- AGENT STATE ---
     // Underscores denote private class-level state variables
-    private float _pitchInput;
-    private float _rollInput;
-    private float _yawInput;
-    private float _throttleInput;
+    private float pitchInput;
+    private float rollInput;
+    private float yawInput;
+    private float throttleInput;
 
     // --- INITIALIZATION ---
     private void Awake()
     {
-        _rb = GetComponent<Rigidbody>();
+        rb = GetComponent<Rigidbody>();
 
         // TODO delete
-        _rb.linearVelocity = transform.forward * 500f;
+        rb.linearVelocity = transform.forward * 500f;
 
         // Disable Unity's fake air friction
-        _rb.linearDamping = 0f;
-        _rb.angularDamping = 0f;
+        rb.linearDamping = 0f;
+        rb.angularDamping = 0f;
 
         // Force the center of mass to be exactly at the transform's origin
-        _rb.centerOfMass = Vector3.zero;
+        rb.centerOfMass = Vector3.zero;
 
         // OVERRIDE: Hardcode the rotational inertia of a fighter jet
         // This stops Unity from relying on your colliders to calculate spin resistance
-        _rb.inertiaTensor = new Vector3(80000f, 100000f, 25000f);
-        _rb.inertiaTensorRotation = Quaternion.identity;
+        rb.inertiaTensor = new Vector3(80000f, 100000f, 25000f);
+        rb.inertiaTensorRotation = Quaternion.identity;
     }
 
     // --- PUBLIC INTERFACE ---
@@ -75,24 +75,24 @@ public class JetPhysics : MonoBehaviour
     /// </summary>
     public void ApplyControlInputs(float pitch, float roll, float yaw, float throttle)
     {
-        _pitchInput = pitch;
-        _rollInput = roll;
-        _yawInput = yaw;
-        _throttleInput = throttle;
+        pitchInput = pitch;
+        rollInput = roll;
+        yawInput = yaw;
+        throttleInput = throttle;
     }
 
     // --- PHYSICS PIPELINE ---
     private void FixedUpdate()
     {
-        // 1. Core State
-        Vector3 worldVelocity = _rb.linearVelocity;
+        // Core State
+        Vector3 worldVelocity = rb.linearVelocity;
         Vector3 localVelocity = transform.InverseTransformDirection(worldVelocity);
         float sqrSpeed = localVelocity.sqrMagnitude;
 
-        // 2. Propulsion (Applied regardless of airspeed)
+        // Propulsion (Applied regardless of airspeed)
         ApplyThrust();
 
-        // 3. Aerodynamics (Requires a minimum airspeed to avoid division by zero or NaN errors)
+        // Aerodynamics (Requires a minimum airspeed to avoid division by zero or NaN errors)
         if (sqrSpeed > 0.1f)
         {
             float dynamicPressure = CalculateDynamicPressure(sqrSpeed);
@@ -108,8 +108,8 @@ public class JetPhysics : MonoBehaviour
     // --- WORKER METHODS ---
     private void ApplyThrust()
     {
-        float currentThrust = _throttleInput * maxThrust;
-        _rb.AddForce(transform.forward * currentThrust, ForceMode.Force);
+        float currentThrust = throttleInput * maxThrust;
+        rb.AddForce(transform.forward * currentThrust, ForceMode.Force);
     }
 
     private void ApplyAerodynamicForces(Vector3 worldVelocity, float dynamicPressure, float aoa)
@@ -127,8 +127,8 @@ public class JetPhysics : MonoBehaviour
         // Cross product ensures lift is always perfectly perpendicular to both wind and the physical wings
         Vector3 liftDirection = Vector3.Cross(worldVelocity, transform.right).normalized;
 
-        _rb.AddForce(liftDirection * liftForce, ForceMode.Force);
-        _rb.AddForce(dragDirection * dragForce, ForceMode.Force);
+        rb.AddForce(liftDirection * liftForce, ForceMode.Force);
+        rb.AddForce(dragDirection * dragForce, ForceMode.Force);
     }
 
     private void ApplyControlSurfaces(float dynamicPressure)
@@ -137,26 +137,26 @@ public class JetPhysics : MonoBehaviour
         float fbwPressure = Mathf.Min(dynamicPressure, maxControlPressure);
 
         Vector3 torque = new Vector3(
-            _pitchInput * controlPower.x,
-            _yawInput * controlPower.y,
-            -_rollInput * controlPower.z
+            pitchInput * controlPower.x,
+            yawInput * controlPower.y,
+            -rollInput * controlPower.z
         ) * fbwPressure;
 
-        _rb.AddRelativeTorque(torque, ForceMode.Force);
+        rb.AddRelativeTorque(torque, ForceMode.Force);
     }
 
     private void ApplyAerodynamicStability(float dynamicPressure, float aoa, float sideslip)
     {
-        // 1. ROTATIONAL DAMPING (The Shock Absorbers)
+        // ROTATIONAL DAMPING (The Shock Absorbers)
         // Damping SHOULD scale with raw dynamic pressure to stop high-speed death spins.
-        Vector3 localAngularVelocity = transform.InverseTransformDirection(_rb.angularVelocity);
+        Vector3 localAngularVelocity = transform.InverseTransformDirection(rb.angularVelocity);
         Vector3 dampingTorque = new Vector3(
             -localAngularVelocity.x * rotationalDamping.x,
             -localAngularVelocity.y * rotationalDamping.y,
             -localAngularVelocity.z * rotationalDamping.z
         ) * dynamicPressure;
 
-        // 2. THE WEATHERVANE EFFECT (The Restoring Force)
+        // THE WEATHERVANE EFFECT (The Restoring Force)
         // CRITICAL FIX: We clamp the pressure so the tail doesn't snap the jet in half at Mach 1.
         // We can reuse the maxControlPressure variable we created earlier.
         float stabilityPressure = Mathf.Min(dynamicPressure, maxControlPressure);
@@ -171,14 +171,14 @@ public class JetPhysics : MonoBehaviour
         Vector3 stabilityTorque = new Vector3(pitchRestoringForce, yawRestoringForce, rollRestoringForce) * stabilityPressure;
 
         // Apply both forces
-        _rb.AddRelativeTorque(dampingTorque + stabilityTorque, ForceMode.Force);
+        rb.AddRelativeTorque(dampingTorque + stabilityTorque, ForceMode.Force);
     }
 
     // --- MATH UTILITIES ---
     private float CalculateDynamicPressure(float sqrSpeed)
     {
         // Prevent negative altitude logic if the jet dips below the terrain floor
-        float currentAltitude = Mathf.Max(0f, _rb.position.y);
+        float currentAltitude = Mathf.Max(0f, rb.position.y);
         
         // Barometric formula for atmospheric density decay
         float currentAirDensity = seaLevelDensity * Mathf.Exp(-currentAltitude / scaleHeight);
