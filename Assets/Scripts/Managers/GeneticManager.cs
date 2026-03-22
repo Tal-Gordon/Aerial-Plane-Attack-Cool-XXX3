@@ -145,7 +145,6 @@ public class GeneticManager : MonoBehaviour
                 float[] winningWeights = parentBrain.ExtractWeights();
                 loserBrain.InjectWeights(winningWeights);
                 loserBrain.Mutate(currentSettings.MutationRate);
-                Debug.Log(currentSettings.MutationRate);
             }
         }
 

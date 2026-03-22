@@ -5,29 +5,34 @@ using UnityEngine.InputSystem;
 public class PlayerController : MonoBehaviour
 {
     private JetPhysics physics;
+    private WeaponSystem weapons; // Optional
 
-    [Header("Controls")]
-    public InputAction flightControls;
-    public InputAction rudderControls;
+    [Header("Throttle Control")]
+    [Range(0f, 1f)]
+    [Tooltip("1 = Full Afterburner, 0 = Engine Idle")]
+    public float thrustInput = 1f;
+
+    [Header("Flight Controls")]
+    public InputAction flightControls; // Vector2 (W/S Pitch, A/D Roll)
+    public InputAction rudderControls; // Float (Q/E Yaw)
 
     [Header("Weapon Controls")]
     public InputAction fireAction;
     public InputAction switchWeaponAction;
 
+    // Internal state
     private Vector2 flightInput;
     private float yawInput;
-
-    // Reference to the weapon system (can be null)
-    private WeaponSystem weapons;
 
     private void Awake()
     {
         physics = GetComponent<JetPhysics>();
-        TryGetComponent(out weapons);
+        TryGetComponent(out weapons); // Will be null if no weapons are attached, which is fine
     }
 
     private void OnEnable()
     {
+        // Directly enable the actions
         flightControls.Enable();
         rudderControls.Enable();
         fireAction.Enable();
@@ -48,15 +53,14 @@ public class PlayerController : MonoBehaviour
         flightInput = flightControls.ReadValue<Vector2>();
         yawInput = rudderControls.ReadValue<float>();
 
+        // Handle Weapons
         if (weapons != null)
         {
-            // Switch weapon on single button press
             if (switchWeaponAction.WasPressedThisFrame())
             {
                 weapons.SwitchWeapon();
             }
 
-            // Fire weapons (continuous press for machine guns, single fire for missiles handled in WeaponSystem)
             if (fireAction.IsPressed())
             {
                 weapons.Fire();
@@ -66,9 +70,8 @@ public class PlayerController : MonoBehaviour
 
     public void FixedUpdate()
     {
-        // Pass the inputs to the physics script. 
-        // Our original script inverted the roll (-flightInput.x) and didn't use 
-        // a throttle input, so we pass '1f' to simulate constant max throttle.
-        physics.ApplyControlInputs(flightInput.y, -flightInput.x, yawInput, 1f);
+        // Pass inputs to the physics engine
+        // X and Y are passed cleanly. Let JetPhysics handle any necessary inversions.
+        physics.ApplyControlInputs(flightInput.y, flightInput.x, yawInput, thrustInput);
     }
 }
