@@ -4,8 +4,8 @@ using UnityEngine.InputSystem;
 [RequireComponent(typeof(JetPhysics))]
 public class PlayerController : MonoBehaviour
 {
-    private JetPhysics _physics;
-    private WeaponSystem _weapons; // Optional
+    private JetPhysics physics;
+    private WeaponSystem weapons; // Optional
 
     [Header("Throttle Control")]
     [Range(0f, 1f)]
@@ -21,13 +21,13 @@ public class PlayerController : MonoBehaviour
     public InputAction switchWeaponAction;
 
     // Internal state
-    private Vector2 _flightInput;
-    private float _yawInput;
+    private Vector2 flightInput;
+    private float yawInput;
 
     private void Awake()
     {
-        _physics = GetComponent<JetPhysics>();
-        TryGetComponent(out _weapons); // Will be null if no weapons are attached, which is fine
+        physics = GetComponent<JetPhysics>();
+        TryGetComponent(out weapons); // Will be null if no weapons are attached, which is fine
     }
 
     private void OnEnable()
@@ -49,29 +49,29 @@ public class PlayerController : MonoBehaviour
 
     public void Update()
     {
-        // 1. Read Inputs (Happens every visual frame)
-        _flightInput = flightControls.ReadValue<Vector2>();
-        _yawInput = rudderControls.ReadValue<float>();
+        // Read Inputs (Happens every visual frame)
+        flightInput = flightControls.ReadValue<Vector2>();
+        yawInput = rudderControls.ReadValue<float>();
 
-        // 2. Handle Weapons
-        if (_weapons != null)
+        // Handle Weapons
+        if (weapons != null)
         {
             if (switchWeaponAction.WasPressedThisFrame())
             {
-                _weapons.SwitchWeapon();
+                weapons.SwitchWeapon();
             }
 
             if (fireAction.IsPressed())
             {
-                _weapons.Fire();
+                weapons.Fire();
             }
         }
     }
 
     public void FixedUpdate()
     {
-        // 3. Pass inputs to the physics engine
+        // Pass inputs to the physics engine
         // X and Y are passed cleanly. Let JetPhysics handle any necessary inversions.
-        _physics.ApplyControlInputs(_flightInput.y, _flightInput.x, _yawInput, thrustInput);
+        physics.ApplyControlInputs(flightInput.y, flightInput.x, yawInput, thrustInput);
     }
 }
