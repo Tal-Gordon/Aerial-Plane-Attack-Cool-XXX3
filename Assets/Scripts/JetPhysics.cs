@@ -53,7 +53,7 @@ public class JetPhysics : MonoBehaviour
         _rb = GetComponent<Rigidbody>();
 
         // TODO delete
-        _rb.linearVelocity = transform.forward * 1000f;
+        _rb.linearVelocity = transform.forward * 500f;
 
         // Disable Unity's fake air friction
         _rb.linearDamping = 0f;
