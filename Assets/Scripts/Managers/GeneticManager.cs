@@ -151,4 +151,14 @@ public class GeneticManager : MonoBehaviour
 
         Debug.Log($"Generation {currentGeneration} evolved. Champion Fitness: {population[0].CurrentFitness}");
     }
+
+    public List<JetAgent> GetPopulation()
+    {
+        return population;  
+    }
+
+    public JetAgent GetTopAgent()
+    {
+        return population[0];
+    }
 }
