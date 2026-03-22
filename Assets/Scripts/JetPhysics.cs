@@ -153,8 +153,7 @@ public class JetPhysics : MonoBehaviour
         ) * dynamicPressure;
 
         // THE WEATHERVANE EFFECT (The Restoring Force)
-        // CRITICAL FIX: We clamp the pressure so the tail doesn't snap the jet in half at Mach 1.
-        // We can reuse the maxControlPressure variable we created earlier.
+        // We clamp the pressure so the tail doesn't snap the jet in half at Mach 1.
         float stabilityPressure = Mathf.Min(dynamicPressure, maxControlPressure);
 
         float pitchRestoringForce = -aoa * aerodynamicStability.x;
