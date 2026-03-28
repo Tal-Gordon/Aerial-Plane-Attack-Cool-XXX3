@@ -103,10 +103,8 @@ public class GeneticManager : MonoBehaviour
 
         GameObject topAgentObject = Instantiate(jetPrefab);
         topAgentObject.SetActive(false);
-        topAgent = topAgentObject.GetComponent<JetAgent>();
+        topAgent = topAgent.GetComponent<JetAgent>();
         topAgent.Copy(population[0]);
-        if (topAgent == null)
-            Debug.Log("TOP AGENT IS NULL");
     }
 
     public void SpawnPopulation()
@@ -157,8 +155,6 @@ public class GeneticManager : MonoBehaviour
         }
 
         Debug.Log($"Generation {currentGeneration} evolved. Champion Fitness: {population[0].CurrentFitness}");
-
-
         topAgent.Copy(population[0]);
     }
 
