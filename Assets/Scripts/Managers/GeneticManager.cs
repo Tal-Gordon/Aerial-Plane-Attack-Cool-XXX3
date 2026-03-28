@@ -12,6 +12,7 @@ public class GeneticManager : MonoBehaviour
     private SimulationSettings currentSettings;
     private IObjective currentObjective;
     private List<JetAgent> population;
+    private JetAgent topAgent;
 
     public int currentGeneration = 1;
     public int aliveCount = 0;
@@ -99,6 +100,13 @@ public class GeneticManager : MonoBehaviour
             newJetAgent.Brain = CreateNewBrain();
             population.Add(newJetAgent);
         }
+
+        GameObject topAgentObject = Instantiate(jetPrefab);
+        topAgentObject.SetActive(false);
+        topAgent = topAgentObject.GetComponent<JetAgent>();
+        topAgent.Copy(population[0]);
+        if (topAgent == null)
+            Debug.Log("TOP AGENT IS NULL");
     }
 
     public void SpawnPopulation()
@@ -145,11 +153,13 @@ public class GeneticManager : MonoBehaviour
                 float[] winningWeights = parentBrain.ExtractWeights();
                 loserBrain.InjectWeights(winningWeights);
                 loserBrain.Mutate(currentSettings.MutationRate);
-                Debug.Log(currentSettings.MutationRate);
             }
         }
 
         Debug.Log($"Generation {currentGeneration} evolved. Champion Fitness: {population[0].CurrentFitness}");
+
+
+        topAgent.Copy(population[0]);
     }
 
     public List<JetAgent> GetPopulation()
@@ -159,6 +169,6 @@ public class GeneticManager : MonoBehaviour
 
     public JetAgent GetTopAgent()
     {
-        return population[0];
+        return topAgent;
     }
 }
