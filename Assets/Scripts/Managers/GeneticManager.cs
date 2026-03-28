@@ -4,8 +4,8 @@ using UnityEngine;
 public class GeneticManager : MonoBehaviour
 {
     [Header("Simulation Setup")]
-    // Equipped flightschool (MaxAltitudeObjective) as the default for now
-    public DataManager.GameMode activeMode = DataManager.GameMode.FlightSchool;
+    // Equipped flightschool as the default for now
+    public DataManager.GameMode activeMode = DataManager.GameMode.MaxAltitude;
 
     public GameObject jetPrefab;
 
@@ -61,7 +61,7 @@ public class GeneticManager : MonoBehaviour
     {
         switch (activeMode)
         {
-            case DataManager.GameMode.FlightSchool:
+            case DataManager.GameMode.MaxAltitude:
                 currentObjective = new MaxAltitudeObjective();
                 break;
             case DataManager.GameMode.Dogfight:
