@@ -39,7 +39,7 @@ public class GenerationStatsWidget : UIWidget
                 populationFillBar.fillAmount = alivePercentage;
             }
 
-            if (avgFitnessLabel && total > 0)
+            if (avgFitnessLabel && total > 0 && snapshot.AliveCount == 0)
             {
                 float sum = 0f;
 
@@ -47,14 +47,14 @@ public class GenerationStatsWidget : UIWidget
                 {
                     sum += agent.CurrentFitness;
                 }
-
                 float avg = sum / total;
 
                 avgFitnessLabel.text = $"AVG FITNESS: {FormatFitness(avg)}";
             }
 
-            if (topFitnessLabel && snapshot.TopAgent != null)
+            if (topFitnessLabel && snapshot.TopAgent != null) {
                 topFitnessLabel.text = $"TOP: {FormatFitness(snapshot.TopAgent.CurrentFitness)}";
+            }
         }
     }
 
