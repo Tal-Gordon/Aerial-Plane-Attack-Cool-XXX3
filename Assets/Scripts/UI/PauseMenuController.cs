@@ -42,6 +42,7 @@ public class PauseMenuController : MonoBehaviour
     {
         pauseMenuUI.SetActive(false);
         Time.timeScale = 1f;
+        Time.fixedDeltaTime = 0.02f;
         IsGamePaused = false;
     }
 
@@ -57,6 +58,7 @@ public class PauseMenuController : MonoBehaviour
         // Important: Ensure time scale is reset before loading a new scene, 
         // otherwise the new scene might start paused!
         Time.timeScale = 1f;
+        Time.fixedDeltaTime = 0.02f;
         IsGamePaused = false;
 
         Debug.Log("Loading menu...");
