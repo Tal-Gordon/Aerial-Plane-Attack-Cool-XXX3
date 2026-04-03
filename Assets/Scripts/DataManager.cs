@@ -53,16 +53,16 @@ public static class DataManager
             {
                 PopulationSize = 20,
                 MutationRate = 0.5f,
-                NetworkShape = new[] { 12, 24, 12, 4 },   // TODO change the input based on the assigned sensors
+                NetworkShape = new[] { 19, 24, 12, 4 },
                 AIType = AIType.FixedNeuroEvo,
-                SpawnRadius = 50f,
+                SpawnRadius = 0f,
                 SpawnFormation = SpawnFormation.Random,
             },
             [GameMode.Dogfight] = new SimulationSettings
             {
                 PopulationSize = 10,
                 MutationRate = 0.08f,
-                NetworkShape = new[] { 12, 16, 4 },
+                NetworkShape = new[] { 12, 16, 4 }, // TODO change the input based on the assigned sensors
                 AIType = AIType.FixedNeuroEvo,
                 SpawnRadius = 200f,
                 SpawnFormation = SpawnFormation.Opposing,
