@@ -31,9 +31,8 @@ public class GeneticManager : MonoBehaviour
         SpawnPopulation();
     }
 
-    void Update()
+    void FixedUpdate()
     {
-        // SAFETY FIX: Use <= to prevent skipping 0 if multiple die on the exact same frame!
         if (aliveCount <= 0)
         {
             currentGeneration++;
@@ -47,9 +46,13 @@ public class GeneticManager : MonoBehaviour
         {
             if (jet.gameObject.activeInHierarchy)
             {
+                jet.CurrentFitness += currentObjective.GetStepReward(jet);
+
                 if (currentObjective.CheckTerminalState(jet))
                 {
+                    Debug.Log("get step fitness :" + jet.CurrentFitness);
                     jet.CurrentFitness = currentObjective.CalculateTotalFitness(jet);
+                    Debug.Log("total fitness :" + jet.CurrentFitness);
                     jet.gameObject.SetActive(false);
                     aliveCount--;
                 }
