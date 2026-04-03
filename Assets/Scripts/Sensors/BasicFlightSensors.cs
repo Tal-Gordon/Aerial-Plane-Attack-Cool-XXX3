@@ -15,7 +15,7 @@ public class BasicFlightSensors : MonoBehaviour, ISensor
         rb = GetComponent<Rigidbody>();
     }
 
-    public float[] GetObservationData()
+    public virtual float[] GetObservationData()
     {
         float[] obs = new float[12];
 
@@ -45,7 +45,7 @@ public class BasicFlightSensors : MonoBehaviour, ISensor
         return obs;
     }
 
-    public int GetSensorCount()
+    public virtual int GetSensorCount()
     {
         return 12;
     }

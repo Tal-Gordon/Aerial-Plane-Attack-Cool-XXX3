@@ -5,7 +5,7 @@ public class GeneticManager : MonoBehaviour
 {
     [Header("Simulation Setup")]
     // Equipped flightschool as the default for now
-    public DataManager.GameMode activeMode = DataManager.GameMode.MaxAltitude;
+    public DataManager.GameMode activeMode = DataManager.GameMode.FlightSchool;
 
     public GameObject jetPrefab;
 
@@ -18,6 +18,7 @@ public class GeneticManager : MonoBehaviour
 
     void Start()
     {
+        // TODO REMOVE IN PRODUCTION
         // TEMPORARY FIX: Force the DataManager to wipe the old file and save the new defaults!
         currentSettings = DataManager.ResetToDefaults(activeMode);
 
@@ -50,9 +51,9 @@ public class GeneticManager : MonoBehaviour
 
                 if (currentObjective.CheckTerminalState(jet))
                 {
-                    Debug.Log("get step fitness :" + jet.CurrentFitness);
+                    //Debug.Log("get step fitness :" + jet.CurrentFitness);
                     jet.CurrentFitness = currentObjective.CalculateTotalFitness(jet);
-                    Debug.Log("total fitness :" + jet.CurrentFitness);
+                    //Debug.Log("total fitness :" + jet.CurrentFitness);
                     jet.gameObject.SetActive(false);
                     aliveCount--;
                 }
@@ -66,6 +67,9 @@ public class GeneticManager : MonoBehaviour
         {
             case DataManager.GameMode.MaxAltitude:
                 currentObjective = new MaxAltitudeObjective();
+                break;
+            case DataManager.GameMode.FlightSchool:
+                currentObjective = new FlightSchoolObjective();
                 break;
             case DataManager.GameMode.Dogfight:
                 // currentObjective = new DogfightObjective();

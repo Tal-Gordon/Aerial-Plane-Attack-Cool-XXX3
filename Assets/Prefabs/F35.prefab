@@ -103,6 +103,7 @@ GameObject:
   - component: {fileID: 4450701645668443857}
   - component: {fileID: 1472819202763001518}
   - component: {fileID: 3641281719087979610}
+  - component: {fileID: 4913679530034684416}
   m_Layer: 0
   m_Name: F35
   m_TagString: Untagged
@@ -302,6 +303,10 @@ MonoBehaviour:
   maxThrust: 191000
   controlPower: {x: 15, y: 5, z: 20}
   maxControlPressure: 7500
+  aerodynamicStability: {x: 0.05, y: 0.05, z: 0.01}
+  rotationalDamping: {x: 1.5, y: 1.5, z: 0.5}
+  criticalStallAngle: 20
+  stallBuffetMultiplier: 250000
   liftCurve:
     serializedVersion: 2
     m_Curve:
@@ -516,11 +521,24 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 835737604007996434}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ef0255d5f5eb61d4ab9e3cdde636bda6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BasicFlightSensors
+--- !u!114 &4913679530034684416
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 835737604007996434}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f66ccfd4d5cfedd42a1c36b7b76f7b5f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Assets.Scripts.Sensors.WaypointSensors
+  currentWaypoint: {fileID: 0}
 --- !u!1 &1926233024234982582
 GameObject:
   m_ObjectHideFlags: 0

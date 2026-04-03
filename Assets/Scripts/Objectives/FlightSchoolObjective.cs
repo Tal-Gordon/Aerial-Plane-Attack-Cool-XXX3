@@ -1,3 +1,4 @@
+using Assets.Scripts.Sensors;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -9,16 +10,17 @@ public class FlightSchoolObjective : IObjective
     // State Trackers
     private Dictionary<JetAgent, int> agentTargetIndices = new Dictionary<JetAgent, int>();
     private Dictionary<JetAgent, float> lastEffortSums = new Dictionary<JetAgent, float>();
-
-    // NEW: Track the distance to the active hoop for the Dense Reward
     private Dictionary<JetAgent, float> lastDistanceToHoop = new Dictionary<JetAgent, float>();
+    private Dictionary<JetAgent, float> lastLocalZ = new Dictionary<JetAgent, float>();
 
     // Settings
-    private float hoopRadius = 15f;
-    private float hoopThickness = 3f;
+    private float hoopRadius = 170f;
     private float lambda = 0.1f;
-    private float maxTimeAllowed = 10f;
+    private float maxTimeAllowed = 15f;
     private float timeBonusMultiplier = 10f; // Points per second remaining if they win
+
+    // TODO REMOVE
+    private JetAgent debugAgent = null;
 
     public FlightSchoolObjective()
     {
@@ -61,13 +63,19 @@ public class FlightSchoolObjective : IObjective
         agentTargetIndices[agent] = 0;
         lastEffortSums[agent] = 0;
         lastDistanceToHoop[agent] = Vector3.Distance(agent.transform.position, waypoints[0].position);
+        lastLocalZ[agent] = waypoints[0].InverseTransformPoint(agent.transform.position).z;
+
+        // Set the sensors
+        WaypointSensors sensors = agent.GetComponent<WaypointSensors>();
+        sensors.currentWaypoint = waypoints[0];
+
+        // TODO REMOVE
+        if (debugAgent == null) debugAgent = agent;
     }
 
     public float GetStepReward(JetAgent agent)
     {
-        // Safety checks (CRITICAL to keep these uncommented)
         if (!agentTargetIndices.ContainsKey(agent) || waypoints.Length == 0) return 0f;
-        if (!lastEffortSums.ContainsKey(agent) || !lastDistanceToHoop.ContainsKey(agent)) return 0f;
 
         float stepReward = 0f;
         int currentIndex = agentTargetIndices[agent];
@@ -76,43 +84,65 @@ public class FlightSchoolObjective : IObjective
         float currentEffort = agent.TotalControlEffort;
         float effortGained = currentEffort - lastEffortSums[agent];
         lastEffortSums[agent] = currentEffort;
-
         stepReward -= lambda * effortGained;
 
-        // Distance reward
         if (currentIndex < waypoints.Length)
         {
             Transform targetHoop = waypoints[currentIndex];
-            // TODO potentially accommodate for distance from any point on hoop instead of center
-            float currentDistance = Vector3.Distance(agent.transform.position, targetHoop.position);
 
-            // Did we get closer reward
+            // Distance Reward (Breadcrumbs)
+            float currentDistance = Vector3.Distance(agent.transform.position, targetHoop.position);
             float distanceDelta = lastDistanceToHoop[agent] - currentDistance;
             stepReward += distanceDelta;
-
-            // Update tracker
             lastDistanceToHoop[agent] = currentDistance;
 
-            // Hoop crossing reward
-            // FIXED: We must compare the hoop to the AGENT'S position
+            // --- THE TUNNELING FIX ---
             Vector3 localPos = targetHoop.InverseTransformPoint(agent.transform.position);
-            float distanceFromCenter = new Vector2(localPos.x, localPos.y).magnitude;
+            float currentZ = localPos.z;
+            float previousZ = lastLocalZ[agent];
 
-            if (Mathf.Abs(localPos.z) < hoopThickness && distanceFromCenter < hoopRadius)
+            // Did the jet cross the doorway from front (-) to back (+) this exact frame?
+            if (previousZ <= 0f && currentZ > 0f)
             {
-                agentTargetIndices[agent]++;
-                stepReward += 500f; // Massive reward for crossing
+                float distanceFromCenter = new Vector2(localPos.x, localPos.y).magnitude;
 
-                // TODO change sensors to look at the next target (Sensors will pull from this class)
-                if (agentTargetIndices[agent] < waypoints.Length)
+                if (agent == debugAgent)
                 {
-                    Transform nextHoop = waypoints[agentTargetIndices[agent]];
-                    lastDistanceToHoop[agent] = Vector3.Distance(agent.transform.position, nextHoop.position);
+                    Debug.Log($"[Debug Jet] Target: Hoop {currentIndex} | Local Z: {localPos.z:F2} | Dist from center: {distanceFromCenter:F2}");
+                }
+
+                // Were they inside the ring when they crossed?
+                if (distanceFromCenter < hoopRadius)
+                {
+                    agentTargetIndices[agent]++;
+                    stepReward += 500f;
+
+                    // Update trackers to look at the NEW hoop
+                    if (agentTargetIndices[agent] < waypoints.Length)
+                    {
+                        Transform nextHoop = waypoints[agentTargetIndices[agent]];
+                        lastDistanceToHoop[agent] = Vector3.Distance(agent.transform.position, nextHoop.position);
+
+                        // Instantly calculate our starting Z for the new hoop so we don't break the math
+                        lastLocalZ[agent] = nextHoop.InverseTransformPoint(agent.transform.position).z;
+
+                        WaypointSensors sensors = agent.GetComponent<WaypointSensors>();
+                        if (sensors != null) sensors.currentWaypoint = nextHoop;
+
+                        return stepReward; // Exit early so we don't overwrite lastLocalZ below
+                    }
+                }
+                else
+                {
+                    // It crossed the Z-plane, but missed the hole. Execute it.
+                    agent.HasCrashed = true;
                 }
             }
+
+            // Update the Z tracker for the next frame
+            lastLocalZ[agent] = currentZ;
         }
 
-        // FIXED: Return the accumulated reward
         return stepReward;
     }
 
