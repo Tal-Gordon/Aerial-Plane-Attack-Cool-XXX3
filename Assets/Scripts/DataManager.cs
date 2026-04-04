@@ -214,6 +214,7 @@ public class SimulationSettings
 {
     public int PopulationSize = 10;
     public float MutationRate = 0.1f;
+    public float Lambda = 1.0f;
     public int[] NetworkShape = { 6, 8, 4 };
     public AIType AIType = AIType.FixedNeuroEvo;
     public float SpawnRadius = 100f;
@@ -228,6 +229,7 @@ public class SimulationSettings
         {
             PopulationSize = PopulationSize,
             MutationRate = MutationRate,
+            Lambda = Lambda,
             NetworkShape = (int[])NetworkShape.Clone(),
             AIType = AIType,
             SpawnRadius = SpawnRadius,

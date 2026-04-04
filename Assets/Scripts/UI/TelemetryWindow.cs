@@ -2,58 +2,92 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 
 [RequireComponent(typeof(RectTransform))]
-public class TelemetryWindow : FoldablePanel, IDragHandler, IBeginDragHandler
+public class TelemetryWindow : FoldablePanel
 {
     [Header("UI Wiring")]
     [SerializeField] private RectTransform dragHandle; // the title bar
 
-    [Header("Config")]
-    [SerializeField] private float minX = 0f; // optional screen clamping
-    [SerializeField] private float minY = 0f;
-
     private RectTransform rect;
-    private Canvas canvas;
+    private RectTransform parentRect; // Cache the parent for boundary calculations
     private bool isDragging;
     private Vector2 dragOffset;
+    private Vector2 initialPosition;
 
     protected override void Awake()
     {
         base.Awake();
         rect = GetComponent<RectTransform>();
-        canvas = GetComponentInParent<Canvas>();
+        parentRect = rect.parent as RectTransform; // Canvas
+        initialPosition = rect.localPosition;
     }
 
-    // Hook these up to EventTrigger components on dragHandle,
-    // or call them from a standalone DragHandler MonoBehaviour on the handle.
-    public void OnBeginDrag(UnityEngine.EventSystems.PointerEventData data)
+    // Event trigger wrappers (for the Inspector)
+    
+    public void HandleBeginDrag(BaseEventData data)
+    {
+        OnBeginDrag((PointerEventData)data);
+    }
+
+    public void HandleDrag(BaseEventData data)
+    {
+        OnDrag((PointerEventData)data);
+    }
+
+    public void HandleEndDrag(BaseEventData data)
+    {
+        OnEndDrag((PointerEventData)data);
+    }
+
+    public void HandleClick(BaseEventData data)
+    {
+        PointerEventData pointerData = (PointerEventData)data;
+        
+        // Check if it's a double click
+        if (pointerData.clickCount == 2)
+        {
+            rect.localPosition = initialPosition;
+        }
+    }
+
+    public void OnBeginDrag(PointerEventData data)
     {
         isDragging = true;
         RectTransformUtility.ScreenPointToLocalPointInRectangle(
-            rect.parent as RectTransform,
+            parentRect,
             data.position,
             data.pressEventCamera,
             out Vector2 localPoint
         );
-        dragOffset = rect.anchoredPosition - localPoint;
+        dragOffset = (Vector2)rect.localPosition - localPoint;
     }
 
-    public void OnDrag(UnityEngine.EventSystems.PointerEventData data)
+    public void OnDrag(PointerEventData data)
     {
         if (!isDragging) return;
         RectTransformUtility.ScreenPointToLocalPointInRectangle(
-            rect.parent as RectTransform,
+            parentRect,
             data.position,
             data.pressEventCamera,
             out Vector2 localPoint
         );
         Vector2 target = localPoint + dragOffset;
-        // Optional: clamp to screen
-        // target.x = Mathf.Max(target.x, minX);
-        // target.y = Mathf.Max(target.y, minY);
-        rect.anchoredPosition = target;
+
+        // Calculate boundaries based on parent size and pivot
+        float minX = parentRect.rect.xMin + (rect.rect.width * rect.pivot.x);
+        float maxX = parentRect.rect.xMax - (rect.rect.width * (1f - rect.pivot.x));
+
+        float minY = parentRect.rect.yMin + (rect.rect.height * rect.pivot.y);
+        float maxY = parentRect.rect.yMax - (rect.rect.height * (1f - rect.pivot.y));
+
+        // Clamp the target position
+        target.x = Mathf.Clamp(target.x, minX, maxX);
+        target.y = Mathf.Clamp(target.y, minY, maxY);
+
+        // Apply clamped position
+        rect.localPosition = target;
     }
 
-    public void OnEndDrag(UnityEngine.EventSystems.PointerEventData data)
+    public void OnEndDrag(PointerEventData data)
     {
         isDragging = false;
     }

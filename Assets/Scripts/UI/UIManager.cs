@@ -67,6 +67,8 @@ public class UIManager : MonoBehaviour
         snapshot.Population = geneticManager.GetPopulation();
         snapshot.TopAgent = geneticManager.GetTopAgent();
         snapshot.SelectedAgent = selectedAgent;
+        snapshot.MutationRate = geneticManager.GetMutationRate();
+        snapshot.Lambda = geneticManager.GetLambda();
     }
 
     private void TickSections()
