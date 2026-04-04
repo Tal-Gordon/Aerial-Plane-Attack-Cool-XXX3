@@ -5,7 +5,21 @@ using static UnityEngine.Rendering.DebugUI;
 public class JetAgent : MonoBehaviour
 {
     public IBrain Brain { get => currentBrain; set => currentBrain = value; }
-    public ISensor Sensor { get => currentSensor; set => currentSensor = value; }
+    public ISensor Sensor 
+    { 
+        // Required for BrainVisualizerWidget.cs TryGetSensorData method
+        // to avoid "fake null" errors when sensor is destroyed or disabled
+        get 
+        {
+            var obj = currentSensor as MonoBehaviour;
+            if (obj == null || !obj.enabled) 
+            {
+                return null;
+            }
+            return currentSensor;
+        }
+        set => currentSensor = value; 
+    }
     public bool HasCrashed { get => hasCrashed; set => hasCrashed = value; }
     public float TimeAlive { get => timeAlive; set => timeAlive = value; }
     public Vector3 StartingPosition { get => startingPosition; set => startingPosition = value; }
@@ -100,5 +114,18 @@ public class JetAgent : MonoBehaviour
         timeAlive = 0f;
         currentFitness = 0f;
         totalControlEffort = 0f;
+    }
+
+    public void Copy(JetAgent agent)
+    {
+        hasCrashed = agent.hasCrashed;
+        currentBrain = agent.currentBrain.Copy();
+        currentSensor = agent.currentSensor = currentSensor;
+        physics = agent.physics;
+        weapons = agent.weapons;
+        timeAlive = agent.timeAlive;
+        startingPosition = agent.startingPosition;
+        currentFitness = agent.currentFitness;
+        totalControlEffort = agent.totalControlEffort ;
     }
 }

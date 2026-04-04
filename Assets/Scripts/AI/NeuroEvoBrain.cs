@@ -36,7 +36,7 @@ public class NeuroEvoBrain : IEvolvableBrain
         }
     }
 
-    public IEvolvableBrain Copy()
+    public IBrain Copy()
     {
         float[][][] weightsCopy = new float[weights.Length][][];
 

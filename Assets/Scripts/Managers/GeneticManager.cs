@@ -9,22 +9,24 @@ public class GeneticManager : MonoBehaviour
 
     public GameObject jetPrefab;
 
-    private SimulationSettings currentSettings;
     private IObjective currentObjective;
     private List<JetAgent> population;
+    private JetAgent topAgent;
 
     public int currentGeneration = 1;
     public int aliveCount = 0;
 
+    private void Awake()
+    {
+        // Initializing the list early is still a good practice.
+        // currentSettings will lazy-load on first access.
+        population = new List<JetAgent>();
+    }
+
     void Start()
     {
-        // TEMPORARY FIX: Force the DataManager to wipe the old file and save the new defaults!
-        currentSettings = DataManager.ResetToDefaults(activeMode);
-
-        population = new List<JetAgent>();
-
-        // LoadSettings for this specific mode
-        currentSettings = DataManager.LoadSettings(activeMode);
+        // Accessing currentSettings here ensures it's loaded before we try to spawn.
+        _ = currentSettings; 
 
         InitializeObjective();
         InitializePopulation();
@@ -99,6 +101,12 @@ public class GeneticManager : MonoBehaviour
             newJetAgent.Brain = CreateNewBrain();
             population.Add(newJetAgent);
         }
+
+        GameObject topAgentObject = Instantiate(jetPrefab);
+        topAgentObject.SetActive(false);
+        topAgentObject.name = "Top Agent";
+        topAgent = topAgentObject.GetComponent<JetAgent>();
+        topAgent.Copy(population[0]);
     }
 
     public void SpawnPopulation()
@@ -149,5 +157,52 @@ public class GeneticManager : MonoBehaviour
         }
 
         Debug.Log($"Generation {currentGeneration} evolved. Champion Fitness: {population[0].CurrentFitness}");
+        topAgent.Copy(population[0]);
+    }
+
+    public List<JetAgent> GetPopulation()
+    {
+        return population;  
+    }
+
+    public JetAgent GetTopAgent()
+    {
+        return topAgent;
+    }
+
+    // TODO: is this right?
+
+    private SimulationSettings _currentSettings;
+    private SimulationSettings currentSettings
+    {
+        get
+        {
+            if (_currentSettings == null)
+            {
+                _currentSettings = DataManager.LoadSettings(activeMode);
+            }
+            return _currentSettings;
+        }
+        set => _currentSettings = value;
+    }
+
+    public void SetMutationRate(float rate)
+    {
+        currentSettings.MutationRate = rate;
+    }
+
+    public void SetLambda(float lambda)
+    {
+        currentSettings.Lambda = lambda;
+    }
+
+    public float GetMutationRate()
+    {
+        return currentSettings.MutationRate;
+    }
+
+    public float GetLambda()
+    {
+        return currentSettings.Lambda;
     }
 }
