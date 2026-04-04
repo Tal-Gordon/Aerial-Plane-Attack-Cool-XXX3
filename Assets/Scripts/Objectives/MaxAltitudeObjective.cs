@@ -2,9 +2,9 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-[System.Serializable]
-public class MaxAltitudeObjective : IObjective
+public class MaxAltitudeObjective : MonoBehaviour, IObjective
 {
+    public DataManager.GameMode Mode => DataManager.GameMode.MaxAltitude;
     [SerializeField]
     private float maxTimeAllowed = 15f;
     private int spawnRadius = 0;

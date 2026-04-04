@@ -4,10 +4,14 @@ using UnityEngine;
 public class GeneticManager : MonoBehaviour
 {
     [Header("Simulation Setup")]
-    // Equipped flightschool as the default for now
-    public DataManager.GameMode activeMode = DataManager.GameMode.FlightSchool;
+    private DataManager.GameMode activeMode;
 
+    [Header("Prefabs")]
     public GameObject jetPrefab;
+
+    [Header("Objective Setup")]
+    [Tooltip("Drag a GameObject with an IObjective component (like FlightSchoolObjective) here.")]
+    [SerializeField] private MonoBehaviour objectiveProvider;
 
     private SimulationSettings currentSettings;
     private IObjective currentObjective;
@@ -18,6 +22,14 @@ public class GeneticManager : MonoBehaviour
 
     void Start()
     {
+        // First, find out WHAT we are flying (Initialize the Objective)
+        InitializeObjective();
+
+        if (currentObjective == null) return;
+
+        // Discover the mode FROM the objective and load settings
+        activeMode = currentObjective.Mode;
+
         // TODO REMOVE IN PRODUCTION
         // TEMPORARY FIX: Force the DataManager to wipe the old file and save the new defaults!
         currentSettings = DataManager.ResetToDefaults(activeMode);
@@ -27,7 +39,6 @@ public class GeneticManager : MonoBehaviour
         // LoadSettings for this specific mode
         currentSettings = DataManager.LoadSettings(activeMode);
 
-        InitializeObjective();
         InitializePopulation();
         SpawnPopulation();
     }
@@ -63,20 +74,17 @@ public class GeneticManager : MonoBehaviour
 
     private void InitializeObjective()
     {
-        switch (activeMode)
+        if (objectiveProvider == null)
         {
-            case DataManager.GameMode.MaxAltitude:
-                currentObjective = new MaxAltitudeObjective();
-                break;
-            case DataManager.GameMode.FlightSchool:
-                currentObjective = new FlightSchoolObjective();
-                break;
-            case DataManager.GameMode.Dogfight:
-                // currentObjective = new DogfightObjective();
-                break;
-            default:
-                Debug.LogError("Unknown GameMode selected!");
-                break;
+            Debug.LogError("[GeneticManager] No Objective Provider assigned! Drag an IObjective (like FlightSchoolObjective) into the inspector.");
+            return;
+        }
+
+        currentObjective = objectiveProvider as IObjective;
+
+        if (currentObjective == null)
+        {
+            Debug.LogError("[GeneticManager] The assigned Objective Provider does not implement IObjective!");
         }
     }
 

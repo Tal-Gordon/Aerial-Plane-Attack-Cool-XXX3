@@ -2,44 +2,42 @@ using Assets.Scripts.Sensors;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class FlightSchoolObjective : IObjective
+public class FlightSchoolObjective : MonoBehaviour, IObjective
 {
+    public DataManager.GameMode Mode => DataManager.GameMode.FlightSchool;
+
     // The Track
-    private Transform[] waypoints;
+    [SerializeField] private Transform[] waypoints;
+
+    // Settings
+    [SerializeField] private float hoopRadius = 170f;
+    [SerializeField] private float lambda = 0.1f;
+    [SerializeField] private float maxTimeAllowed = 15f;
+    [SerializeField] private float timeBonusMultiplier = 10f; // Points per second remaining if they win
+    [SerializeField] private float timeBetweenHoopsAllowed = 5f;
 
     // State Trackers
     private Dictionary<JetAgent, int> agentTargetIndices = new Dictionary<JetAgent, int>();
     private Dictionary<JetAgent, float> lastEffortSums = new Dictionary<JetAgent, float>();
     private Dictionary<JetAgent, float> lastDistanceToHoop = new Dictionary<JetAgent, float>();
     private Dictionary<JetAgent, float> lastLocalZ = new Dictionary<JetAgent, float>();
-
-    // Settings
-    private float hoopRadius = 170f;
-    private float lambda = 0.1f;
-    private float maxTimeAllowed = 15f;
-    private float timeBonusMultiplier = 10f; // Points per second remaining if they win
+    private Dictionary<JetAgent, float> lastHoopTime = new Dictionary<JetAgent, float>();
 
     // TODO REMOVE
     private JetAgent debugAgent = null;
 
-    public FlightSchoolObjective()
+    private void Awake()
     {
-        // Find the parent holding all waypoints
-        GameObject trackParent = GameObject.Find("HoopTrack");
-
-        if (trackParent == null)
+        // Fallback: If waypoints are not assigned in the Inspector, try to find them from children
+        if (waypoints == null || waypoints.Length == 0)
         {
-            Debug.LogError("[FlightSchoolObjective] Could not find 'HoopTrack' in the scene!");
-            return;
-        }
+            int hoopCount = transform.childCount;
+            waypoints = new Transform[hoopCount];
 
-        // Extract hoops
-        int hoopCount = trackParent.transform.childCount;
-        waypoints = new Transform[hoopCount];
-
-        for (int i = 0; i < hoopCount; i++)
-        {
-            waypoints[i] = trackParent.transform.GetChild(i);
+            for (int i = 0; i < hoopCount; i++)
+            {
+                waypoints[i] = transform.GetChild(i);
+            }
         }
     }
 
@@ -64,6 +62,7 @@ public class FlightSchoolObjective : IObjective
         lastEffortSums[agent] = 0;
         lastDistanceToHoop[agent] = Vector3.Distance(agent.transform.position, waypoints[0].position);
         lastLocalZ[agent] = waypoints[0].InverseTransformPoint(agent.transform.position).z;
+        lastHoopTime[agent] = 0f;
 
         // Set the sensors
         WaypointSensors sensors = agent.GetComponent<WaypointSensors>();
@@ -90,7 +89,7 @@ public class FlightSchoolObjective : IObjective
         {
             Transform targetHoop = waypoints[currentIndex];
 
-            // Distance Reward (Breadcrumbs)
+            // Distance Reward
             float currentDistance = Vector3.Distance(agent.transform.position, targetHoop.position);
             float distanceDelta = lastDistanceToHoop[agent] - currentDistance;
             stepReward += distanceDelta;
@@ -116,6 +115,7 @@ public class FlightSchoolObjective : IObjective
                 {
                     agentTargetIndices[agent]++;
                     stepReward += 500f;
+                    lastHoopTime[agent] = agent.TimeAlive;
 
                     // Update trackers to look at the NEW hoop
                     if (agentTargetIndices[agent] < waypoints.Length)
@@ -165,6 +165,11 @@ public class FlightSchoolObjective : IObjective
         if (agent.HasCrashed) return true;
 
         if (agent.TimeAlive > maxTimeAllowed) return true;
+
+        if (lastHoopTime.ContainsKey(agent) && (agent.TimeAlive - lastHoopTime[agent]) > timeBetweenHoopsAllowed)
+        {
+            return true;
+        }
 
         if (agentTargetIndices.ContainsKey(agent) && agentTargetIndices[agent] >= waypoints.Length)
         {
