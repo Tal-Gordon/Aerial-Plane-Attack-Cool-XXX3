@@ -1,28 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-// ============================================================
-//  BRAIN VISUALIZER WIDGET
-//  Draws the selected agent's neural network topology on a
-//  RawImage using a Texture2D — no extra packages required.
-//
-//  What it shows:
-//    - Nodes per layer, colour-coded by activation value (-1 to 1)
-//    - Connections between layers, colour-coded by weight sign
-//    - Input labels (left) and output labels (right)
-//    - Live update every frame for the selected agent
-//
-//  Setup:
-//    - Add a RawImage child to this widget, assign to rawImage
-//    - Set a reasonable size (e.g. 340 x 200) on the RawImage
-//    - Assign input/output label arrays in Inspector
-//    - The widget reads IBrain via the IEvolvableBrain interface;
-//      if your brain type is not IEvolvableBrain it gracefully hides.
-//
-//  Performance note:
-//    Texture2D.Apply() is called every frame while a brain is
-//    selected. For large networks reduce updateEveryNFrames.
-// ============================================================
 public class BrainVisualizerWidget : UIWidget
 {
     [Header("Wiring")]
@@ -39,7 +17,7 @@ public class BrainVisualizerWidget : UIWidget
 
     [Header("Visual Config")]
     [SerializeField] private int   nodeRadius       = 10;
-    [SerializeField] private int   updateEveryNFrames = 2; // skip frames for perf
+    [SerializeField] private int   updateEveryNFrames = 2; // skip frames (lower = better perf)
 
     // Colours
     [SerializeField] private Color bgColor          = new Color(0.05f, 0.07f, 0.12f, 1f);
@@ -63,8 +41,6 @@ public class BrainVisualizerWidget : UIWidget
     // We feed the sensor data through manually to get activations.
     // If your NeuroEvoBrain exposes GetActivations(), use that instead.
     private float[][]  activations;
-
-    // ---- UIWidget ----
 
     protected override void OnInitialize()
     {
@@ -111,8 +87,6 @@ public class BrainVisualizerWidget : UIWidget
         DrawFrame(shape);
     }
 
-    // ---- Layout ----
-
     private Vector2Int[][] BuildNodePositions(int[] shape)
     {
         int layers = shape.Length;
@@ -137,8 +111,6 @@ public class BrainVisualizerWidget : UIWidget
 
         return positions;
     }
-
-    // ---- Draw ----
 
     private void DrawFrame(int[] shape)
     {
@@ -183,8 +155,6 @@ public class BrainVisualizerWidget : UIWidget
         tex.Apply();
     }
 
-    // ---- Texture Primitives ----
-
     private void DrawCircle(Vector2Int center, int radius, Color color)
     {
         for (int dx = -radius; dx <= radius; dx++)
@@ -212,8 +182,6 @@ public class BrainVisualizerWidget : UIWidget
             tex.SetPixel(px, py, color);
         }
     }
-
-    // ---- Brain Data ----
 
     // Runs the sensor data through the network layer by layer,
     // capturing the activation at each node.
@@ -284,8 +252,6 @@ public class BrainVisualizerWidget : UIWidget
         // Not recommended, slow
         // But will work in case of null sensor errors and such
     }
-
-    // ---- Utilities ----
 
     private bool ShapeEquals(int[] a, int[] b)
     {

@@ -4,6 +4,7 @@ using TMPro;
 
 public class TimeScaleWidget : UIWidget
 {
+    [SerializeField] private TextMeshProUGUI informativeLabel; // just a label saying "Time Scale"
     [SerializeField] private Slider timeScaleSlider;
     [SerializeField] private TextMeshProUGUI valueLabel;
 
@@ -11,6 +12,7 @@ public class TimeScaleWidget : UIWidget
 
     protected override void OnInitialize()
     {
+        informativeLabel.text = "Time Scale";
         timeScaleSlider.minValue = 0.02f;
         timeScaleSlider.maxValue = 10f;
         timeScaleSlider.onValueChanged.AddListener(SetTimeScale);
