@@ -103,7 +103,8 @@ public class GeneticManager : MonoBehaviour
 
         GameObject topAgentObject = Instantiate(jetPrefab);
         topAgentObject.SetActive(false);
-        topAgent = topAgent.GetComponent<JetAgent>();
+        topAgentObject.name = "Top Agent";
+        topAgent = topAgentObject.GetComponent<JetAgent>();
         topAgent.Copy(population[0]);
     }
 

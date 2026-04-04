@@ -7,4 +7,6 @@ public interface IEvolvableBrain : IBrain
     public float[] ExtractWeights();
 
     public void InjectWeights(float[] savedWeights);
+
+    public int[] GetShape();
 }

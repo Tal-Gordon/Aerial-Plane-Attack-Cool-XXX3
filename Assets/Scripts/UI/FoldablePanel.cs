@@ -15,8 +15,12 @@ public class FoldablePanel : MonoBehaviour
 
     public bool IsFolded { get; private set; }
 
+    private RectTransform rectTransform;
+
     protected virtual void Awake()
     {
+        rectTransform = GetComponent<RectTransform>();
+
         if (foldButton)
         {
             foldButton.onClick.AddListener(ToggleFold);
@@ -39,5 +43,7 @@ public class FoldablePanel : MonoBehaviour
         {
             foldButtonLabel.text = IsFolded ? "→" : "↓";
         }
+
+        LayoutRebuilder.ForceRebuildLayoutImmediate(rectTransform);
     }
 }
