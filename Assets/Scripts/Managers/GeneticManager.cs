@@ -9,14 +9,10 @@ public class GeneticManager : MonoBehaviour
     [Header("Prefabs")]
     public GameObject jetPrefab;
 
-<<<<<<< HEAD
     [Header("Objective Setup")]
     [Tooltip("Drag a GameObject with an IObjective component (like FlightSchoolObjective) here.")]
     [SerializeField] private MonoBehaviour objectiveProvider;
 
-    private SimulationSettings currentSettings;
-=======
->>>>>>> origin/master
     private IObjective currentObjective;
     private List<JetAgent> population;
     private JetAgent topAgent;
@@ -33,7 +29,6 @@ public class GeneticManager : MonoBehaviour
 
     void Start()
     {
-<<<<<<< HEAD
         // First, find out WHAT we are flying (Initialize the Objective)
         InitializeObjective();
 
@@ -46,14 +41,8 @@ public class GeneticManager : MonoBehaviour
         // TEMPORARY FIX: Force the DataManager to wipe the old file and save the new defaults!
         currentSettings = DataManager.ResetToDefaults(activeMode);
 
-        population = new List<JetAgent>();
-
         // LoadSettings for this specific mode
         currentSettings = DataManager.LoadSettings(activeMode);
-=======
-        // Accessing currentSettings here ensures it's loaded before we try to spawn.
-        _ = currentSettings; 
->>>>>>> origin/master
 
         InitializePopulation();
         SpawnPopulation();
