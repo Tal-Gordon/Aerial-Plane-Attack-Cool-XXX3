@@ -51,7 +51,7 @@ public static class DataManager
             },
             [GameMode.FlightSchool] = new SimulationSettings
             {
-                PopulationSize = 20,
+                PopulationSize = 1000,
                 MutationRate = 0.1f,
                 NetworkShape = new[] { 19, 16, 16, 4 },
                 AIType = AIType.FixedNeuroEvo,
