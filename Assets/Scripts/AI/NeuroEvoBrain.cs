@@ -5,25 +5,28 @@ using System.Collections.Generic;
 public class NeuroEvoBrain : IEvolvableBrain
 {
     private float[][][] weights;
+    private float[][] biases;
 
     public NeuroEvoBrain(int[] shape)
     {
         InitializeWeights(shape);
     }
 
-    public NeuroEvoBrain(float[][][] weights)
+    public NeuroEvoBrain(float[][][] weights, float[][] biases)
     {
         this.weights = weights;
+        this.biases = biases;
     }
 
     private void InitializeWeights(int[] shape)
     {
         weights = new float[shape.Length - 1][][];
+        biases = new float[shape.Length - 1][];
 
         for (int i = 0; i < shape.Length - 1; i++)
         {
             weights[i] = new float[shape[i]][];
-
+            biases[i] = new float[shape[i + 1]];
             for (int j = 0; j < shape[i]; j++)
             {
                 weights[i][j] = new float[shape[i + 1]];
@@ -39,10 +42,12 @@ public class NeuroEvoBrain : IEvolvableBrain
     public IBrain Copy()
     {
         float[][][] weightsCopy = new float[weights.Length][][];
+        float[][] biasesCopy = new float[biases.Length][];
 
         for (int i = 0; i < weights.Length; i++)
         {
             weightsCopy[i] = new float[weights[i].Length][];
+            biasesCopy[i] = (float[])biases[i].Clone();
 
             for (int j = 0; j < weights[i].Length; j++)
             {
@@ -54,7 +59,7 @@ public class NeuroEvoBrain : IEvolvableBrain
                 }
             }
         }
-        return new NeuroEvoBrain(weightsCopy);
+        return new NeuroEvoBrain(weightsCopy, biasesCopy);
     }
 
     public float[][][] GetWeights()
@@ -88,6 +93,11 @@ public class NeuroEvoBrain : IEvolvableBrain
                     weights[i][j][k] += UnityEngine.Random.Range(-rate, rate);
                 }
             }
+
+            for (int j = 0; j < biases[i].Length; j++)
+            {
+                biases[i][j] += UnityEngine.Random.Range(-rate, rate);
+            }
         }
     }
 
@@ -95,7 +105,7 @@ public class NeuroEvoBrain : IEvolvableBrain
     {
         for (int i = 0; i < weights.Length; i++)
         {
-            float[] FCLayer = FullyConnected(inputs, weights[i]);
+            float[] FCLayer = FullyConnected(inputs, weights[i], biases[i]);
 
             // Use relu for each layer besides the last
             if (i == weights.Length - 1)
@@ -113,7 +123,7 @@ public class NeuroEvoBrain : IEvolvableBrain
         return inputs;
     }
 
-    private float[] FullyConnected(float[] inputs, float[][] matrix)
+    private float[] FullyConnected(float[] inputs, float[][] matrix, float[] layerBiases)
     {
         float[] outputs = new float[matrix[0].Length];
 
@@ -123,6 +133,7 @@ public class NeuroEvoBrain : IEvolvableBrain
             {
                 outputs[i] += inputs[j] * matrix[j][i];
             }
+            outputs[i] += layerBiases[i];
         }
 
         return outputs;
@@ -165,6 +176,12 @@ public class NeuroEvoBrain : IEvolvableBrain
                     flatWeights.Add(weights[i][j][k]);
                 }
             }
+
+            // Append biases for this layer after its weights
+            for (int j = 0; j < biases[i].Length; j++)
+            {
+                flatWeights.Add(biases[i][j]);
+            }
         }
 
         return flatWeights.ToArray();
@@ -183,6 +200,13 @@ public class NeuroEvoBrain : IEvolvableBrain
                     weights[i][j][k] = savedWeights[index];
                     index++;
                 }
+            }
+
+            // Read biases for this layer after its weights
+            for (int j = 0; j < biases[i].Length; j++)
+            {
+                biases[i][j] = savedWeights[index];
+                index++;
             }
         }
     }
