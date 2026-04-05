@@ -1,25 +1,65 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-[System.Serializable]
-public class MaxAltitudeObjective : IObjective
+public class MaxAltitudeObjective : MonoBehaviour, IObjective
 {
+    public DataManager.GameMode Mode => DataManager.GameMode.MaxAltitude;
     [SerializeField]
-    private float maxTimeAllowed = 10f;
+    private float maxTimeAllowed = 15f;
     private int spawnRadius = 0;
-    private float lambda = 0.2f;
+    private float lambda = 0.1f;
 
+    // Previous state trackers
+    private Dictionary<JetAgent, float> lastYPosition = new Dictionary<JetAgent, float>();
+    private Dictionary<JetAgent, float> lastEffortSums = new Dictionary<JetAgent, float>();
+
+    public void SetStartingState(JetAgent agent, int index, int totalPopulation, Vector3 centerPoint)
+    {
+        // Extract and calculate position of the jet
+        Vector2 randomDisk = UnityEngine.Random.insideUnitCircle * spawnRadius;
+        Vector3 spawnPosition = centerPoint + new Vector3(randomDisk.x, 200f, randomDisk.y);
+
+        // Move the jet to that position
+        agent.transform.position = spawnPosition;
+
+        // Update the Jet's memory
+        agent.StartingPosition = agent.transform.position;
+
+        // Face north
+        agent.transform.rotation = Quaternion.identity;
+
+        // Give it 150 speed so it doesn't stall, and clear any spin
+        Rigidbody rb = agent.GetComponent<Rigidbody>();
+        rb.linearVelocity = agent.transform.forward * 600;
+        rb.angularVelocity = Vector3.zero;
+
+        // Initialize trackers
+        lastYPosition[agent] = spawnPosition.y;
+        lastEffortSums[agent] = 0;
+    }
+
+    public float GetStepReward(JetAgent agent)
+    {
+        //if (!lastYPosition.ContainsKey(agent) || !lastEffortSums.ContainsKey(agent))
+        //    return 0f;
+
+        float currentY = agent.transform.position.y;
+        float heightGained = currentY - lastYPosition[agent];
+        lastYPosition[agent] = currentY;
+
+        float currentEffort = agent.TotalControlEffort;
+        float effortGained = currentEffort - lastEffortSums[agent];
+        lastEffortSums[agent] = currentEffort;
+        float l2Penalty = lambda * effortGained;
+
+        return heightGained - l2Penalty;
+    }
     public float CalculateTotalFitness(JetAgent agent)
     {
         float heightScore = agent.transform.position.y - agent.StartingPosition.y;
-        float l2Panelty = lambda * agent.TotalControlEffort;
-        return heightScore - l2Panelty;
-    }
-
-    // TODO implement GetStepReward using the jet's rigid body
-    public float GetStepReward(JetAgent agent)
-    {
-        return 0f;
+        float l2Penalty = lambda * agent.TotalControlEffort;
+        return heightScore - l2Penalty;
     }
 
     public bool CheckTerminalState(JetAgent agent)
@@ -35,26 +75,5 @@ public class MaxAltitudeObjective : IObjective
         //    return true;
 
         return false;
-    }
-
-    public void SetStartingState(JetAgent agent, int index, int totalPopulation, Vector3 centerPoint)
-    {
-        // Extract and calculate position of the jet
-        Vector2 randomDisk = UnityEngine.Random.insideUnitCircle * spawnRadius;
-        Vector3 spawnPosition = centerPoint + new Vector3(randomDisk.x, 200f, randomDisk.y);
-
-        // Move the jet to that position
-        agent.transform.position = spawnPosition;
-
-        // Face north
-        agent.transform.rotation = Quaternion.identity;
-
-        // Give it 150 speed so it doesn't stall, and clear any spin
-        Rigidbody rb = agent.GetComponent<Rigidbody>();
-        rb.linearVelocity = agent.transform.forward * 600;
-        rb.angularVelocity = Vector3.zero;
-
-        // Update the Jet's memory so CalculateTotalFitness works
-        agent.StartingPosition = agent.transform.position;
     }
 }

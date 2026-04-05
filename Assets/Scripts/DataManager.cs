@@ -15,6 +15,7 @@ public static class DataManager
 
     public enum GameMode
     {
+        MaxAltitude,
         FlightSchool,
         Dogfight,
         // Add future modes here
@@ -39,7 +40,7 @@ public static class DataManager
     private static readonly Dictionary<GameMode, SimulationSettings> Defaults =
         new()
         {
-            [GameMode.FlightSchool] = new SimulationSettings
+            [GameMode.MaxAltitude] = new SimulationSettings
             {
                 PopulationSize = 20,
                 MutationRate = 0.5f,
@@ -48,11 +49,20 @@ public static class DataManager
                 SpawnRadius = 50f,
                 SpawnFormation = SpawnFormation.Random,
             },
+            [GameMode.FlightSchool] = new SimulationSettings
+            {
+                PopulationSize = 1000,
+                MutationRate = 0.1f,
+                NetworkShape = new[] { 19, 16, 16, 4 },
+                AIType = AIType.FixedNeuroEvo,
+                SpawnRadius = 0f,
+                SpawnFormation = SpawnFormation.Random,
+            },
             [GameMode.Dogfight] = new SimulationSettings
             {
                 PopulationSize = 10,
                 MutationRate = 0.08f,
-                NetworkShape = new[] { 12, 16, 4 },
+                NetworkShape = new[] { 12, 16, 4 }, // TODO change the input based on the assigned sensors
                 AIType = AIType.FixedNeuroEvo,
                 SpawnRadius = 200f,
                 SpawnFormation = SpawnFormation.Opposing,

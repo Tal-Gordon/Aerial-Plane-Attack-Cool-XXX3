@@ -4,10 +4,14 @@ using UnityEngine;
 public class GeneticManager : MonoBehaviour
 {
     [Header("Simulation Setup")]
-    // Equipped flightschool (MaxAltitudeObjective) as the default for now
-    public DataManager.GameMode activeMode = DataManager.GameMode.FlightSchool;
+    private DataManager.GameMode activeMode;
 
+    [Header("Prefabs")]
     public GameObject jetPrefab;
+
+    [Header("Objective Setup")]
+    [Tooltip("Drag a GameObject with an IObjective component (like FlightSchoolObjective) here.")]
+    [SerializeField] private MonoBehaviour objectiveProvider;
 
     private IObjective currentObjective;
     private List<JetAgent> population;
@@ -25,17 +29,27 @@ public class GeneticManager : MonoBehaviour
 
     void Start()
     {
-        // Accessing currentSettings here ensures it's loaded before we try to spawn.
-        _ = currentSettings; 
-
+        // First, find out WHAT we are flying (Initialize the Objective)
         InitializeObjective();
+
+        if (currentObjective == null) return;
+
+        // Discover the mode FROM the objective and load settings
+        activeMode = currentObjective.Mode;
+
+        // TODO REMOVE IN PRODUCTION
+        // TEMPORARY FIX: Force the DataManager to wipe the old file and save the new defaults!
+        currentSettings = DataManager.ResetToDefaults(activeMode);
+
+        // LoadSettings for this specific mode
+        currentSettings = DataManager.LoadSettings(activeMode);
+
         InitializePopulation();
         SpawnPopulation();
     }
 
-    void Update()
+    void FixedUpdate()
     {
-        // SAFETY FIX: Use <= to prevent skipping 0 if multiple die on the exact same frame!
         if (aliveCount <= 0)
         {
             currentGeneration++;
@@ -49,9 +63,13 @@ public class GeneticManager : MonoBehaviour
         {
             if (jet.gameObject.activeInHierarchy)
             {
+                jet.CurrentFitness += currentObjective.GetStepReward(jet);
+
                 if (currentObjective.CheckTerminalState(jet))
                 {
+                    //Debug.Log("get step fitness :" + jet.CurrentFitness);
                     jet.CurrentFitness = currentObjective.CalculateTotalFitness(jet);
+                    //Debug.Log("total fitness :" + jet.CurrentFitness);
                     jet.gameObject.SetActive(false);
                     aliveCount--;
                 }
@@ -61,17 +79,17 @@ public class GeneticManager : MonoBehaviour
 
     private void InitializeObjective()
     {
-        switch (activeMode)
+        if (objectiveProvider == null)
         {
-            case DataManager.GameMode.FlightSchool:
-                currentObjective = new MaxAltitudeObjective();
-                break;
-            case DataManager.GameMode.Dogfight:
-                // currentObjective = new DogfightObjective();
-                break;
-            default:
-                Debug.LogError("Unknown GameMode selected!");
-                break;
+            Debug.LogError("[GeneticManager] No Objective Provider assigned! Drag an IObjective (like FlightSchoolObjective) into the inspector.");
+            return;
+        }
+
+        currentObjective = objectiveProvider as IObjective;
+
+        if (currentObjective == null)
+        {
+            Debug.LogError("[GeneticManager] The assigned Objective Provider does not implement IObjective!");
         }
     }
 
@@ -137,6 +155,20 @@ public class GeneticManager : MonoBehaviour
         // Sort population based on fitness
         population.Sort((a, b) => b.CurrentFitness.CompareTo(a.CurrentFitness));
 
+        // Keep track of the historical champion
+        if (population[0].CurrentFitness > topAgent.CurrentFitness || currentGeneration == 1)
+        {
+            // We have a new all-time champion (or it's the very first generation)
+            topAgent.Copy(population[0]);
+        }
+        else
+        {
+            // The historical champion is better than anything this generation produced.
+            // Overwrite the current current #1 so the historical champion survives untouched
+            // and is used as the prime parent for the next generation.
+            population[0].Copy(topAgent);
+        }
+
         // Mathf.Max prevents a Divide By Zero crash if you test with under 5 jets!
         int numParents = Mathf.Max(1, population.Count / 5);
 
@@ -156,8 +188,7 @@ public class GeneticManager : MonoBehaviour
             }
         }
 
-        Debug.Log($"Generation {currentGeneration} evolved. Champion Fitness: {population[0].CurrentFitness}");
-        topAgent.Copy(population[0]);
+        Debug.Log($"Generation {currentGeneration} evolved. All-Time Champion Fitness: {topAgent.CurrentFitness}");
     }
 
     public List<JetAgent> GetPopulation()
