@@ -155,6 +155,20 @@ public class GeneticManager : MonoBehaviour
         // Sort population based on fitness
         population.Sort((a, b) => b.CurrentFitness.CompareTo(a.CurrentFitness));
 
+        // Keep track of the historical champion
+        if (population[0].CurrentFitness > topAgent.CurrentFitness || currentGeneration == 1)
+        {
+            // We have a new all-time champion (or it's the very first generation)
+            topAgent.Copy(population[0]);
+        }
+        else
+        {
+            // The historical champion is better than anything this generation produced.
+            // Overwrite the current current #1 so the historical champion survives untouched
+            // and is used as the prime parent for the next generation.
+            population[0].Copy(topAgent);
+        }
+
         // Mathf.Max prevents a Divide By Zero crash if you test with under 5 jets!
         int numParents = Mathf.Max(1, population.Count / 5);
 
@@ -174,8 +188,7 @@ public class GeneticManager : MonoBehaviour
             }
         }
 
-        Debug.Log($"Generation {currentGeneration} evolved. Champion Fitness: {population[0].CurrentFitness}");
-        topAgent.Copy(population[0]);
+        Debug.Log($"Generation {currentGeneration} evolved. All-Time Champion Fitness: {topAgent.CurrentFitness}");
     }
 
     public List<JetAgent> GetPopulation()
