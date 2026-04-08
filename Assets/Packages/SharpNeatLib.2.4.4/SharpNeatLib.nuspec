@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>SharpNeatLib</id>
+    <version>2.4.4</version>
+    <authors>Colin D. Green</authors>
+    <owners>Colin D. Green</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <license type="expression">MIT</license>
+    <licenseUrl>https://licenses.nuget.org/MIT</licenseUrl>
+    <projectUrl>http://sharpneat.sourceforge.net/</projectUrl>
+    <description>SharpNEAT - Evolution of Neural Networks.</description>
+    <releaseNotes>See https://github.com/colgreen/sharpneat/releases/tag/v2.4.4</releaseNotes>
+    <copyright>Copyright © Colin D. Green 2004 - 2020</copyright>
+    <tags>neuroevolution neuro evolution neural network ai</tags>
+    <dependencies>
+      <group targetFramework=".NETStandard2.0">
+        <dependency id="Redzen" version="9.1.1" exclude="Build,Analyzers" />
+        <dependency id="log4net" version="2.0.8" exclude="Build,Analyzers" />
+      </group>
+    </dependencies>
+  </metadata>
+</package>
