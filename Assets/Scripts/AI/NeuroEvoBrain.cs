@@ -39,27 +39,22 @@ public class NeuroEvoBrain : IEvolvableBrain
         }
     }
 
-    public IBrain Copy()
+    public void Copy(IBrain brain)
     {
-        float[][][] weightsCopy = new float[weights.Length][][];
-        float[][] biasesCopy = new float[biases.Length][];
+        NeuroEvoBrain other = (NeuroEvoBrain)brain;
 
-        for (int i = 0; i < weights.Length; i++)
+        for (int i = 0; i < other.weights.Length; i++)
         {
-            weightsCopy[i] = new float[weights[i].Length][];
-            biasesCopy[i] = (float[])biases[i].Clone();
+            biases[i] = (float[])other.biases[i].Clone();
 
-            for (int j = 0; j < weights[i].Length; j++)
+            for (int j = 0; j < other.weights[i].Length; j++)
             {
-                weightsCopy[i][j] = new float[weights[i][j].Length];
-
-                for (int k = 0; k < weights[i][j].Length; k++)
+                for (int k = 0; k < other.weights[i][j].Length; k++)
                 {
-                    weightsCopy[i][j][k] = weights[i][j][k];
+                    weights[i][j][k] = other.weights[i][j][k];
                 }
             }
         }
-        return new NeuroEvoBrain(weightsCopy, biasesCopy);
     }
 
     public float[][][] GetWeights()
