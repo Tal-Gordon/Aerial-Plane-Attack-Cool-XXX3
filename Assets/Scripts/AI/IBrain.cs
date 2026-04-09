@@ -4,5 +4,5 @@ public interface IBrain
 {
     public float[] GetControlOutputs(float[] inputs);
 
-    public IBrain Copy();
+    public void Copy(IBrain brain);
 }

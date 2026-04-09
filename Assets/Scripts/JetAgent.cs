@@ -119,7 +119,7 @@ public class JetAgent : MonoBehaviour
     public void Copy(JetAgent agent)
     {
         hasCrashed = agent.hasCrashed;
-        currentBrain = agent.currentBrain.Copy();
+        currentBrain.Copy(agent.currentBrain);
         currentSensor = agent.currentSensor = currentSensor;
         physics = agent.physics;
         weapons = agent.weapons;
