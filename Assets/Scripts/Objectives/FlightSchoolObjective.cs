@@ -12,9 +12,9 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
     // Settings
     [SerializeField] private float hoopRadius = 170f;
     [SerializeField] private float lambda = 0.1f;
-    [SerializeField] private float maxTimeAllowed = 15f;
+    [SerializeField] private float maxTimeAllowed = 25f;
     [SerializeField] private float timeBonusMultiplier = 10f; // Points per second remaining if they win
-    [SerializeField] private float timeBetweenHoopsAllowed = 5f;
+    [SerializeField] private float timeBetweenHoopsAllowed = 10f;
 
     // State Trackers
     private Dictionary<JetAgent, int> agentTargetIndices = new Dictionary<JetAgent, int>();
@@ -92,7 +92,7 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
             // Distance Reward
             float currentDistance = Vector3.Distance(agent.transform.position, targetHoop.position);
             float distanceDelta = lastDistanceToHoop[agent] - currentDistance;
-            stepReward += distanceDelta;
+            stepReward += 10 * distanceDelta;
             lastDistanceToHoop[agent] = currentDistance;
 
             // --- THE TUNNELING FIX ---
