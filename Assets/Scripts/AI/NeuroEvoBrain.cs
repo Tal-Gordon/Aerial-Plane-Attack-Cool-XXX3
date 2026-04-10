@@ -39,7 +39,7 @@ public class NeuroEvoBrain : IEvolvableBrain
         }
     }
 
-    public void Copy(IBrain brain)
+    public void Copy(IEvolvableBrain brain)
     {
         NeuroEvoBrain other = (NeuroEvoBrain)brain;
 
@@ -158,7 +158,7 @@ public class NeuroEvoBrain : IEvolvableBrain
         return outputs;
     }
 
-    public float[] ExtractWeights()
+    public float[] Serialize()
     {
         List<float> flatWeights = new();
 
@@ -182,7 +182,7 @@ public class NeuroEvoBrain : IEvolvableBrain
         return flatWeights.ToArray();
     }
 
-    public void InjectWeights(float[] savedWeights)
+    public void Deserialize(float[] savedData)
     {
         int index = 0;
 
@@ -192,7 +192,7 @@ public class NeuroEvoBrain : IEvolvableBrain
             {
                 for (int k = 0; k < weights[i][j].Length; k++)
                 {
-                    weights[i][j][k] = savedWeights[index];
+                    weights[i][j][k] = savedData[index];
                     index++;
                 }
             }
@@ -200,7 +200,7 @@ public class NeuroEvoBrain : IEvolvableBrain
             // Read biases for this layer after its weights
             for (int j = 0; j < biases[i].Length; j++)
             {
-                biases[i][j] = savedWeights[index];
+                biases[i][j] = savedData[index];
                 index++;
             }
         }

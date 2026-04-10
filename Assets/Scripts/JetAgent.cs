@@ -116,19 +116,5 @@ public class JetAgent : MonoBehaviour
         totalControlEffort = 0f;
     }
 
-    // TODO Opus Note #1: Remove this method entirely. It copies physics/weapons/sensor
-    // refs across different GameObjects (broken). Elitism should operate on brains
-    // directly via IEvolvableBrain.Copy() inside the engine, not through agent-level cloning.
-    public void Copy(JetAgent agent)
-    {
-        hasCrashed = agent.hasCrashed;
-        currentBrain.Copy(agent.currentBrain);
-        currentSensor = agent.currentSensor = currentSensor;
-        physics = agent.physics;
-        weapons = agent.weapons;
-        timeAlive = agent.timeAlive;
-        startingPosition = agent.startingPosition;
-        currentFitness = agent.currentFitness;
-        totalControlEffort = agent.totalControlEffort ;
-    }
+
 }
