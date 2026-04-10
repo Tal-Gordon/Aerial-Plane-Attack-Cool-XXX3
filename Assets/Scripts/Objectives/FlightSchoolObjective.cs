@@ -74,6 +74,7 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
 
     public float GetStepReward(JetAgent agent)
     {
+        // TODO potentially normalize reward by distance to each hoop
         if (!agentTargetIndices.ContainsKey(agent) || waypoints.Length == 0) return 0f;
 
         float stepReward = 0f;
@@ -92,7 +93,7 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
             // Distance Reward
             float currentDistance = Vector3.Distance(agent.transform.position, targetHoop.position);
             float distanceDelta = lastDistanceToHoop[agent] - currentDistance;
-            stepReward += 10 * distanceDelta;
+            stepReward += 2 * distanceDelta;
             lastDistanceToHoop[agent] = currentDistance;
 
             // --- THE TUNNELING FIX ---

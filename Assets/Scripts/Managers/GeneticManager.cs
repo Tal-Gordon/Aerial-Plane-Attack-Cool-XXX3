@@ -48,6 +48,14 @@ public class GeneticManager : MonoBehaviour
         SpawnPopulation();
     }
 
+    // TODO Opus Note #2: This entire FixedUpdate body moves into EvolutionaryParadigm.Tick().
+    // SimulationManager.FixedUpdate() should only call activeParadigm.Tick().
+    // The paradigm owns aliveCount, generation boundaries, and agent resets.
+    //
+    // TODO Opus Note #3: RL paradigm's Tick() will look fundamentally different:
+    // Evo = batch (wait for ALL dead → evolve → respawn all)
+    // RL  = per-agent (agent dies → record reward → reset THAT agent immediately)
+    // Both fit behind a single Tick() interface, but share no loop logic.
     void FixedUpdate()
     {
         if (aliveCount <= 0)
@@ -93,6 +101,12 @@ public class GeneticManager : MonoBehaviour
         }
     }
 
+    // TODO Opus Note #6: This factory logic moves to SimulationManager.CreateParadigm(AIType).
+    // It should map AIType to a paradigm+engine pair:
+    //   FixedNeuroEvo → new EvolutionaryParadigm(new ClassicNeuroEvoEngine())
+    //   NEAT          → new EvolutionaryParadigm(new SharpNeatEngine())
+    //   PPO           → new RLParadigm()
+    // Brain creation itself stays inside each IEvolutionEngine.InitializeGeneration().
     private IEvolvableBrain CreateNewBrain()
     {
         switch (currentSettings.AIType)
@@ -127,6 +141,10 @@ public class GeneticManager : MonoBehaviour
         topAgent.Copy(population[0]);
     }
 
+    // TODO Opus Note #2: This entire method moves into EvolutionaryParadigm.ResetAllAgents().
+    // SimulationManager only Instantiates the GameObjects once in Start().
+    // After handing the List<JetAgent> to the paradigm via Initialize(),
+    // the paradigm owns positioning, resetting, and reactivating agents.
     public void SpawnPopulation()
     {
         // Loop strictly through the list count, not the settings!
