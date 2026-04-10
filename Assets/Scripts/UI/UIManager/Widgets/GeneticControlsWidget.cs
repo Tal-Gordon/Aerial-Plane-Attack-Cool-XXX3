@@ -18,6 +18,12 @@ public class GeneticControlsWidget : UIWidget
         if (mutationRateInput) mutationRateInput.contentType = TMP_InputField.ContentType.DecimalNumber;
         if (lambdaInput)      lambdaInput.contentType      = TMP_InputField.ContentType.DecimalNumber;
 
+        // TODO Opus Note #5: When this widget is refactored to use static events
+        // (e.g. static event Action<float> OnMutationRateChanged), the subscribing
+        // paradigm (a plain C# class, not a MonoBehaviour) MUST unsubscribe in its
+        // Dispose() method. Otherwise scene reloads or paradigm swaps leave stale
+        // subscribers that cause null refs. Add Dispose() to ITrainingParadigm.
+
         // Initial sync from GeneticManager
         SyncUIFromManager();
 

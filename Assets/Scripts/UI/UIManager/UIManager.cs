@@ -59,6 +59,11 @@ public class UIManager : MonoBehaviour
     }
 
     // Snapshot design pattern
+    // TODO Opus Note #4: Replace this with simManager.GetSnapshot(). The paradigm
+    // returns a ParadigmTelemetry (iteration, alive count, best score, paradigm name,
+    // population, EvoData/RLData). SimulationManager wraps it into a full SimulationSnapshot
+    // by adding manager-level fields like TimeScale and SelectedAgent.
+    // This way UIManager never knows which paradigm is active.
     private void RefreshSnapshot()
     {
         snapshot.CurrentGeneration = geneticManager.currentGeneration;
