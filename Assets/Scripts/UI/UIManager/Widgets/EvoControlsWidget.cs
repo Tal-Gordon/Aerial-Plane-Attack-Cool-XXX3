@@ -1,8 +1,18 @@
+using System;
 using UnityEngine;
 using TMPro;
 
-public class GeneticControlsWidget : UIWidget
+/// <summary>
+/// Controls widget for evolutionary paradigm parameters (mutation rate, lambda).
+/// Reads current values from SimulationSnapshot.EvoData.
+/// Writes changes via static events — EvolutionaryParadigm subscribes to these.
+/// </summary>
+public class EvoControlsWidget : UIWidget
 {
+    // ── Static events (paradigm subscribes, widget fires blindly) ────
+    public static event Action<float> OnMutationRateChanged;
+    public static event Action<float> OnLambdaChanged;
+
     [Header("Wiring")]
     [SerializeField] private TextMeshProUGUI mutationRateText;
     [SerializeField] private TextMeshProUGUI lambdaText;
@@ -18,25 +28,19 @@ public class GeneticControlsWidget : UIWidget
         if (mutationRateInput) mutationRateInput.contentType = TMP_InputField.ContentType.DecimalNumber;
         if (lambdaInput)      lambdaInput.contentType      = TMP_InputField.ContentType.DecimalNumber;
 
-        // TODO Opus Note #5: When this widget is refactored to use static events
-        // (e.g. static event Action<float> OnMutationRateChanged), the subscribing
-        // paradigm (a plain C# class, not a MonoBehaviour) MUST unsubscribe in its
-        // Dispose() method. Otherwise scene reloads or paradigm swaps leave stale
-        // subscribers that cause null refs. Add Dispose() to ITrainingParadigm.
-
-        // Initial sync from GeneticManager
-        SyncUIFromManager();
-
         if (mutationRateInput) mutationRateInput.onEndEdit.AddListener(OnMutationRateEndEdit);
         if (lambdaInput) lambdaInput.onEndEdit.AddListener(OnLambdaEndEdit);
     }
 
     public override void Tick(SimulationSnapshot snapshot)
     {
+        // This widget is only relevant when running an evolutionary paradigm
+        if (snapshot.EvoData == null) return;
+
         // Only update the input field if the user is not currently interacting with it
         if (mutationRateInput && !mutationRateInput.isFocused)
         {
-            string valueString = snapshot.MutationRate.ToString();
+            string valueString = snapshot.EvoData.MutationRate.ToString();
             if (mutationRateInput.text != valueString)
             {
                 mutationRateInput.text = valueString;
@@ -45,23 +49,12 @@ public class GeneticControlsWidget : UIWidget
 
         if (lambdaInput && !lambdaInput.isFocused)
         {
-            string valueString = snapshot.Lambda.ToString();
+            string valueString = snapshot.EvoData.Lambda.ToString();
             if (lambdaInput.text != valueString)
             {
                 lambdaInput.text = valueString;
             }
         }
-    }
-
-    private void SyncUIFromManager()
-    {
-        if (Manager == null || Manager.GeneticManager == null) return;
-
-        if (mutationRateInput)
-            mutationRateInput.text = Manager.GeneticManager.GetMutationRate().ToString();
-            
-        if (lambdaInput)
-            lambdaInput.text = Manager.GeneticManager.GetLambda().ToString();
     }
 
     private void OnMutationRateEndEdit(string value)
@@ -70,16 +63,18 @@ public class GeneticControlsWidget : UIWidget
         {
             // Clamp to strictly positive (minimum 0.0001)
             result = Mathf.Max(result, 0.0001f);
-            
-            Manager.GeneticManager.SetMutationRate(result);
-            
+
+            // Fire the event — whoever is subscribed handles it
+            OnMutationRateChanged?.Invoke(result);
+
             // Sync UI to show clamped value
             mutationRateInput.text = result.ToString();
         }
         else
         {
-            // Reset to current manager value if invalid input
-            mutationRateInput.text = Manager.GeneticManager.GetMutationRate().ToString();
+            // Reset to last known good value from snapshot
+            if (Manager?.Snapshot?.EvoData != null)
+                mutationRateInput.text = Manager.Snapshot.EvoData.MutationRate.ToString();
         }
     }
 
@@ -90,15 +85,17 @@ public class GeneticControlsWidget : UIWidget
             // Clamp to [0, 1] range
             result = Mathf.Clamp01(result);
 
-            Manager.GeneticManager.SetLambda(result);
+            // Fire the event — whoever is subscribed handles it
+            OnLambdaChanged?.Invoke(result);
 
             // Sync UI to show clamped value
             lambdaInput.text = result.ToString();
         }
         else
         {
-            // Reset to current manager value if invalid input
-            lambdaInput.text = Manager.GeneticManager.GetLambda().ToString();
+            // Reset to last known good value from snapshot
+            if (Manager?.Snapshot?.EvoData != null)
+                lambdaInput.text = Manager.Snapshot.EvoData.Lambda.ToString();
         }
     }
 }
