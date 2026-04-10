@@ -138,7 +138,11 @@ public class GeneticManager : MonoBehaviour
         topAgentObject.SetActive(false);
         topAgentObject.name = "Top Agent";
         topAgent = topAgentObject.GetComponent<JetAgent>();
-        topAgent.Copy(population[0]);
+        topAgent.Brain = CreateNewBrain();
+        if (topAgent.Brain is IEvolvableBrain topEvoBrain && population[0].Brain is IEvolvableBrain popEvoBrain)
+        {
+            topEvoBrain.Copy(popEvoBrain);
+        }
     }
 
     // TODO Opus Note #2: This entire method moves into EvolutionaryParadigm.ResetAllAgents().
@@ -177,14 +181,22 @@ public class GeneticManager : MonoBehaviour
         if (population[0].CurrentFitness > topAgent.CurrentFitness || currentGeneration == 1)
         {
             // We have a new all-time champion (or it's the very first generation)
-            topAgent.Copy(population[0]);
+            topAgent.CurrentFitness = population[0].CurrentFitness;
+            if (topAgent.Brain is IEvolvableBrain topEvoBrain && population[0].Brain is IEvolvableBrain popEvoBrain)
+            {
+                topEvoBrain.Copy(popEvoBrain);
+            }
         }
         else
         {
             // The historical champion is better than anything this generation produced.
             // Overwrite the current current #1 so the historical champion survives untouched
             // and is used as the prime parent for the next generation.
-            population[0].Copy(topAgent);
+            population[0].CurrentFitness = topAgent.CurrentFitness;
+            if (population[0].Brain is IEvolvableBrain popEvoBrain && topAgent.Brain is IEvolvableBrain topEvoBrain)
+            {
+                popEvoBrain.Copy(topEvoBrain);
+            }
         }
 
         // Mathf.Max prevents a Divide By Zero crash if you test with under 5 jets!
@@ -200,8 +212,8 @@ public class GeneticManager : MonoBehaviour
 
             if (parent.Brain is IEvolvableBrain parentBrain && loser.Brain is IEvolvableBrain loserBrain)
             {
-                float[] winningWeights = parentBrain.ExtractWeights();
-                loserBrain.InjectWeights(winningWeights);
+                float[] winningWeights = parentBrain.Serialize();
+                loserBrain.Deserialize(winningWeights);
                 loserBrain.Mutate(currentSettings.MutationRate);
             }
         }
