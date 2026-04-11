@@ -4,7 +4,8 @@ public interface IObjective
 {
     public DataManager.GameMode Mode { get; }
 
-    public void SetStartingState(JetAgent agent, int index, int totalPopulation, Vector3 centerPoint);
+    // TODO get rid of spawn radius, need to consult with Gordont
+    public void SetStartingState(JetAgent agent, int index, int totalPopulation);
 
     public float GetStepReward(JetAgent agent);
 
