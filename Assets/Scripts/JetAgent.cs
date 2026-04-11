@@ -115,6 +115,4 @@ public class JetAgent : MonoBehaviour
         currentFitness = 0f;
         totalControlEffort = 0f;
     }
-
-
 }
