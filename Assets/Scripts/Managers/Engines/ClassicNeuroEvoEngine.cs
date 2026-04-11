@@ -53,7 +53,7 @@ public class ClassicNeuroEvoEngine : IEvolutionEngine
         {
             // We have a new all-time champion (or it's the very first generation)
             championBrain.Copy(currentBrains[0]);
-            championScore = fitnessScores[0];
+            championScore = highestScoreThisGen;
         }
         else
         {
