@@ -27,4 +27,15 @@ public interface ITrainingParadigm
     /// Called by SimulationManager.OnDestroy() or on paradigm swap.
     /// </summary>
     public void Dispose();
+
+    /// <summary>
+    /// Returns the current all-time best brain across any generation/episode.
+    /// Used for saving to disk or injecting into opponent jets.
+    /// </summary>
+    public IBrain GetChampionBrain();
+
+    /// <summary>
+    /// Returns the current all-time best score across any generation/episode.
+    /// </summary>
+    public float GetChampionScore();
 }

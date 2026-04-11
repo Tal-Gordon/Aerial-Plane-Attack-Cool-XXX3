@@ -41,16 +41,19 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
         }
     }
 
-    public void SetStartingState(JetAgent agent, int index, int totalPopulation, Vector3 centerPoint)
+    public void SetStartingState(JetAgent agent, int index, int totalPopulation)
     {
+        // Define center behind the first hoop (500 units along its local Z)
+        Vector3 spawnCenter = waypoints[0].position - (waypoints[0].forward * 1500f);
+
         // Move the jet to position
-        agent.transform.position = centerPoint;
+        agent.transform.position = spawnCenter;
 
         // Update the Jet's memory
         agent.StartingPosition = agent.transform.position;
 
-        // Face north
-        agent.transform.rotation = Quaternion.identity;
+        // Face the exact same direction as the first hoop instead of strictly north!
+        agent.transform.rotation = waypoints[0].rotation;
 
         // Give it starting velocity so it doesn't stall, and clear any spin
         Rigidbody rb = agent.GetComponent<Rigidbody>();

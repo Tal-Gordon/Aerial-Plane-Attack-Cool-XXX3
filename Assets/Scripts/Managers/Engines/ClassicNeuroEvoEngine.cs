@@ -7,8 +7,8 @@ public class ClassicNeuroEvoEngine : IEvolutionEngine
     private SimulationSettings currentSettings;
 
     private List<IEvolvableBrain> currentBrains;
-    private IEvolvableBrain topBrain;
-    private float highestFitness;
+    private IEvolvableBrain championBrain;
+    private float championScore;
     
     private int currentGeneration;
 
@@ -23,9 +23,9 @@ public class ClassicNeuroEvoEngine : IEvolutionEngine
         }
 
         currentBrains = population;
-        topBrain = new NeuroEvoBrain(currentSettings.NetworkShape);
-        topBrain.Copy(population[0]);
-        highestFitness = float.NegativeInfinity;
+        championBrain = new NeuroEvoBrain(currentSettings.NetworkShape);
+        championBrain.Copy(population[0]);
+        championScore = float.NegativeInfinity;
         currentGeneration = 1;
         
         return population;
@@ -49,16 +49,16 @@ public class ClassicNeuroEvoEngine : IEvolutionEngine
         currentBrains = sortedPairs.Select(pair => pair.Brain).ToList();
 
         // Keep track of the historical champion
-        if (highestScoreThisGen > highestFitness || currentGeneration == 1)
+        if (highestScoreThisGen > championScore || currentGeneration == 1)
         {
             // We have a new all-time champion (or it's the very first generation)
-            topBrain.Copy(currentBrains[0]);
-            highestFitness = fitnessScores[0];
+            championBrain.Copy(currentBrains[0]);
+            championScore = fitnessScores[0];
         }
         else
         {
             // Elitism, keep the best brain from the previous generation
-            currentBrains[0].Copy(topBrain);
+            currentBrains[0].Copy(championBrain);
         }
 
         // Mathf.Max prevents a Divide By Zero crash if you test with under 5 jets!
@@ -78,5 +78,15 @@ public class ClassicNeuroEvoEngine : IEvolutionEngine
 
         currentGeneration++;
         return currentBrains;
+    }
+
+    public IEvolvableBrain GetChampionBrain()
+    {
+        return championBrain;
+    }
+
+    public float GetChampionScore()
+    {
+        return championScore;
     }
 }

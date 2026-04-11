@@ -4,8 +4,7 @@ using UnityEngine;
 /// <summary>
 /// The single Unity-side manager. Instantiates the population once,
 /// creates the correct ITrainingParadigm, and pumps Tick() from FixedUpdate().
-/// UI reads from this via GetSnapshot(). This replaces GeneticManager as the
-/// top-level scene component.
+/// UI reads from this via GetSnapshot().
 /// </summary>
 public class SimulationManager : MonoBehaviour
 {
@@ -25,7 +24,7 @@ public class SimulationManager : MonoBehaviour
 
     private void Start()
     {
-        // 1. Resolve the objective
+        // Resolve the objective
         objective = objectiveProvider as IObjective;
         if (objective == null)
         {
@@ -33,18 +32,18 @@ public class SimulationManager : MonoBehaviour
             return;
         }
 
-        // 2. Load settings for this mode
+        // Load settings for this mode
         var mode = objective.Mode;
         settings = DataManager.LoadSettings(mode);
 
-        // 3. Instantiate the population (factory — done once)
+        // Instantiate the population (factory — done once)
         population = InstantiatePopulation(settings.PopulationSize);
 
-        // 4. Create the correct paradigm for the chosen AI type
+        // Create the correct paradigm for the chosen AI type
         activeParadigm = CreateParadigm(settings.AIType);
         if (activeParadigm == null) return;
 
-        // 5. Hand the population & objective to the paradigm
+        // Hand the population & objective to the paradigm
         activeParadigm.Initialize(population, settings, objective);
     }
 
@@ -84,6 +83,25 @@ public class SimulationManager : MonoBehaviour
         selectedAgent = agent;
     }
 
+    public IBrain GetChampionBrain()
+    {
+        return activeParadigm?.GetChampionBrain();
+    }
+
+    public float GetChampionScore()
+    {
+        return activeParadigm.GetChampionScore();
+    }
+
+    public void SaveChampion()
+    {
+        IBrain championBrain = GetChampionBrain();
+        if (championBrain != null)
+        {
+            DataManager.SaveBrain(objective.Mode, "champion", championBrain.Serialize());
+        }
+    }
+
     // ── Private helpers ──────────────────────────────────────────────
 
     private List<JetAgent> InstantiatePopulation(int count)
@@ -101,24 +119,18 @@ public class SimulationManager : MonoBehaviour
     }
 
     private ITrainingParadigm CreateParadigm(AIType type)
-    {
-        // TODO: Instantiate the correct paradigm + engine pair.
-        // For now returns null — fill in as paradigms are implemented.
-        //
-        // switch (type)
-        // {
-        //     case AIType.FixedNeuroEvo:
-        //         return new EvolutionaryParadigm(new ClassicNeuroEvoEngine());
-        //     case AIType.NEAT:
-        //         return new EvolutionaryParadigm(new SharpNeatEngine());
-        //     case AIType.PPO:
-        //         return new RLParadigm();
-        //     default:
-        //         Debug.LogError($"[SimulationManager] Unsupported AI type: {type}");
-        //         return null;
-        // }
-
-        Debug.LogWarning($"[SimulationManager] CreateParadigm not yet implemented for {type}. Returning null.");
-        return null;
+    {        
+        switch (type)
+        {
+            case AIType.FixedNeuroEvo:
+                return new EvolutionaryParadigm(new ClassicNeuroEvoEngine());
+            // case AIType.NEAT:
+            //     return new EvolutionaryParadigm(new SharpNeatEngine());
+            // case AIType.PPO:
+            //     return new RLParadigm();
+            default:
+                Debug.LogError($"[SimulationManager] Unsupported AI type: {type}");
+                return null;
+        }
     }
 }

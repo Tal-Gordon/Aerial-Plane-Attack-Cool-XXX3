@@ -14,11 +14,11 @@ public class MaxAltitudeObjective : MonoBehaviour, IObjective
     private Dictionary<JetAgent, float> lastYPosition = new Dictionary<JetAgent, float>();
     private Dictionary<JetAgent, float> lastEffortSums = new Dictionary<JetAgent, float>();
 
-    public void SetStartingState(JetAgent agent, int index, int totalPopulation, Vector3 centerPoint)
+    public void SetStartingState(JetAgent agent, int index, int totalPopulation)
     {
-        // Extract and calculate position of the jet
+        // Extract and calculate position of the jet based on where this Objective component sits in the world
         Vector2 randomDisk = UnityEngine.Random.insideUnitCircle * spawnRadius;
-        Vector3 spawnPosition = centerPoint + new Vector3(randomDisk.x, 200f, randomDisk.y);
+        Vector3 spawnPosition = this.transform.position + new Vector3(randomDisk.x, 200f, randomDisk.y);
 
         // Move the jet to that position
         agent.transform.position = spawnPosition;

@@ -6,7 +6,7 @@ public class SimulationSnapshot
     // ── Generic (filled by every paradigm) ───────────────────────────
     public int IterationNumber;          // generation for evo, episode for RL
     public int AgentsAlive;
-    public float AllTimeBestScore;
+    public float ChampionScore;
     public string ParadigmName;
     public List<JetAgent> Population;
 
@@ -21,10 +21,9 @@ public class SimulationSnapshot
 
 public class EvoSnapshot
 {
-    public JetAgent TopAgent;
+    public IEvolvableBrain ChampionBrain;
     public float MutationRate;
     public float Lambda;
-    public int CurrentGeneration;
 }
 
 public class RLSnapshot

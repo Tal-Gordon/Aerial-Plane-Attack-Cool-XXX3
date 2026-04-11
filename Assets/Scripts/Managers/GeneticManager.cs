@@ -157,7 +157,7 @@ public class GeneticManager : MonoBehaviour
             JetAgent jet = population[i];
 
             // Reset the jet in space
-            currentObjective.SetStartingState(jet, i, population.Count, transform.position);
+            // currentObjective.SetStartingState(jet, i, population.Count, transform.position);
 
             // Activate the jet
             jet.gameObject.SetActive(true);
