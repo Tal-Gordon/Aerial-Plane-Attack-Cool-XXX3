@@ -52,8 +52,8 @@ public class GenerationStatsWidget : UIWidget
                 avgFitnessLabel.text = $"AVG FITNESS: {FormatFitness(avg)}";
             }
 
-            if (topFitnessLabel && snapshot.EvoData?.TopAgent != null) {
-                topFitnessLabel.text = $"TOP: {FormatFitness(snapshot.EvoData.TopAgent.CurrentFitness)}";
+            if (topFitnessLabel) {
+                topFitnessLabel.text = $"TOP: {FormatFitness(snapshot.ChampionScore)}";
             }
         }
     }

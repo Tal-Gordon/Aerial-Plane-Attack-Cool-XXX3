@@ -283,7 +283,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d040810ce4c61344e8ecbe4c7250c362, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UIManager
-  geneticManager: {fileID: 0}
+  simManager: {fileID: 0}
   telemetryWindow: {fileID: 244772159606591179}
   sections: []
 --- !u!114 &7483959603148075229
@@ -6412,9 +6412,9 @@ GameObject:
   m_Component:
   - component: {fileID: 96005206017228402}
   - component: {fileID: 1451071038650396734}
-  - component: {fileID: 4845879284475231932}
+  - component: {fileID: 7188596822680358532}
   m_Layer: 5
-  m_Name: GeneticControlsWidget
+  m_Name: EvoControlsWidget
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -6467,7 +6467,7 @@ MonoBehaviour:
   m_ChildScaleWidth: 0
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
---- !u!114 &4845879284475231932
+--- !u!114 &7188596822680358532
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -6476,9 +6476,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 7931540707561226142}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7842b1b4492170d428aa51b4cff67838, type: 3}
+  m_Script: {fileID: 11500000, guid: eb84a9857cac5324cbc05063fc87d0f6, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::GeneticControlsWidget
+  m_EditorClassIdentifier: Assembly-CSharp::EvoControlsWidget
   mutationRateText: {fileID: 6259695525503778605}
   lambdaText: {fileID: 158803313883657557}
   mutationRateInput: {fileID: 1705575788191814993}

@@ -64,7 +64,7 @@ public class EvoControlsWidget : UIWidget
             // Clamp to strictly positive (minimum 0.0001)
             result = Mathf.Max(result, 0.0001f);
 
-            // Fire the event — whoever is subscribed handles it
+            // Fire the event, whoever is subscribed handles it
             OnMutationRateChanged?.Invoke(result);
 
             // Sync UI to show clamped value
@@ -85,7 +85,7 @@ public class EvoControlsWidget : UIWidget
             // Clamp to [0, 1] range
             result = Mathf.Clamp01(result);
 
-            // Fire the event — whoever is subscribed handles it
+            // Fire the event, whoever is subscribed handles it
             OnLambdaChanged?.Invoke(result);
 
             // Sync UI to show clamped value
