@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>Redzen</id>
+    <version>9.1.1</version>
+    <authors>Colin D. Green</authors>
+    <owners>Colin D. Green</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <license type="expression">MIT</license>
+    <licenseUrl>https://licenses.nuget.org/MIT</licenseUrl>
+    <projectUrl>https://github.com/colgreen/Redzen</projectUrl>
+    <description>General purpose C# code library.</description>
+    <releaseNotes>Fix: NextDoubleNonZero() could return zero (very infrequently). (#5)</releaseNotes>
+    <copyright>Copyright Colin D. Green 2015-2020</copyright>
+    <tags>C# .NET rng prng ziggurat gaussian io sorting timsort xoshiro</tags>
+    <dependencies>
+      <group targetFramework=".NETStandard2.0">
+        <dependency id="System.Memory" version="4.5.4" exclude="Build,Analyzers" />
+      </group>
+    </dependencies>
+  </metadata>
+</package>

@@ -6,37 +6,15 @@ public class UIManager : MonoBehaviour
     public static UIManager Instance { get; private set; } // Singleton
 
     [Header("Simulation References")]
-    [SerializeField] private GeneticManager geneticManager;
-    /* [SerializeField] private RLManager rlManager; // maybe hold a reference to the highest AI abstraction class instead? IBrain or whatever? */
+    [SerializeField] private SimulationManager simManager;
 
     [Header("UI Wiring")]
     [SerializeField] private GameObject telemetryWindow;
     [SerializeField] private UISection[] sections;
 
-    public GeneticManager GeneticManager
-    {
-        get
-        {
-            return geneticManager;
-        }
-    }
-    /* public RLManager RLManager
-    {
-        get
-        {
-            return rlManager;
-        }
-    } */
-    public SimulationSnapshot Snapshot
-    {
-        get
-        {
-            return snapshot;
-        }
-    }
+    public SimulationSnapshot Snapshot => snapshot;
 
     private SimulationSnapshot snapshot = new SimulationSnapshot();
-    private JetAgent selectedAgent;
     private UIWidget[] allWidgets;
 
     private void Awake()
@@ -58,17 +36,14 @@ public class UIManager : MonoBehaviour
         TickSections();
     }
 
-    // Snapshot design pattern
+    /// <summary>
+    /// Single call to SimulationManager — paradigm fills its data,
+    /// manager stamps TimeScale & SelectedAgent.
+    /// UIManager doesn't know or care which paradigm is active.
+    /// </summary>
     private void RefreshSnapshot()
     {
-        snapshot.CurrentGeneration = geneticManager.currentGeneration;
-        snapshot.AliveCount = geneticManager.aliveCount;
-        snapshot.TimeScale = Time.timeScale;
-        snapshot.Population = geneticManager.GetPopulation();
-        snapshot.TopAgent = geneticManager.GetTopAgent();
-        snapshot.SelectedAgent = selectedAgent;
-        snapshot.MutationRate = geneticManager.GetMutationRate();
-        snapshot.Lambda = geneticManager.GetLambda();
+        snapshot = simManager.GetSnapshot();
     }
 
     private void TickSections()
@@ -79,16 +54,15 @@ public class UIManager : MonoBehaviour
 
     public void SelectAgent(JetAgent agent)
     {
-        if (selectedAgent == agent) return;
+        JetAgent previouslySelected = snapshot.SelectedAgent;
+        if (previouslySelected == agent) return;
 
         foreach (var widget in allWidgets) widget.OnDeselected();
-        selectedAgent = agent;
+        simManager.SelectAgent(agent);
         foreach (var widget in allWidgets) widget.OnSelected(agent);
     }
 
     public void ClearSelection() => SelectAgent(null);
 
     public void SetTimeScale(float scale) => Time.timeScale = scale;
-    public void TriggerEvolve() => geneticManager.EvolvePopulation();
-    public void TriggerReset() { /* call reset on managers */ }
 }

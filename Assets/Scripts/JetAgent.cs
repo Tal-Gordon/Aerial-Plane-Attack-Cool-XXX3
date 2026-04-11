@@ -115,17 +115,4 @@ public class JetAgent : MonoBehaviour
         currentFitness = 0f;
         totalControlEffort = 0f;
     }
-
-    public void Copy(JetAgent agent)
-    {
-        hasCrashed = agent.hasCrashed;
-        currentBrain = agent.currentBrain.Copy();
-        currentSensor = agent.currentSensor = currentSensor;
-        physics = agent.physics;
-        weapons = agent.weapons;
-        timeAlive = agent.timeAlive;
-        startingPosition = agent.startingPosition;
-        currentFitness = agent.currentFitness;
-        totalControlEffort = agent.totalControlEffort ;
-    }
 }

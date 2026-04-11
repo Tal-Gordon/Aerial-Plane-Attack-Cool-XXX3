@@ -20,26 +20,26 @@ public class GenerationStatsWidget : UIWidget
     public override void Tick(SimulationSnapshot snapshot)
     {
         if (generationLabel)
-            generationLabel.text = $"GEN: {snapshot.CurrentGeneration}";
+            generationLabel.text = $"GEN: {snapshot.IterationNumber}";
 
         if (aliveLabel)
-            aliveLabel.text = $"ALIVE: {snapshot.AliveCount}";
+            aliveLabel.text = $"ALIVE: {snapshot.AgentsAlive}";
 
         if (snapshot.Population != null)
         {
             int total = snapshot.Population.Count;
-            int dead  = total - snapshot.AliveCount;
+            int dead  = total - snapshot.AgentsAlive;
 
             if (deadLabel)
                 deadLabel.text = $"DEAD: {dead}";
 
             if (populationFillBar != null)
             {
-                float alivePercentage = (float)snapshot.AliveCount / total;
+                float alivePercentage = (float)snapshot.AgentsAlive / total;
                 populationFillBar.fillAmount = alivePercentage;
             }
 
-            if (avgFitnessLabel && total > 0 && snapshot.AliveCount == 0)
+            if (avgFitnessLabel && total > 0 && snapshot.AgentsAlive == 0)
             {
                 float sum = 0f;
 
@@ -52,8 +52,8 @@ public class GenerationStatsWidget : UIWidget
                 avgFitnessLabel.text = $"AVG FITNESS: {FormatFitness(avg)}";
             }
 
-            if (topFitnessLabel && snapshot.TopAgent != null) {
-                topFitnessLabel.text = $"TOP: {FormatFitness(snapshot.TopAgent.CurrentFitness)}";
+            if (topFitnessLabel) {
+                topFitnessLabel.text = $"TOP: {FormatFitness(snapshot.ChampionScore)}";
             }
         }
     }

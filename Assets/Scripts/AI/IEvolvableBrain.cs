@@ -2,11 +2,9 @@ using UnityEngine;
 
 public interface IEvolvableBrain : IBrain
 {
+    public void Copy(IEvolvableBrain brain);
+
     public void Mutate(float rate);
-
-    public float[] ExtractWeights();
-
-    public void InjectWeights(float[] savedWeights);
 
     public int[] GetShape();
 }
