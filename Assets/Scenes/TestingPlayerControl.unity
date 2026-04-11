@@ -4405,6 +4405,10 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2872559413004453036, guid: c22752cf1778cd8409e6baee5428a095, type: 3}
+      propertyPath: simManager
+      value: 
+      objectReference: {fileID: 2041577513}
+    - target: {fileID: 2872559413004453036, guid: c22752cf1778cd8409e6baee5428a095, type: 3}
       propertyPath: geneticManager
       value: 
       objectReference: {fileID: 0}
@@ -5993,8 +5997,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3731c926d41241a4da5f471aa9bf196b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SimulationManager
-  jetPrefab: {fileID: 0}
-  objectiveProvider: {fileID: 0}
+  jetPrefab: {fileID: 835737604007996434, guid: 0fdbe5b94ba85dc45b773bb0b40fae7a, type: 3}
+  objectiveProvider: {fileID: 1943075242}
 --- !u!1001 &2110373115
 PrefabInstance:
   m_ObjectHideFlags: 0
