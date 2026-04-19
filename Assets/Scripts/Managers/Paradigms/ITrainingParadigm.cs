@@ -38,4 +38,10 @@ public interface ITrainingParadigm
     /// Returns the current all-time best score across any generation/episode.
     /// </summary>
     public float GetChampionScore();
+
+    /// <summary>
+    /// Saves the champion brain to the given directory.
+    /// Delegates to the underlying engine or framework.
+    /// </summary>
+    public void SaveChampion(string directoryPath);
 }

@@ -26,14 +26,11 @@ public static class DataManager
     private static readonly string RootPath =
         Path.Combine(Application.persistentDataPath, "GameData");
 
-    private static string ModePath(GameMode mode) =>
+    public static string ModePath(GameMode mode) =>
         Path.Combine(RootPath, mode.ToString());
 
     private static string SettingsPath(GameMode mode) =>
         Path.Combine(ModePath(mode), "settings.json");
-
-    private static string BrainPath(GameMode mode, string brainName) =>
-        Path.Combine(ModePath(mode), $"{brainName}.brain.json");
 
     // ── Hard-coded defaults per mode ──────────────────────────────────────────
 
@@ -43,29 +40,50 @@ public static class DataManager
             [GameMode.MaxAltitude] = new SimulationSettings
             {
                 PopulationSize = 2000,
-                MutationRate = 0.1f,
-                NetworkShape = new[] { 12, 24, 12, 4 },   // inputs, hidden, outputs
                 AIType = AIType.FixedNeuroEvo,
                 SpawnRadius = 50f,
                 SpawnFormation = SpawnFormation.Random,
+                NeuroEvoSettings = new NeuroEvoSettings
+                {
+                    MutationRate = 0.1f,
+                    NetworkShape = new[] { 12, 24, 12, 4 },
+                },
             },
+            // [GameMode.FlightSchool] = new SimulationSettings
+            // {
+            //     PopulationSize = 2000,
+            //     AIType = AIType.FixedNeuroEvo,
+            //     SpawnRadius = 0f,
+            //     SpawnFormation = SpawnFormation.Random,
+            //     NeuroEvoSettings = new NeuroEvoSettings
+            //     {
+            //         MutationRate = 0.1f,
+            //         NetworkShape = new[] { 19, 16, 16, 4 },
+            //     },
+            // },
             [GameMode.FlightSchool] = new SimulationSettings
             {
-                PopulationSize = 2000,
-                MutationRate = 0.1f,
-                NetworkShape = new[] { 19, 16, 16, 4 },
-                AIType = AIType.FixedNeuroEvo,
+                PopulationSize = 1000,
+                AIType = AIType.NEAT,
                 SpawnRadius = 0f,
                 SpawnFormation = SpawnFormation.Random,
+                NeatSettings = new NeatSettings
+                {
+                    InputSize = 19,
+                    OutputSize = 4,
+                },
             },
             [GameMode.Dogfight] = new SimulationSettings
             {
                 PopulationSize = 10,
-                MutationRate = 0.08f,
-                NetworkShape = new[] { 12, 16, 4 }, // TODO change the input based on the assigned sensors
                 AIType = AIType.FixedNeuroEvo,
                 SpawnRadius = 200f,
                 SpawnFormation = SpawnFormation.Opposing,
+                NeuroEvoSettings = new NeuroEvoSettings
+                {
+                    MutationRate = 0.08f,
+                    NetworkShape = new[] { 12, 16, 4 }, // TODO change the input based on the assigned sensors
+                },
             },
         };
 
@@ -88,7 +106,20 @@ public static class DataManager
                     JsonConvert.DeserializeObject<SimulationSettings>(json);
 
                 if (loaded != null)
+                {
+                    /// TODO: this block patches older JSON files
+                    /// that are missing the new subsettings for the current AI.
+                    /// might not be needed in production.
+                    SimulationSettings defaultSettings = GetDefaults(mode);
+                    if (loaded.AIType == AIType.FixedNeuroEvo && loaded.NeuroEvoSettings == null)
+                        loaded.NeuroEvoSettings = defaultSettings.NeuroEvoSettings ?? new NeuroEvoSettings();
+                    if (loaded.AIType == AIType.NEAT && loaded.NeatSettings == null)
+                        loaded.NeatSettings = defaultSettings.NeatSettings ?? new NeatSettings();
+                    if ((loaded.AIType == AIType.PPO_MLAgents || loaded.AIType == AIType.SAC_MLAgents) && loaded.RLSettings == null)
+                        loaded.RLSettings = defaultSettings.RLSettings ?? new RLSettings();
+                    
                     return loaded;
+                }
 
                 Debug.LogWarning($"[DataManager] Corrupt settings for {mode}, reverting to defaults.");
             }
@@ -131,54 +162,7 @@ public static class DataManager
         return defaults;
     }
 
-    /// <summary>
-    /// Saves a brain's weight array for <paramref name="mode"/>.
-    /// </summary>
-    public static void SaveBrain(GameMode mode, string brainName, float[] weights)
-    {
-        try
-        {
-            EnsureDirectory(ModePath(mode));
-            string json = JsonConvert.SerializeObject(weights, Formatting.Indented);
-            File.WriteAllText(BrainPath(mode, brainName), json);
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"[DataManager] Failed to save brain '{brainName}' for {mode}: {e.Message}");
-        }
-    }
 
-    /// <summary>
-    /// Loads a brain's weight array for <paramref name="mode"/>.
-    /// Returns <c>null</c> if no saved brain exists.
-    /// </summary>
-    public static float[] LoadBrain(GameMode mode, string brainName)
-    {
-        string path = BrainPath(mode, brainName);
-
-        if (!File.Exists(path))
-        {
-            Debug.LogWarning($"[DataManager] No saved brain '{brainName}' found for {mode}.");
-            return null;
-        }
-
-        try
-        {
-            string json = File.ReadAllText(path);
-            return JsonConvert.DeserializeObject<float[]>(json);
-        }
-        catch (Exception e)
-        {
-            Debug.LogError($"[DataManager] Failed to load brain '{brainName}' for {mode}: {e.Message}");
-            return null;
-        }
-    }
-
-    /// <summary>
-    /// Returns <c>true</c> if a saved brain file exists for this mode.
-    /// </summary>
-    public static bool HasSavedBrain(GameMode mode, string brainName) =>
-        File.Exists(BrainPath(mode, brainName));
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -191,7 +175,7 @@ public static class DataManager
         return new SimulationSettings();
     }
 
-    private static void EnsureDirectory(string path)
+    public static void EnsureDirectory(string path)
     {
         if (!Directory.Exists(path))
             Directory.CreateDirectory(path);
@@ -222,27 +206,103 @@ public enum SpawnFormation
 [Serializable]
 public class SimulationSettings
 {
-    public int PopulationSize = 10;
-    public float MutationRate = 0.1f;
-    public float Lambda = 1.0f;
-    public int[] NetworkShape = { 6, 8, 4 };
-    public AIType AIType = AIType.FixedNeuroEvo;
-    public float SpawnRadius = 100f;
+    // ── Universal (every AI type needs these) ─────────────────────
+    public int PopulationSize = 1000;
+    public AIType AIType = AIType.NEAT;
+    public float SpawnRadius = 0f;
     public SpawnFormation SpawnFormation = SpawnFormation.Random;
 
-    // Add more fields here as your game modes require them
+    // ── Paradigm-specific (null when irrelevant) ──────────────────
+    public NeuroEvoSettings NeuroEvoSettings;
+    public NeatSettings NeatSettings;
+    public RLSettings RLSettings;
+
+    // Add more universal fields here as your game modes require them
     // e.g. public float TimeLimit, public bool FriendlyFire, etc.
+
+    /// <summary>
+    /// Convenience: returns whichever EvoSettings sub-object is active,
+    /// or null for non-evolutionary AI types.
+    /// </summary>
+    public EvoSettings ActiveEvoSettings
+    {
+        get
+        {
+            if (AIType == AIType.FixedNeuroEvo) return NeuroEvoSettings;
+            if (AIType == AIType.NEAT) return NeatSettings;
+            return null;
+        }
+    }
 
     /// <summary>Deep clone so defaults dict is never mutated.</summary>
     public SimulationSettings Clone() =>
         new()
         {
             PopulationSize = PopulationSize,
-            MutationRate = MutationRate,
-            Lambda = Lambda,
-            NetworkShape = (int[])NetworkShape.Clone(),
             AIType = AIType,
             SpawnRadius = SpawnRadius,
             SpawnFormation = SpawnFormation,
+            NeuroEvoSettings = NeuroEvoSettings?.Clone() as NeuroEvoSettings,
+            NeatSettings = NeatSettings?.Clone() as NeatSettings,
+            RLSettings = RLSettings?.Clone(),
+        };
+}
+
+[Serializable]
+public class EvoSettings
+{
+    public float MutationRate = 0.1f;
+    public float Lambda = 1.0f;
+
+    public virtual EvoSettings Clone() =>
+        new()
+        {
+            MutationRate = MutationRate,
+            Lambda = Lambda,
+        };
+}
+
+[Serializable]
+public class NeuroEvoSettings : EvoSettings
+{
+    public int[] NetworkShape = { 6, 8, 4 };
+
+    public override EvoSettings Clone() =>
+        new NeuroEvoSettings
+        {
+            MutationRate = MutationRate,
+            Lambda = Lambda,
+            NetworkShape = (int[])NetworkShape.Clone(),
+        };
+}
+
+[Serializable]
+public class NeatSettings : EvoSettings
+{
+    // Future: complexity threshold, speciation params, etc.
+    public int InputSize = 19;
+    public int OutputSize = 4;
+
+    public override EvoSettings Clone() =>
+        new NeatSettings
+        {
+            MutationRate = MutationRate,
+            Lambda = Lambda,
+            InputSize = InputSize,
+            OutputSize = OutputSize,
+        };
+}
+
+[Serializable]
+public class RLSettings
+{
+    public float LearningRate = 3e-4f;
+    public float Gamma = 0.99f;
+
+    public RLSettings Clone() =>
+        new()
+        {
+            LearningRate = LearningRate,
+            Gamma = Gamma,
         };
 }

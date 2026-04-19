@@ -32,6 +32,9 @@ public class SimulationManager : MonoBehaviour
             return;
         }
 
+        // TODO: Remove in production
+        DataManager.ResetToDefaults(objective.Mode);
+
         // Load settings for this mode
         var mode = objective.Mode;
         settings = DataManager.LoadSettings(mode);
@@ -95,11 +98,11 @@ public class SimulationManager : MonoBehaviour
 
     public void SaveChampion()
     {
-        IBrain championBrain = GetChampionBrain();
-        if (championBrain != null)
-        {
-            DataManager.SaveBrain(objective.Mode, "champion", championBrain.Serialize());
-        }
+        if (activeParadigm == null) return;
+
+        string dir = DataManager.ModePath(objective.Mode);
+        DataManager.EnsureDirectory(dir);
+        activeParadigm.SaveChampion(dir);
     }
 
     // ── Private helpers ──────────────────────────────────────────────
@@ -124,8 +127,8 @@ public class SimulationManager : MonoBehaviour
         {
             case AIType.FixedNeuroEvo:
                 return new EvolutionaryParadigm(new ClassicNeuroEvoEngine());
-            // case AIType.NEAT:
-            //     return new EvolutionaryParadigm(new SharpNeatEngine());
+            case AIType.NEAT:
+                return new EvolutionaryParadigm(new NeatEngine());
             // case AIType.PPO:
             //     return new RLParadigm();
             default:

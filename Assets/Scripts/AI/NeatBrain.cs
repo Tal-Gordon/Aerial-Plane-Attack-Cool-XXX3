@@ -1,18 +1,28 @@
 using UnityEngine;
 using SharpNeat.Phenomes;
+using SharpNeat.Genomes.Neat;
 
 public class NeatBrain : IEvolvableBrain
 {
     private readonly IBlackBox blackBox;
+    private readonly NeatGenome genome;
 
-    public NeatBrain(IBlackBox blackBox)
+    public NeatBrain(NeatGenome genome, IBlackBox blackBox)
     {
+        this.genome = genome;
         this.blackBox = blackBox;
     }
 
+    /// <summary>
+    /// Exposes the genome for the engine to save/load.
+    /// </summary>
+    public NeatGenome Genome => genome;
+
     public void Copy(IEvolvableBrain brain)
     {
-        throw new System.NotImplementedException();
+        // NEAT brains are immutable phenomes — Copy doesn't apply.
+        // The engine manages reproduction at the genome level.
+        throw new System.NotSupportedException("NeatBrain does not support Copy. Use the engine's evolution methods.");
     }
 
     public float[] GetControlOutputs(float[] inputs)
@@ -39,18 +49,8 @@ public class NeatBrain : IEvolvableBrain
         return new int[] { blackBox.InputSignalArray.Length, blackBox.OutputSignalArray.Length };
     }
 
-    // I did not want to deal with this, mutate lives on the engine, and I can't be bothered to fix this liskov subtitution violation
+    // TODO: I did not want to deal with this, mutate lives on the engine, and I can't be bothered to fix this liskov subtitution violation
     public void Mutate(float rate)
     {
-    }
-
-    public float[] Serialize()
-    {
-        throw new System.NotImplementedException();
-    }
-
-    public void Deserialize(float[] savedData)
-    {
-        throw new System.NotImplementedException();
     }
 }
