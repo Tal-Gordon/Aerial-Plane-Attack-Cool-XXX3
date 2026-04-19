@@ -1,13 +1,16 @@
 using UnityEngine;
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using Newtonsoft.Json;
 
 public class ClassicNeuroEvoEngine : IEvolutionEngine
 {
     private SimulationSettings currentSettings;
 
-    private List<IEvolvableBrain> currentBrains;
-    private IEvolvableBrain championBrain;
+    private List<NeuroEvoBrain> currentBrains;
+    private NeuroEvoBrain championBrain;
     private float championScore;
     
     private int currentGeneration;
@@ -16,25 +19,26 @@ public class ClassicNeuroEvoEngine : IEvolutionEngine
     {
         currentSettings = settings;
 
-        List<IEvolvableBrain> population = new List<IEvolvableBrain>();
+        var neuroEvoSettings = currentSettings.NeuroEvoSettings;
+
+        currentBrains = new List<NeuroEvoBrain>();
         for (int i = 0; i < currentSettings.PopulationSize; i++)
         {
-            population.Add(new NeuroEvoBrain(currentSettings.NetworkShape));
+            currentBrains.Add(new NeuroEvoBrain(neuroEvoSettings.NetworkShape));
         }
 
-        currentBrains = population;
-        championBrain = new NeuroEvoBrain(currentSettings.NetworkShape);
-        championBrain.Copy(population[0]);
+        championBrain = new NeuroEvoBrain(neuroEvoSettings.NetworkShape);
+        championBrain.Copy(currentBrains[0]);
         championScore = float.NegativeInfinity;
         currentGeneration = 1;
         
-        return population;
+        return new List<IEvolvableBrain>(currentBrains);
     }
 
     public List<IEvolvableBrain> EvolveNextGeneration(List<float> fitnessScores)
     {
         // Don't evolve if the list is completely empty
-        if (currentSettings.PopulationSize == 0) return currentBrains;
+        if (currentSettings.PopulationSize == 0) return new List<IEvolvableBrain>(currentBrains);
 
         // Bind the brains to their scores, sort descending, and hold them temporarily
         var sortedPairs = currentBrains
@@ -69,15 +73,15 @@ public class ClassicNeuroEvoEngine : IEvolutionEngine
         {
             int parentIndex = i % numParents;
 
-            IEvolvableBrain parentBrain = currentBrains[parentIndex];
-            IEvolvableBrain loserBrain = currentBrains[i];
+            NeuroEvoBrain parentBrain = currentBrains[parentIndex];
+            NeuroEvoBrain loserBrain = currentBrains[i];
 
             loserBrain.Copy(parentBrain);
-            loserBrain.Mutate(currentSettings.MutationRate);
+            loserBrain.Mutate(currentSettings.ActiveEvoSettings.MutationRate);
         }
 
         currentGeneration++;
-        return currentBrains;
+        return new List<IEvolvableBrain>(currentBrains);
     }
 
     public IEvolvableBrain GetChampionBrain()
@@ -88,5 +92,39 @@ public class ClassicNeuroEvoEngine : IEvolutionEngine
     public float GetChampionScore()
     {
         return championScore;
+    }
+
+    public void SaveChampion(string directoryPath)
+    {
+        try
+        {
+            string json = JsonConvert.SerializeObject(championBrain.Serialize(), Formatting.Indented);
+            File.WriteAllText(Path.Combine(directoryPath, "champion.brain.json"), json);
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[ClassicNeuroEvoEngine] Failed to save champion: {e.Message}");
+        }
+    }
+
+    public void LoadChampion(string directoryPath)
+    {
+        try
+        {
+            string path = Path.Combine(directoryPath, "champion.brain.json");
+            if (!File.Exists(path))
+            {
+                Debug.LogWarning("[ClassicNeuroEvoEngine] No saved champion found.");
+                return;
+            }
+
+            string json = File.ReadAllText(path);
+            float[] weights = JsonConvert.DeserializeObject<float[]>(json);
+            championBrain.Deserialize(weights);
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[ClassicNeuroEvoEngine] Failed to load champion: {e.Message}");
+        }
     }
 }
