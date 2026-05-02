@@ -49,30 +49,30 @@ public static class DataManager
                     NetworkShape = new[] { 12, 24, 12, 4 },
                 },
             },
-            // [GameMode.FlightSchool] = new SimulationSettings
-            // {
-            //     PopulationSize = 2000,
-            //     AIType = AIType.FixedNeuroEvo,
-            //     SpawnRadius = 0f,
-            //     SpawnFormation = SpawnFormation.Random,
-            //     NeuroEvoSettings = new NeuroEvoSettings
-            //     {
-            //         MutationRate = 0.1f,
-            //         NetworkShape = new[] { 19, 16, 16, 4 },
-            //     },
-            // },
             [GameMode.FlightSchool] = new SimulationSettings
             {
                 PopulationSize = 2000,
-                AIType = AIType.NEAT,
+                AIType = AIType.FixedNeuroEvo,
                 SpawnRadius = 0f,
                 SpawnFormation = SpawnFormation.Random,
-                NeatSettings = new NeatSettings
+                NeuroEvoSettings = new NeuroEvoSettings
                 {
-                    InputSize = 19,
-                    OutputSize = 4,
+                    MutationRate = 0.1f,
+                    NetworkShape = new[] { 19, 16, 16, 4 },
                 },
             },
+            // [GameMode.FlightSchool] = new SimulationSettings
+            // {
+            //     PopulationSize = 2000,
+            //     AIType = AIType.NEAT,
+            //     SpawnRadius = 0f,
+            //     SpawnFormation = SpawnFormation.Random,
+            //     NeatSettings = new NeatSettings
+            //     {
+            //         InputSize = 19,
+            //         OutputSize = 4,
+            //     },
+            // },
             [GameMode.Dogfight] = new SimulationSettings
             {
                 PopulationSize = 10,
