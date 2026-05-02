@@ -62,6 +62,18 @@ public class MaxAltitudeObjective : MonoBehaviour, IObjective
         return heightScore - l2Penalty;
     }
 
+    public Dictionary<string, float> GetRewardBreakdown(JetAgent agent)
+    {
+        float heightScore = agent.transform.position.y - agent.StartingPosition.y;
+        float l2Penalty = lambda * agent.TotalControlEffort;
+        
+        return new Dictionary<string, float>
+        {
+            { "Height", heightScore },
+            { "Effort Penalty", -l2Penalty }
+        };
+    }
+
     public bool CheckTerminalState(JetAgent agent)
     {
         if (agent.HasCrashed)

@@ -22,6 +22,8 @@ public class NeatEngine : IEvolutionEngine
     private float championScore;
     
     private int currentGeneration;
+    // Debug
+    private uint lastLoggedGenomeId;
 
     // SharpNEAT internals
     private NeatGenomeFactory genomeFactory;
@@ -36,6 +38,16 @@ public class NeatEngine : IEvolutionEngine
 
         // Genome parameters (mutation rates, etc.)
         var genomeParams = new NeatGenomeParameters();
+        
+        // [HYPERPARAMETER TUNING]
+        // You mentioned it progresses super slowly and changes are barely noticeable.
+        // We will massively bump the structural mutations so it builds complex brains faster.
+        genomeParams.AddNodeMutationProbability = 0.10;       // 10% chance to add a node (very high)
+        genomeParams.AddConnectionMutationProbability = 0.20; // 20% chance to add a connection
+        genomeParams.DeleteConnectionMutationProbability = 0.05; // 5% chance to prune dead weight
+        
+        // Ensure weights are mutating aggressively
+        genomeParams.ConnectionWeightMutationProbability = 0.98;
 
         // Factory creates and manages genomes
         genomeFactory = new NeatGenomeFactory(neatSettings.InputSize, neatSettings.OutputSize, genomeParams);
@@ -49,7 +61,13 @@ public class NeatEngine : IEvolutionEngine
 
         // Evolution algorithm parameters
         var eaParams = new NeatEvolutionAlgorithmParameters();
-        eaParams.SpecieCount = 10;
+        
+        // [HYPERPARAMETER TUNING]
+        // You mentioned the groups (species) are barely different. 
+        // With a population of 1000 and SpecieCount = 10, each species had 100 jets. This forces very different 
+        // topologies to be unfairly clustered and killed off.
+        // Increasing to 40 forces SharpNEAT to isolate and protect 40 distinct topological "ideas".
+        eaParams.SpecieCount = 40; 
 
         // Speciation strategy: groups genomes into species by similarity
         var speciationStrategy = new KMeansClusteringStrategy<NeatGenome>(new ManhattanDistanceMetric());
@@ -78,6 +96,10 @@ public class NeatEngine : IEvolutionEngine
         championScore = float.NegativeInfinity;
         currentGeneration = 1;
         
+        // Debug
+        lastLoggedGenomeId = genomeList[0].Id;
+        Debug.Log($"[NeatEngine] Initialization: Starting population with example Genome ID [{lastLoggedGenomeId}] (Nodes: {genomeList[0].NeuronGeneList.Count}, Edges: {genomeList[0].ConnectionGeneList.Count})");
+        
         return new List<IEvolvableBrain>(currentBrains);
     }
 
@@ -90,6 +112,17 @@ public class NeatEngine : IEvolutionEngine
         // When PerformOneGeneration() calls evaluator.Evaluate(), it will
         // stamp these scores onto the genomes.
         evaluator.SetScores(fitnessScores);
+
+        // Debug
+        float maxScore = float.NegativeInfinity;
+        float sumScore = 0f;
+        foreach (var s in fitnessScores) 
+        { 
+            sumScore += s; 
+            if (s > maxScore) maxScore = s; 
+        }
+        float avgScore = fitnessScores.Count > 0 ? sumScore / fitnessScores.Count : 0f;
+        Debug.Log($"[NeatEngine] Generation {currentGeneration} received scores -> Max: {maxScore}, Avg: {avgScore}");
 
         // Let SharpNEAT handle everything: evaluation, speciation, selection,
         // crossover, mutation, and creating the next generation.
@@ -110,6 +143,26 @@ public class NeatEngine : IEvolutionEngine
             IBlackBox bestBlackBox = genomeDecoder.Decode(bestGenome);
             championBrain = new NeatBrain(bestGenome, bestBlackBox);
             championScore = bestFitness;
+        }
+        
+        // Debug
+        // Log a sample genome ID that is NOT the current champion to show evolution is happening.
+        // This avoids the "elitism trap" where the champion genome ID remains the same across generations.
+        NeatGenome sampleOffspring = null;
+        foreach (var genome in genomeList)
+        {
+            if (genome.Id != bestGenome.Id && genome.Id != lastLoggedGenomeId)
+            {
+                sampleOffspring = genome;
+                break;
+            }
+        }
+
+        if (sampleOffspring != null)
+        {
+            // Debug
+            Debug.Log($"[NeatEngine] Generation {currentGeneration} evolution check: Example offspring Genome ID [{sampleOffspring.Id}] (Nodes: {sampleOffspring.NeuronGeneList.Count}, Edges: {sampleOffspring.ConnectionGeneList.Count})");
+            lastLoggedGenomeId = sampleOffspring.Id;
         }
 
         currentGeneration++;

@@ -30,12 +30,30 @@ public class PreScoredGenomeListEvaluator : IGenomeListEvaluator<NeatGenome>
     /// </summary>
     public void Evaluate(IList<NeatGenome> genomeList)
     {
+        if (pendingScores == null || pendingScores.Count == 0) return;
+
+        // 1. Find the minimum score in this generation
+        float minScore = float.MaxValue;
+        for (int i = 0; i < pendingScores.Count; i++)
+        {
+            if (pendingScores[i] < minScore)
+            {
+                minScore = pendingScores[i];
+            }
+        }
+
+        // 2. Calculate the shift required to make the lowest score positive
+        // If minScore is negative, we shift everything up by its absolute value.
+        // We also add a small baseline (e.g., 1.0) so the worst agent isn't exactly 0.0, 
+        // which prevents species wipeouts or divide-by-zero in selection.
+        float shift = minScore < 0f ? System.Math.Abs(minScore) : 0f;
+        float baseline = 1.0f;
+
         for (int i = 0; i < genomeList.Count; i++)
         {
-            // Ensure non-negative fitness (SharpNEAT requires fitness >= 0)
-            double fitness = pendingScores != null && i < pendingScores.Count
-                ? System.Math.Max(0.0, pendingScores[i])
-                : 0.0;
+            double fitness = i < pendingScores.Count
+                ? pendingScores[i] + shift + baseline
+                : baseline;
 
             genomeList[i].EvaluationInfo.SetFitness(fitness);
         }
