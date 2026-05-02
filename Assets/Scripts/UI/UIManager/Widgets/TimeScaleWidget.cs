@@ -30,15 +30,53 @@ public class TimeScaleWidget : UIWidget
         }
     }
 
+    private void Update()
+    {
+        if (PauseMenuController.IsGamePaused || Time.timeScale <= 0f) return;
+
+        float realFPS = 1f / Time.unscaledDeltaTime;
+
+        // Critical threshold: AI physics might break
+        if (Time.unscaledDeltaTime >= (Time.maximumDeltaTime * 0.8f))
+        {
+            if (informativeLabel)
+            {
+                informativeLabel.color = Color.red;
+                informativeLabel.text = "Time Scale (Critical)";
+            }
+            
+            // Auto-correct: Throttle time scale to recover frame time
+            float newScale = Mathf.Max(1f, Time.timeScale - 10f * Time.unscaledDeltaTime);
+            timeScaleSlider.value = newScale; // Triggers SetTimeScale automatically
+        }
+        // Warning threshold: hardware bottleneck
+        else if (realFPS < 20f)
+        {
+            if (informativeLabel)
+            {
+                informativeLabel.color = Color.yellow;
+                informativeLabel.text = "Time Scale (Bottleneck)";
+            }
+        }
+        else
+        {
+            if (informativeLabel)
+            {
+                informativeLabel.color = new Color32(31, 31, 31, 255);
+                informativeLabel.text = "Time Scale";
+            }
+        }
+    }
+
     public void SetTimeScale(float value)
     {
         Time.timeScale = value;
         
-        // Optional: Adjust fixedDeltaTime to keep physics smooth
-        // This prevents "stuttering" during slow-mo
         if (value > 0f)
         {
-            Time.fixedDeltaTime = 0.02f * value;
+            // For slow-mo (< 1x), scale down fixedDeltaTime to keep it smooth.
+            // For fast-forward (> 1x), cap fixedDeltaTime at 0.02f to ensure accurate physics!
+            Time.fixedDeltaTime = Mathf.Min(0.02f, 0.02f * value);
         }
     }
 }
