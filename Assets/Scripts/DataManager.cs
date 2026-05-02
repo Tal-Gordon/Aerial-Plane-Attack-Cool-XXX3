@@ -63,7 +63,7 @@ public static class DataManager
             // },
             [GameMode.FlightSchool] = new SimulationSettings
             {
-                PopulationSize = 1000,
+                PopulationSize = 2000,
                 AIType = AIType.NEAT,
                 SpawnRadius = 0f,
                 SpawnFormation = SpawnFormation.Random,

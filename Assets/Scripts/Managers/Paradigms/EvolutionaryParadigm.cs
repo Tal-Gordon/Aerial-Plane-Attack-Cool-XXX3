@@ -77,6 +77,51 @@ public class EvolutionaryParadigm : ITrainingParadigm
             // Evolve the population
             List<IEvolvableBrain> evolvedBrains = engine.EvolveNextGeneration(fitnessScores);
 
+            // Log statistics
+            float maxScore = float.NegativeInfinity;
+            float minScore = float.PositiveInfinity;
+            JetAgent bestAgent = null;
+
+            for (int i = 0; i < population.Count; i++)
+            {
+                float score = fitnessScores[i];
+                if (score > maxScore)
+                {
+                    maxScore = score;
+                    bestAgent = population[i];
+                }
+                if (score < minScore) minScore = score;
+            }
+
+            string breakdownStr = "";
+            if (bestAgent != null)
+            {
+                var breakdown = objective.GetRewardBreakdown(bestAgent);
+                if (breakdown != null && breakdown.Count > 0)
+                {
+                    float absSum = 0f;
+                    foreach (var kvp in breakdown) absSum += Mathf.Abs(kvp.Value);
+
+                    List<string> parts = new List<string>();
+                    foreach (var kvp in breakdown)
+                    {
+                        float pct = absSum > 0 ? (Mathf.Abs(kvp.Value) / absSum) * 100f : 0f;
+                        
+                        // Gradient from gray to green
+                        Color c = Color.Lerp(new Color(0.6f, 0.6f, 0.6f), Color.green, pct / 100f);
+                        string hexColor = ColorUtility.ToHtmlStringRGB(c);
+                        
+                        parts.Add($"<color=#{hexColor}>{kvp.Key}: {kvp.Value:F1} ({pct:F0}%)</color>");
+                    }
+                    if (parts.Count > 0)
+                    {
+                        breakdownStr = "\nMax Reward Breakdown: " + string.Join(" | ", parts);
+                    }
+                }
+            }
+
+            Debug.Log($"<color=cyan>[EvolutionaryParadigm]</color> Generation {currentGeneration} complete. Max: {maxScore:F2} | Min: {minScore:F2} | Best So Far: {engine.GetChampionScore():F2}{breakdownStr}");
+
             // Assign the evolved brains to the population
             for (int i = 0; i < population.Count; i++)
             {

@@ -11,10 +11,19 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
 
     // Settings
     [SerializeField] private float hoopRadius = 170f;
-    [SerializeField] private float lambda = 0.1f;
-    [SerializeField] private float maxTimeAllowed = 25f;
+    // [SerializeField] private float lambda = 0.1f;
+    // [SerializeField] private float distanceRewardMultiplier = 2f;
+    // [SerializeField] private float hoopPassReward = 500f;
+    // [SerializeField] private float backwardsDriftPenalty = 0.5f;
+    // [SerializeField] private float lookAtRewardWeight = 1f;
+    [SerializeField] private float lambda = 100f;
+    [SerializeField] private float distanceRewardMultiplier = 0.02f;
+    [SerializeField] private float hoopPassReward = 100f;
+    [SerializeField] private float backwardsDriftPenalty = 2f;
+    [SerializeField] private float lookAtRewardWeight = 2f;
+    [SerializeField] private float maxTimeAllowed = 180f;
     [SerializeField] private float timeBonusMultiplier = 10f; // Points per second remaining if they win
-    [SerializeField] private float timeBetweenHoopsAllowed = 10f;
+    [SerializeField] private float timeBetweenHoopsAllowed = 12f;
 
     // State Trackers
     private Dictionary<JetAgent, int> agentTargetIndices = new Dictionary<JetAgent, int>();
@@ -22,6 +31,7 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
     private Dictionary<JetAgent, float> lastDistanceToHoop = new Dictionary<JetAgent, float>();
     private Dictionary<JetAgent, float> lastLocalZ = new Dictionary<JetAgent, float>();
     private Dictionary<JetAgent, float> lastHoopTime = new Dictionary<JetAgent, float>();
+    private Dictionary<JetAgent, Dictionary<string, float>> agentBreakdowns = new Dictionary<JetAgent, Dictionary<string, float>>();
 
     // TODO REMOVE
     private JetAgent debugAgent = null;
@@ -67,6 +77,15 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
         lastLocalZ[agent] = waypoints[0].InverseTransformPoint(agent.transform.position).z;
         lastHoopTime[agent] = 0f;
 
+        agentBreakdowns[agent] = new Dictionary<string, float> {
+            { "Distance", 0f },
+            { "Look At", 0f },
+            { "Hoop Pass", 0f },
+            { "Effort Penalty", 0f },
+            { "Backwards Drift Penalty", 0f },
+            { "Time Bonus", 0f }
+        };
+
         // Set the sensors
         WaypointSensors sensors = agent.GetComponent<WaypointSensors>();
         sensors.currentWaypoint = waypoints[0];
@@ -87,7 +106,9 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
         float currentEffort = agent.TotalControlEffort;
         float effortGained = currentEffort - lastEffortSums[agent];
         lastEffortSums[agent] = currentEffort;
-        stepReward -= lambda * effortGained;
+        float effortPenalty = -lambda * effortGained;
+        if (agentBreakdowns.ContainsKey(agent)) agentBreakdowns[agent]["Effort Penalty"] += effortPenalty;
+        stepReward += effortPenalty;
 
         if (currentIndex < waypoints.Length)
         {
@@ -96,8 +117,57 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
             // Distance Reward
             float currentDistance = Vector3.Distance(agent.transform.position, targetHoop.position);
             float distanceDelta = lastDistanceToHoop[agent] - currentDistance;
-            stepReward += 2 * distanceDelta;
+            float progressReward = distanceRewardMultiplier * distanceDelta;
+            
+            float distanceAdded = 0f;
+            float driftPenaltyAdded = 0f;
+
+            // Alignment Multiplier (Prevent falling/drifting backwards)
+            Rigidbody rb = agent.GetComponent<Rigidbody>();
+            float alignment = rb.linearVelocity.sqrMagnitude > 0.01f 
+                ? Vector3.Dot(agent.transform.forward, rb.linearVelocity.normalized) 
+                : 0f;
+
+            if (alignment > 0f)
+            {
+                // If they align, apply the multiplier to the progress reward
+                // (Only scale positive rewards so we don't accidentally reduce distance penalties)
+                if (progressReward > 0f)
+                {
+                    progressReward *= alignment;
+                }
+                distanceAdded = progressReward;
+            }
+            else
+            {
+                // If they don't align, crush positive progress to zero and add a penalty
+                if (progressReward > 0f)
+                {
+                    progressReward = 0f;
+                }
+                distanceAdded = progressReward;
+                driftPenaltyAdded = -backwardsDriftPenalty;
+                progressReward += driftPenaltyAdded; // Penalty for drifting/falling backwards
+            }
+
+            if (agentBreakdowns.ContainsKey(agent)) 
+            {
+                agentBreakdowns[agent]["Distance"] += distanceAdded;
+                agentBreakdowns[agent]["Backwards Drift Penalty"] += driftPenaltyAdded;
+            }
+            stepReward += progressReward;
             lastDistanceToHoop[agent] = currentDistance;
+
+            // Look-At Reward
+            if (currentDistance > 0.01f)
+            {
+                Vector3 dirToHoop = (targetHoop.position - agent.transform.position).normalized;
+                float angleToHoop = Vector3.Angle(agent.transform.forward, dirToHoop);
+                // Dense reward: Max reward at dead center, drops off linearly the further away they look
+                float lookAtReward = lookAtRewardWeight * (1f - (angleToHoop / 180f));
+                if (agentBreakdowns.ContainsKey(agent)) agentBreakdowns[agent]["Look At"] += lookAtReward;
+                stepReward += lookAtReward;
+            }
 
             // --- THE TUNNELING FIX ---
             Vector3 localPos = targetHoop.InverseTransformPoint(agent.transform.position);
@@ -111,14 +181,15 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
 
                 if (agent == debugAgent)
                 {
-                    Debug.Log($"[Debug Jet] Target: Hoop {currentIndex} | Local Z: {localPos.z:F2} | Dist from center: {distanceFromCenter:F2}");
+                    // Debug.Log($"[Debug Jet] Target: Hoop {currentIndex} | Local Z: {localPos.z:F2} | Dist from center: {distanceFromCenter:F2}");
                 }
 
                 // Were they inside the ring when they crossed?
                 if (distanceFromCenter < hoopRadius)
                 {
                     agentTargetIndices[agent]++;
-                    stepReward += 500f;
+                    if (agentBreakdowns.ContainsKey(agent)) agentBreakdowns[agent]["Hoop Pass"] += hoopPassReward;
+                    stepReward += hoopPassReward;
                     lastHoopTime[agent] = agent.TimeAlive;
 
                     // Update trackers to look at the NEW hoop
@@ -158,10 +229,18 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
         if (agentTargetIndices.ContainsKey(agent) && agentTargetIndices[agent] >= waypoints.Length)
         {
             float timeLeft = maxTimeAllowed - agent.TimeAlive;
-            finalScore += timeLeft * timeBonusMultiplier;
+            float timeBonus = timeLeft * timeBonusMultiplier;
+            finalScore += timeBonus;
+            if (agentBreakdowns.ContainsKey(agent)) agentBreakdowns[agent]["Time Bonus"] += timeBonus;
         }
 
         return finalScore;
+    }
+
+    public Dictionary<string, float> GetRewardBreakdown(JetAgent agent)
+    {
+        if (agentBreakdowns.ContainsKey(agent)) return agentBreakdowns[agent];
+        return new Dictionary<string, float>();
     }
 
     public bool CheckTerminalState(JetAgent agent)

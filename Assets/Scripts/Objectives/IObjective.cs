@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public interface IObjective
@@ -12,4 +13,6 @@ public interface IObjective
     public float CalculateTotalFitness(JetAgent agent);
 
     public bool CheckTerminalState(JetAgent agent);
+
+    public Dictionary<string, float> GetRewardBreakdown(JetAgent agent);
 }
