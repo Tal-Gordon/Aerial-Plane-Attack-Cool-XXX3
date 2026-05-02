@@ -37,8 +37,10 @@ public class ClassicNeuroEvoEngine : IEvolutionEngine
 
     public List<IEvolvableBrain> EvolveNextGeneration(List<float> fitnessScores)
     {
+        int popSize = currentSettings.PopulationSize;
+
         // Don't evolve if the list is completely empty
-        if (currentSettings.PopulationSize == 0) return new List<IEvolvableBrain>(currentBrains);
+        if (popSize == 0) return new List<IEvolvableBrain>(currentBrains);
 
         // Bind the brains to their scores, sort descending, and hold them temporarily
         var sortedPairs = currentBrains
@@ -51,33 +53,47 @@ public class ClassicNeuroEvoEngine : IEvolutionEngine
 
         // Overwrite the main list with ONLY the sorted brains (throwing the scores away)
         currentBrains = sortedPairs.Select(pair => pair.Brain).ToList();
+        var sortedScores = sortedPairs.Select(pair => pair.Score).ToList();
 
         // Keep track of the historical champion
         if (highestScoreThisGen > championScore || currentGeneration == 1)
         {
-            // We have a new all-time champion (or it's the very first generation)
             championBrain.Copy(currentBrains[0]);
             championScore = highestScoreThisGen;
         }
-        else
+
+        // --- Elitism: preserve the top ceil(1%) of the population ---
+        int eliteCount = Mathf.Max(1, Mathf.CeilToInt(popSize * 0.01f));
+
+        // If historical champion didn't make it into the current elite, inject it at index 0
+        if (highestScoreThisGen < championScore)
         {
-            // Elitism, keep the best brain from the previous generation
             currentBrains[0].Copy(championBrain);
         }
 
-        // Mathf.Max prevents a Divide By Zero crash if you test with under 5 jets!
-        int numParents = Mathf.Max(1, currentBrains.Count / 5);
+        // --- Tournament selection for the remaining slots ---
+        int tournamentSize = 5;
+        System.Random rng = new System.Random();
 
-        // Loop strictly through the list count!
-        for (int i = numParents; i < currentSettings.PopulationSize; i++)
+        for (int i = eliteCount; i < popSize; i++)
         {
-            int parentIndex = i % numParents;
+            // Pick tournamentSize random individuals and find the one with the best fitness
+            int bestIdx = rng.Next(popSize);
+            float bestFit = sortedScores[bestIdx];
 
-            NeuroEvoBrain parentBrain = currentBrains[parentIndex];
-            NeuroEvoBrain loserBrain = currentBrains[i];
+            for (int t = 1; t < tournamentSize; t++)
+            {
+                int candidate = rng.Next(popSize);
+                if (sortedScores[candidate] > bestFit)
+                {
+                    bestIdx = candidate;
+                    bestFit = sortedScores[candidate];
+                }
+            }
 
-            loserBrain.Copy(parentBrain);
-            loserBrain.Mutate(currentSettings.ActiveEvoSettings.MutationRate);
+            // Copy the tournament winner into this slot and mutate it
+            currentBrains[i].Copy(currentBrains[bestIdx]);
+            currentBrains[i].Mutate(currentSettings.ActiveEvoSettings.MutationRate);
         }
 
         currentGeneration++;
