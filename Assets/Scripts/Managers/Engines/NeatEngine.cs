@@ -39,15 +39,19 @@ public class NeatEngine : IEvolutionEngine
         // Genome parameters (mutation rates, etc.)
         var genomeParams = new NeatGenomeParameters();
         
-        // [HYPERPARAMETER TUNING]
-        // You mentioned it progresses super slowly and changes are barely noticeable.
-        // We will massively bump the structural mutations so it builds complex brains faster.
-        genomeParams.AddNodeMutationProbability = 0.10;       // 10% chance to add a node (very high)
-        genomeParams.AddConnectionMutationProbability = 0.20; // 20% chance to add a connection
-        genomeParams.DeleteConnectionMutationProbability = 0.05; // 5% chance to prune dead weight
+        // [HYPERPARAMETER TUNING - Post Output Fix]
+        // Increased structural mutation rates to make the AI more prone to change
+        // while preserving enough stability to not shred good networks.
+        genomeParams.AddNodeMutationProbability = 0.04;        // 4%  (default 1%)
+        genomeParams.AddConnectionMutationProbability = 0.10;  // 10% (default 2.5%)
+        genomeParams.DeleteConnectionMutationProbability = 0.04; // 4% (default 2.5%)
         
-        // Ensure weights are mutating aggressively
-        genomeParams.ConnectionWeightMutationProbability = 0.98;
+        // Weight mutation is the workhorse — keep it high but at default
+        genomeParams.ConnectionWeightMutationProbability = 0.94; // 94% (default)
+
+        // Start with all possible input→output connections instead of 5%
+        // so initial genomes are functional from Gen 1 rather than near-empty
+        // genomeParams.InitialInterconnectionsProportion = 1.0;
 
         // Factory creates and manages genomes
         genomeFactory = new NeatGenomeFactory(neatSettings.InputSize, neatSettings.OutputSize, genomeParams);
@@ -63,17 +67,21 @@ public class NeatEngine : IEvolutionEngine
         var eaParams = new NeatEvolutionAlgorithmParameters();
         
         // [HYPERPARAMETER TUNING]
-        // You mentioned the groups (species) are barely different. 
-        // With a population of 1000 and SpecieCount = 10, each species had 100 jets. This forces very different 
-        // topologies to be unfairly clustered and killed off.
-        // Increasing to 40 forces SharpNEAT to isolate and protect 40 distinct topological "ideas".
-        eaParams.SpecieCount = 40; 
+        // Give new structures a bit more opportunity to be tested before being wiped out:
+        // 1. Increased species count to protect innovations in more niches.
+        // 2. Higher selection proportion allows a wider range of parents to reproduce.
+        // 3. Higher elitism proportion protects more top performers in each species.
+        eaParams.SpecieCount = 25; 
+        eaParams.ElitismProportion = 0.3; 
+        eaParams.SelectionProportion = 0.3; 
 
         // Speciation strategy: groups genomes into species by similarity
         var speciationStrategy = new KMeansClusteringStrategy<NeatGenome>(new ManhattanDistanceMetric());
 
-        // Complexity regulation: controls bloat (NullStrategy = no regulation for now)
-        var complexityRegulation = new NullComplexityRegulationStrategy();
+        // Complexity regulation: prevents network bloat by switching to a
+        // simplifying mode when complexity grows too fast relative to fitness gains.
+        // Replaces NullComplexityRegulationStrategy which allowed unchecked growth.
+        var complexityRegulation = new DefaultComplexityRegulationStrategy(ComplexityCeilingType.Relative, 1.5);
 
         // Create the evolution algorithm
         evolutionAlgorithm = new SteppableNeatEvolutionAlgorithm<NeatGenome>(
@@ -108,10 +116,14 @@ public class NeatEngine : IEvolutionEngine
         Debug.Log($"[NeatEngine] Evolving next generation. Population size: {currentSettings.PopulationSize}");
         if (currentSettings.PopulationSize == 0) return new List<IEvolvableBrain>(currentBrains);
 
-        // Buffer the fitness scores from the simulation into the evaluator.
-        // When PerformOneGeneration() calls evaluator.Evaluate(), it will
-        // stamp these scores onto the genomes.
-        evaluator.SetScores(fitnessScores);
+        // Stamp fitness scores directly onto the genome objects BEFORE calling
+        // StepOneGeneration(). This is critical because PerformOneGeneration()
+        // internally creates offspring and rebuilds the genome list as
+        // [elites... | offspring...] BEFORE calling Evaluate(). If we relied on
+        // index-based stamping inside Evaluate(), scores would be assigned to
+        // the wrong genomes.
+        List<NeatGenome> currentGenomeList = evolutionAlgorithm.GenomeList as List<NeatGenome>;
+        StampFitnessScores(currentGenomeList, fitnessScores);
 
         // Debug
         float maxScore = float.NegativeInfinity;
@@ -124,8 +136,9 @@ public class NeatEngine : IEvolutionEngine
         float avgScore = fitnessScores.Count > 0 ? sumScore / fitnessScores.Count : 0f;
         Debug.Log($"[NeatEngine] Generation {currentGeneration} received scores -> Max: {maxScore}, Avg: {avgScore}");
 
-        // Let SharpNEAT handle everything: evaluation, speciation, selection,
-        // crossover, mutation, and creating the next generation.
+        // Let SharpNEAT handle speciation, selection, crossover, mutation,
+        // and creating the next generation. The evaluator is a no-op since
+        // fitness was already stamped above.
         evolutionAlgorithm.StepOneGeneration();
 
         // Get the new population of genomes from the algorithm
@@ -231,5 +244,36 @@ public class NeatEngine : IEvolutionEngine
             brains.Add(new NeatBrain(genomeList[i], blackBox));
         }
         return brains;
+    }
+
+    /// <summary>
+    /// Stamps fitness scores directly onto genome objects. Must be called
+    /// BEFORE StepOneGeneration() while the genome list is still in the
+    /// same order as our decoded brains.
+    /// 
+    /// SharpNEAT requires fitness >= 0, so we shift negative scores up
+    /// and add a small baseline to prevent zero-fitness species wipeouts.
+    /// </summary>
+    private void StampFitnessScores(List<NeatGenome> genomeList, List<float> scores)
+    {
+        // Find minimum score for shifting
+        float minScore = float.MaxValue;
+        for (int i = 0; i < scores.Count; i++)
+        {
+            if (scores[i] < minScore) minScore = scores[i];
+        }
+
+        // Shift negative scores to positive; add baseline so worst != 0
+        float shift = minScore < 0f ? System.Math.Abs(minScore) : 0f;
+        float baseline = 1.0f;
+
+        for (int i = 0; i < genomeList.Count; i++)
+        {
+            double fitness = i < scores.Count
+                ? scores[i] + shift + baseline
+                : baseline;
+
+            genomeList[i].EvaluationInfo.SetFitness(fitness);
+        }
     }
 }

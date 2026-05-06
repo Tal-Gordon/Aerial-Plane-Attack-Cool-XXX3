@@ -37,7 +37,8 @@ public class NeatBrain : IEvolvableBrain
         float[] outputs = new float[blackBox.OutputSignalArray.Length];
         for (int i = 0; i < outputs.Length; i++)
         {
-            outputs[i] = (float)blackBox.OutputSignalArray[i];
+            // SharpNEAT's sigmoid outputs (0,1) — remap to (-1,1) for flight controls
+            outputs[i] = (float)(blackBox.OutputSignalArray[i] * 2.0 - 1.0);
         }
 
         return outputs;
