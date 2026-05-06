@@ -23,9 +23,14 @@ public class SteppableNeatEvolutionAlgorithm<TGenome> : NeatEvolutionAlgorithm<T
     /// <summary>
     /// Manually advances the algorithm by one generation.
     /// Calls the protected PerformOneGeneration() on the base class.
+    /// We must also increment _currentGeneration because the base class
+    /// normally does this in AlgorithmThreadMethod() before calling
+    /// PerformOneGeneration(). Without it, all offspring get birthGeneration=0
+    /// and age-based sorting breaks.
     /// </summary>
     public void StepOneGeneration()
     {
+        _currentGeneration++;
         base.PerformOneGeneration();
     }
 }
