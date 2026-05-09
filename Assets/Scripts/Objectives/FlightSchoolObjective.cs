@@ -11,18 +11,13 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
 
     // Settings
     [SerializeField] private float hoopRadius = 170f;
-    // [SerializeField] private float lambda = 0.1f;
-    // [SerializeField] private float distanceRewardMultiplier = 2f;
-    // [SerializeField] private float hoopPassReward = 500f;
-    // [SerializeField] private float backwardsDriftPenalty = 0.5f;
-    // [SerializeField] private float lookAtRewardWeight = 1f;
-    [SerializeField] private float lambda = 100f;
-    [SerializeField] private float distanceRewardMultiplier = 0.02f;
-    [SerializeField] private float hoopPassReward = 100f;
+    [SerializeField] private float lambda = 1f;
+    [SerializeField] private float distanceRewardMultiplier = 0.4f;
+    [SerializeField] private float hoopPassReward = 2000f;
     [SerializeField] private float backwardsDriftPenalty = 2f;
-    [SerializeField] private float lookAtRewardWeight = 2f;
+    [SerializeField] private float lookAtRewardWeight = 10f;
     [SerializeField] private float maxTimeAllowed = 180f;
-    [SerializeField] private float timeBonusMultiplier = 10f; // Points per second remaining if they win
+    [SerializeField] private float timeBonusMultiplier = 10f;
     [SerializeField] private float timeBetweenHoopsAllowed = 12f;
 
     // State Trackers
