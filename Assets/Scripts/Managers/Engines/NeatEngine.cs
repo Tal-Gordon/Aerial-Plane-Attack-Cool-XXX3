@@ -40,22 +40,15 @@ public class NeatEngine : IEvolutionEngine
         // Genome parameters (mutation rates, etc.)
         var genomeParams = new NeatGenomeParameters();
         
-        // [HYPERPARAMETER TUNING - Taming Destructive Mutations]
-        // Reduced structural mutation rates to prevent constantly breaking good networks.
         genomeParams.AddNodeMutationProbability = 0.02;        // 2% (default 1%)
         genomeParams.AddConnectionMutationProbability = 0.05;  // 5% (default 2.5%)
         genomeParams.DeleteConnectionMutationProbability = 0.02; // 2% (default 2.5%)
-        
-        // Restrict the weight range so when a new connection is added, it doesn't 
-        // randomly start with a massive +/- 5.0 weight and instantly crash the jet.
-        genomeParams.ConnectionWeightRange = 2.0; 
+        genomeParams.ConnectionWeightMutationProbability = 0.96; // 96% (default 94%)
 
-        // Weight mutation is the workhorse — keep it high to allow fine-tuning
-        genomeParams.ConnectionWeightMutationProbability = 0.96; // 96%
-
-        // Start with all possible input→output connections instead of 5%
-        // so initial genomes are functional from Gen 1 rather than near-empty
-        // genomeParams.InitialInterconnectionsProportion = 1.0;
+        // NEAT paper starts fully connected input→output with zero hidden nodes.
+        // At 5% default, 19×4=76 possible connections yields ~4 actual connections,
+        // leaving most outputs unconnected (stuck at sigmoid(0)=0.5 → remapped 0).
+        genomeParams.InitialInterconnectionsProportion = 1.0;
 
         // Factory creates and manages genomes
         genomeFactory = new NeatGenomeFactory(neatSettings.InputSize, neatSettings.OutputSize, genomeParams);
@@ -70,22 +63,17 @@ public class NeatEngine : IEvolutionEngine
         // Evolution algorithm parameters
         var eaParams = new NeatEvolutionAlgorithmParameters();
         
-        // [HYPERPARAMETER TUNING]
-        // Give new structures a bit more opportunity to be tested before being wiped out:
-        // 1. Increased species count to protect innovations in more niches.
-        // 2. Higher selection proportion allows a wider range of parents to reproduce.
-        // 3. Lower elitism prevents the absolute best from stagnating the gene pool.
-        eaParams.SpecieCount = 40; 
-        eaParams.ElitismProportion = 0.2; 
-        eaParams.SelectionProportion = 0.5; 
+        eaParams.SpecieCount = 10;
+        eaParams.ElitismProportion = 0.2;
+        eaParams.SelectionProportion = 0.4;
 
         // Speciation strategy: groups genomes into species by similarity
         var speciationStrategy = new KMeansClusteringStrategy<NeatGenome>(new ManhattanDistanceMetric());
 
-        // Complexity regulation: prevents network bloat by switching to a
-        // simplifying mode when complexity grows too fast relative to fitness gains.
-        // Replaces NullComplexityRegulationStrategy which allowed unchecked growth.
-        var complexityRegulation = new DefaultComplexityRegulationStrategy(ComplexityCeilingType.Relative, 1.5);
+        // No complexity ceiling — let NEAT grow freely. The 1.5x relative ceiling
+        // was suppressing structural mutations while the population was stuck at
+        // minimal complexity due to the reward function punishing any behavior.
+        var complexityRegulation = new NullComplexityRegulationStrategy();
 
         // Create the evolution algorithm
         evolutionAlgorithm = new SteppableNeatEvolutionAlgorithm<NeatGenome>(
