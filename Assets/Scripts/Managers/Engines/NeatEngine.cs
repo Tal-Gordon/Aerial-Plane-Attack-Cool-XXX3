@@ -13,13 +13,14 @@ using SharpNeat.EvolutionAlgorithms.ComplexityRegulation;
 using SharpNeat.Phenomes;
 using SharpNeat.SpeciationStrategies;
 
+// TODO: Remove the debugging logs
 public class NeatEngine : IEvolutionEngine
 {
     private SimulationSettings currentSettings;
 
     private List<NeatBrain> currentBrains;
     private NeatBrain championBrain;
-    private float championScore;
+    private float championScore = float.NegativeInfinity;
     
     private int currentGeneration;
     // Debug
@@ -39,15 +40,18 @@ public class NeatEngine : IEvolutionEngine
         // Genome parameters (mutation rates, etc.)
         var genomeParams = new NeatGenomeParameters();
         
-        // [HYPERPARAMETER TUNING - Post Output Fix]
-        // Increased structural mutation rates to make the AI more prone to change
-        // while preserving enough stability to not shred good networks.
-        genomeParams.AddNodeMutationProbability = 0.04;        // 4%  (default 1%)
-        genomeParams.AddConnectionMutationProbability = 0.10;  // 10% (default 2.5%)
-        genomeParams.DeleteConnectionMutationProbability = 0.04; // 4% (default 2.5%)
+        // [HYPERPARAMETER TUNING - Taming Destructive Mutations]
+        // Reduced structural mutation rates to prevent constantly breaking good networks.
+        genomeParams.AddNodeMutationProbability = 0.02;        // 2% (default 1%)
+        genomeParams.AddConnectionMutationProbability = 0.05;  // 5% (default 2.5%)
+        genomeParams.DeleteConnectionMutationProbability = 0.02; // 2% (default 2.5%)
         
-        // Weight mutation is the workhorse — keep it high but at default
-        genomeParams.ConnectionWeightMutationProbability = 0.94; // 94% (default)
+        // Restrict the weight range so when a new connection is added, it doesn't 
+        // randomly start with a massive +/- 5.0 weight and instantly crash the jet.
+        genomeParams.ConnectionWeightRange = 2.0; 
+
+        // Weight mutation is the workhorse — keep it high to allow fine-tuning
+        genomeParams.ConnectionWeightMutationProbability = 0.96; // 96%
 
         // Start with all possible input→output connections instead of 5%
         // so initial genomes are functional from Gen 1 rather than near-empty
@@ -70,10 +74,10 @@ public class NeatEngine : IEvolutionEngine
         // Give new structures a bit more opportunity to be tested before being wiped out:
         // 1. Increased species count to protect innovations in more niches.
         // 2. Higher selection proportion allows a wider range of parents to reproduce.
-        // 3. Higher elitism proportion protects more top performers in each species.
-        eaParams.SpecieCount = 25; 
-        eaParams.ElitismProportion = 0.3; 
-        eaParams.SelectionProportion = 0.3; 
+        // 3. Lower elitism prevents the absolute best from stagnating the gene pool.
+        eaParams.SpecieCount = 40; 
+        eaParams.ElitismProportion = 0.2; 
+        eaParams.SelectionProportion = 0.5; 
 
         // Speciation strategy: groups genomes into species by similarity
         var speciationStrategy = new KMeansClusteringStrategy<NeatGenome>(new ManhattanDistanceMetric());
@@ -95,6 +99,10 @@ public class NeatEngine : IEvolutionEngine
 
         // Initialize the algorithm with our evaluator and population
         evolutionAlgorithm.Initialize(evaluator, genomeFactory, genomeList);
+
+        // NEAT_DEBUG_LOG: Initialize logger
+        NeatLogger.Initialize();
+        NeatLogger.LogGenerationStart(1, currentSettings.PopulationSize, eaParams.SpecieCount, eaParams.ElitismProportion, eaParams.SelectionProportion);
 
         // Decode all genomes into brains for the simulation
         currentBrains = DecodeBrains(genomeList);
@@ -128,18 +136,37 @@ public class NeatEngine : IEvolutionEngine
         // Debug
         float maxScore = float.NegativeInfinity;
         float sumScore = 0f;
-        foreach (var s in fitnessScores) 
+        int bestIndex = 0;
+        for (int i = 0; i < fitnessScores.Count; i++) 
         { 
-            sumScore += s; 
-            if (s > maxScore) maxScore = s; 
+            sumScore += fitnessScores[i]; 
+            if (fitnessScores[i] > maxScore) 
+            {
+                maxScore = fitnessScores[i];
+                bestIndex = i;
+            }
         }
         float avgScore = fitnessScores.Count > 0 ? sumScore / fitnessScores.Count : 0f;
         Debug.Log($"[NeatEngine] Generation {currentGeneration} received scores -> Max: {maxScore}, Avg: {avgScore}");
+
+        if (maxScore > championScore)
+        {
+            championScore = maxScore;
+            NeatGenome bestGenomeThisGen = currentGenomeList[bestIndex];
+            IBlackBox bestBlackBox = genomeDecoder.Decode(bestGenomeThisGen);
+            championBrain = new NeatBrain(bestGenomeThisGen, bestBlackBox);
+        }
+
+        // NEAT_DEBUG_LOG: Log generation stats before creating next one
+        NeatLogger.LogGenerationEnd(currentGeneration, fitnessScores, evolutionAlgorithm.CurrentChampGenome, evolutionAlgorithm.SpecieList);
 
         // Let SharpNEAT handle speciation, selection, crossover, mutation,
         // and creating the next generation. The evaluator is a no-op since
         // fitness was already stamped above.
         evolutionAlgorithm.StepOneGeneration();
+
+        // NEAT_DEBUG_LOG: Log generation start
+        NeatLogger.LogGenerationStart(currentGeneration + 1, currentSettings.PopulationSize, 25 /* eaParams.SpecieCount */, 0.3, 0.3);
 
         // Get the new population of genomes from the algorithm
         List<NeatGenome> genomeList = evolutionAlgorithm.GenomeList as List<NeatGenome>;
@@ -149,14 +176,6 @@ public class NeatEngine : IEvolutionEngine
 
         // Track the champion
         NeatGenome bestGenome = evolutionAlgorithm.CurrentChampGenome;
-        float bestFitness = (float)bestGenome.EvaluationInfo.Fitness;
-
-        if (bestFitness > championScore)
-        {
-            IBlackBox bestBlackBox = genomeDecoder.Decode(bestGenome);
-            championBrain = new NeatBrain(bestGenome, bestBlackBox);
-            championScore = bestFitness;
-        }
         
         // Debug
         // Log a sample genome ID that is NOT the current champion to show evolution is happening.
@@ -241,7 +260,14 @@ public class NeatEngine : IEvolutionEngine
         for (int i = 0; i < genomeList.Count; i++)
         {
             IBlackBox blackBox = genomeDecoder.Decode(genomeList[i]);
-            brains.Add(new NeatBrain(genomeList[i], blackBox));
+            NeatBrain brain = new NeatBrain(genomeList[i], blackBox);
+            
+            // NEAT_DEBUG_LOG: assign tracking info
+            brain.GenomeId = genomeList[i].Id;
+            bool isChamp = (evolutionAlgorithm != null && evolutionAlgorithm.CurrentChampGenome != null && genomeList[i].Id == evolutionAlgorithm.CurrentChampGenome.Id);
+            brain.IsDebugTarget = isChamp || (i == 0 && (evolutionAlgorithm == null || evolutionAlgorithm.CurrentChampGenome == null));
+            
+            brains.Add(brain);
         }
         return brains;
     }

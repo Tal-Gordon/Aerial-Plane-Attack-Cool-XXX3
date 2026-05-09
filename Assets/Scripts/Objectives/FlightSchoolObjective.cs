@@ -16,14 +16,14 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
     // [SerializeField] private float hoopPassReward = 500f;
     // [SerializeField] private float backwardsDriftPenalty = 0.5f;
     // [SerializeField] private float lookAtRewardWeight = 1f;
-    [SerializeField] private float lambda = 100f;
-    [SerializeField] private float distanceRewardMultiplier = 0.02f;
-    [SerializeField] private float hoopPassReward = 100f;
+    [SerializeField] private float lambda = 1f;
+    [SerializeField] private float distanceRewardMultiplier = 0.4f;
+    [SerializeField] private float hoopPassReward = 2000f;
     [SerializeField] private float backwardsDriftPenalty = 2f;
-    [SerializeField] private float lookAtRewardWeight = 2f;
+    [SerializeField] private float lookAtRewardWeight = 10f;
     [SerializeField] private float maxTimeAllowed = 180f;
     [SerializeField] private float timeBonusMultiplier = 10f; // Points per second remaining if they win
-    [SerializeField] private float timeBetweenHoopsAllowed = 12f;
+    [SerializeField] private float timeBetweenHoopsAllowed = 10f;
 
     // State Trackers
     private Dictionary<JetAgent, int> agentTargetIndices = new Dictionary<JetAgent, int>();
@@ -163,8 +163,9 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
             {
                 Vector3 dirToHoop = (targetHoop.position - agent.transform.position).normalized;
                 float angleToHoop = Vector3.Angle(agent.transform.forward, dirToHoop);
-                // Dense reward: Max reward at dead center, drops off linearly the further away they look
-                float lookAtReward = lookAtRewardWeight * (1f - (angleToHoop / 180f));
+                // Dense penalty: 0 penalty at dead center, drops to negative the further away they look.
+                // Making this strictly negative prevents the agent from farming points by flying slowly!
+                float lookAtReward = lookAtRewardWeight * -(angleToHoop / 180f);
                 if (agentBreakdowns.ContainsKey(agent)) agentBreakdowns[agent]["Look At"] += lookAtReward;
                 stepReward += lookAtReward;
             }
