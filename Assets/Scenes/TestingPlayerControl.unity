@@ -7018,14 +7018,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FlightSchoolObjective
   waypoints: []
   hoopRadius: 170
-  lambda: 0.1
-  distanceRewardMultiplier: 0.1
-  hoopPassReward: 500
-  backwardsDriftPenalty: 0.5
-  lookAtRewardWeight: 0.1
-  maxTimeAllowed: 100
+  lambda: 1
+  distanceRewardMultiplier: 0.2
+  hoopPassReward: 800
+  backwardsDriftPenalty: 2
+  lookAtRewardWeight: 10
+  maxTimeAllowed: 180
   timeBonusMultiplier: 10
-  timeBetweenHoopsAllowed: 12
+  timeBetweenHoopsAllowed: 10
 --- !u!4 &1943075243
 Transform:
   m_ObjectHideFlags: 0

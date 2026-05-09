@@ -7,6 +7,11 @@ public class NeatBrain : IEvolvableBrain
     private readonly IBlackBox blackBox;
     private readonly NeatGenome genome;
 
+    // NEAT_DEBUG_LOG: tracking variables
+    public bool IsDebugTarget { get; set; }
+    public uint GenomeId { get; set; }
+    private int tickCount = 0;
+
     public NeatBrain(NeatGenome genome, IBlackBox blackBox)
     {
         this.genome = genome;
@@ -27,6 +32,9 @@ public class NeatBrain : IEvolvableBrain
 
     public float[] GetControlOutputs(float[] inputs)
     {
+        // NEAT_DEBUG_LOG: increment tick count
+        tickCount++;
+
         for (int i = 0; i < inputs.Length; i++)
         {
             blackBox.InputSignalArray[i] = inputs[i];
@@ -40,6 +48,9 @@ public class NeatBrain : IEvolvableBrain
             // SharpNEAT's sigmoid outputs (0,1) — remap to (-1,1) for flight controls
             outputs[i] = (float)(blackBox.OutputSignalArray[i] * 2.0 - 1.0);
         }
+
+        // NEAT_DEBUG_LOG: Log genome IO
+        NeatLogger.LogGenomeIO(GenomeId, IsDebugTarget, tickCount, inputs, outputs);
 
         return outputs;
     }
