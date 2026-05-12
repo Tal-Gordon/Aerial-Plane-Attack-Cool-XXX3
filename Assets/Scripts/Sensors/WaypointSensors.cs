@@ -9,14 +9,18 @@ namespace Assets.Scripts.Sensors
 		[HideInInspector]
 		public Transform currentWaypoint;
 
-		private float maxDistance = 2000f; // Cap for Distance normalization
+		private float maxDistance = 2000f;
+		private float[] cachedFinalObs;
 
 		public override float[] GetObservationData()
 		{
 			float[] baseObs = base.GetObservationData();
 
-			float[] finalObs = new float[GetSensorCount()];
-			Array.Copy(baseObs, finalObs, baseObs.Length);
+			if (cachedFinalObs == null)
+				cachedFinalObs = new float[GetSensorCount()];
+
+			Array.Copy(baseObs, cachedFinalObs, baseObs.Length);
+			float[] finalObs = cachedFinalObs;
 
 			int index = baseObs.Length;
 

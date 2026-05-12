@@ -6,11 +6,13 @@ public class NeatBrain : IEvolvableBrain
 {
     private readonly IBlackBox blackBox;
     private readonly NeatGenome genome;
+    private readonly float[] cachedOutputs;
 
     public NeatBrain(NeatGenome genome, IBlackBox blackBox)
     {
         this.genome = genome;
         this.blackBox = blackBox;
+        cachedOutputs = new float[blackBox.OutputSignalArray.Length];
     }
 
     public NeatGenome Genome => genome;
@@ -29,14 +31,13 @@ public class NeatBrain : IEvolvableBrain
 
         blackBox.Activate();
 
-        float[] outputs = new float[blackBox.OutputSignalArray.Length];
-        for (int i = 0; i < outputs.Length; i++)
+        for (int i = 0; i < cachedOutputs.Length; i++)
         {
             // SharpNEAT's sigmoid outputs (0,1) — remap to (-1,1) for flight controls
-            outputs[i] = (float)(blackBox.OutputSignalArray[i] * 2.0 - 1.0);
+            cachedOutputs[i] = (float)(blackBox.OutputSignalArray[i] * 2.0 - 1.0);
         }
 
-        return outputs;
+        return cachedOutputs;
     }
 
     public int[] GetShape()
