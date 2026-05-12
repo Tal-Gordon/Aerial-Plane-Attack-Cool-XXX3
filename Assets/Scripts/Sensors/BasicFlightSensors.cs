@@ -3,8 +3,8 @@ using UnityEngine;
 public class BasicFlightSensors : MonoBehaviour, ISensor
 {
     private Rigidbody rb;
+    private float[] cachedObs;
 
-    // Normalization maximums
     private float maxSpeed = 1000f;
     private float maxPitchRate = 3f;
     private float maxYawRate = 1f;
@@ -13,11 +13,12 @@ public class BasicFlightSensors : MonoBehaviour, ISensor
     void Awake()
     {
         rb = GetComponent<Rigidbody>();
+        cachedObs = new float[12];
     }
 
     public virtual float[] GetObservationData()
     {
-        float[] obs = new float[12];
+        float[] obs = cachedObs;
 
         // Local Velocity
         Vector3 localVelocity = transform.InverseTransformDirection(rb.linearVelocity) / maxSpeed;

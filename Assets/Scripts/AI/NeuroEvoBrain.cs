@@ -6,16 +6,26 @@ public class NeuroEvoBrain : IEvolvableBrain
 {
     private float[][][] weights;
     private float[][] biases;
+    private float[][] layerBuffers;
 
     public NeuroEvoBrain(int[] shape)
     {
         InitializeWeights(shape);
+        InitializeBuffers();
     }
 
     public NeuroEvoBrain(float[][][] weights, float[][] biases)
     {
         this.weights = weights;
         this.biases = biases;
+        InitializeBuffers();
+    }
+
+    private void InitializeBuffers()
+    {
+        layerBuffers = new float[weights.Length][];
+        for (int i = 0; i < weights.Length; i++)
+            layerBuffers[i] = new float[biases[i].Length];
     }
 
     private void InitializeWeights(int[] shape)
@@ -98,64 +108,50 @@ public class NeuroEvoBrain : IEvolvableBrain
 
     public float[] GetControlOutputs(float[] inputs)
     {
+        float[] currentInput = inputs;
+
         for (int i = 0; i < weights.Length; i++)
         {
-            float[] FCLayer = FullyConnected(inputs, weights[i], biases[i]);
+            FullyConnected(currentInput, weights[i], biases[i], layerBuffers[i]);
 
-            // Use relu for each layer besides the last
             if (i == weights.Length - 1)
-            {
-                // Output Layer: Use Tanh to allow negative flight controls (-1.0 to 1.0)
-                inputs = Tanh(FCLayer);
-            }
+                TanhInPlace(layerBuffers[i]);
             else
-            {
-                // Hidden Layers: Use ReLU for fast internal processing
-                inputs = Relu(FCLayer);
-            }
+                ReluInPlace(layerBuffers[i]);
+
+            currentInput = layerBuffers[i];
         }
 
-        return inputs;
+        return layerBuffers[weights.Length - 1];
     }
 
-    private float[] FullyConnected(float[] inputs, float[][] matrix, float[] layerBiases)
+    private void FullyConnected(float[] inputs, float[][] matrix, float[] layerBiases, float[] output)
     {
-        float[] outputs = new float[matrix[0].Length];
-
-        for (int i = 0; i < outputs.Length; i++)
+        for (int i = 0; i < output.Length; i++)
         {
+            float sum = layerBiases[i];
             for (int j = 0; j < inputs.Length; j++)
             {
-                outputs[i] += inputs[j] * matrix[j][i];
+                sum += inputs[j] * matrix[j][i];
             }
-            outputs[i] += layerBiases[i];
+            output[i] = sum;
         }
-
-        return outputs;
     }
 
-    private float[] Relu(float[] inputs)
+    private void ReluInPlace(float[] values)
     {
-        float[] outputs = new float[inputs.Length];
-
-        for (int i = 0; i < outputs.Length; i++)
+        for (int i = 0; i < values.Length; i++)
         {
-            outputs[i] = System.Math.Max(0f, inputs[i]);
+            if (values[i] < 0f) values[i] = 0f;
         }
-
-        return outputs;
     }
 
-    private float[] Tanh(float[] inputs)
+    private void TanhInPlace(float[] values)
     {
-        float[] outputs = new float[inputs.Length];
-
-        for (int i = 0; i < outputs.Length; i++)
+        for (int i = 0; i < values.Length; i++)
         {
-            outputs[i] = (float)System.Math.Tanh(inputs[i]);
+            values[i] = (float)System.Math.Tanh(values[i]);
         }
-
-        return outputs;
     }
 
     public float[] Serialize()
