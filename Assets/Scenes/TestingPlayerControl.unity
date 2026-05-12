@@ -7019,8 +7019,8 @@ MonoBehaviour:
   waypoints: []
   hoopRadius: 170
   lambda: 1
-  distanceRewardMultiplier: 0.2
-  hoopPassReward: 800
+  distanceRewardMultiplier: 0.4
+  hoopPassReward: 2000
   backwardsDriftPenalty: 2
   lookAtRewardWeight: 10
   maxTimeAllowed: 180
