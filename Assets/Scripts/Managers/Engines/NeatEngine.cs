@@ -13,7 +13,6 @@ using SharpNeat.EvolutionAlgorithms.ComplexityRegulation;
 using SharpNeat.Phenomes;
 using SharpNeat.SpeciationStrategies;
 
-// TODO: Remove the debugging logs
 public class NeatEngine : IEvolutionEngine
 {
     private SimulationSettings currentSettings;
@@ -21,15 +20,14 @@ public class NeatEngine : IEvolutionEngine
     private List<NeatBrain> currentBrains;
     private NeatBrain championBrain;
     private float championScore = float.NegativeInfinity;
-    
+
     private int currentGeneration;
-    // Debug
-    private uint lastLoggedGenomeId;
 
     // SharpNEAT internals
     private NeatGenomeFactory genomeFactory;
     private NeatGenomeDecoder genomeDecoder;
     private SteppableNeatEvolutionAlgorithm<NeatGenome> evolutionAlgorithm;
+    private NeatEvolutionAlgorithmParameters eaParams;
     private PreScoredGenomeListEvaluator evaluator;
 
     public List<IEvolvableBrain> InitializeGeneration(SimulationSettings settings)
@@ -37,37 +35,28 @@ public class NeatEngine : IEvolutionEngine
         currentSettings = settings;
         var neatSettings = currentSettings.NeatSettings;
 
-        // Genome parameters (mutation rates, etc.)
         var genomeParams = new NeatGenomeParameters();
-        
-        genomeParams.AddNodeMutationProbability = 0.02;        // 2% (default 1%)
-        genomeParams.AddConnectionMutationProbability = 0.05;  // 5% (default 2.5%)
-        genomeParams.DeleteConnectionMutationProbability = 0.02; // 2% (default 2.5%)
-        genomeParams.ConnectionWeightMutationProbability = 0.96; // 96% (default 94%)
+
+        genomeParams.AddNodeMutationProbability = 0.02;
+        genomeParams.AddConnectionMutationProbability = 0.05;
+        genomeParams.DeleteConnectionMutationProbability = 0.02;
+        genomeParams.ConnectionWeightMutationProbability = 0.96;
 
         // NEAT paper starts fully connected input→output with zero hidden nodes.
         // At 5% default, 19×4=76 possible connections yields ~4 actual connections,
         // leaving most outputs unconnected (stuck at sigmoid(0)=0.5 → remapped 0).
         genomeParams.InitialInterconnectionsProportion = 1.0;
 
-        // Factory creates and manages genomes
         genomeFactory = new NeatGenomeFactory(neatSettings.InputSize, neatSettings.OutputSize, genomeParams);
-
-        // Decoder converts genomes (genotype) into blackboxes (phenotype) for inference
-        // Using Cyclic scheme with 1 timestep per simulation tick handles recurrent connections safely.
         genomeDecoder = new NeatGenomeDecoder(NetworkActivationScheme.CreateCyclicFixedTimestepsScheme(1));
-
-        // Our custom evaluator that stamps externally-collected fitness scores
         evaluator = new PreScoredGenomeListEvaluator();
 
-        // Evolution algorithm parameters
-        var eaParams = new NeatEvolutionAlgorithmParameters();
-        
+        eaParams = new NeatEvolutionAlgorithmParameters();
+
         eaParams.SpecieCount = 10;
         eaParams.ElitismProportion = 0.2;
         eaParams.SelectionProportion = 0.4;
 
-        // Speciation strategy: groups genomes into species by similarity
         var speciationStrategy = new KMeansClusteringStrategy<NeatGenome>(new ManhattanDistanceMetric());
 
         // No complexity ceiling — let NEAT grow freely. The 1.5x relative ceiling
@@ -75,41 +64,26 @@ public class NeatEngine : IEvolutionEngine
         // minimal complexity due to the reward function punishing any behavior.
         var complexityRegulation = new NullComplexityRegulationStrategy();
 
-        // Create the evolution algorithm
         evolutionAlgorithm = new SteppableNeatEvolutionAlgorithm<NeatGenome>(
             eaParams,
             speciationStrategy,
             complexityRegulation
         );
 
-        // Create initial random population
         List<NeatGenome> genomeList = genomeFactory.CreateGenomeList(currentSettings.PopulationSize, 0);
-
-        // Initialize the algorithm with our evaluator and population
         evolutionAlgorithm.Initialize(evaluator, genomeFactory, genomeList);
 
-        // NEAT_DEBUG_LOG: Initialize logger
-        NeatLogger.Initialize();
-        NeatLogger.LogGenerationStart(1, currentSettings.PopulationSize, eaParams.SpecieCount, eaParams.ElitismProportion, eaParams.SelectionProportion);
-
-        // Decode all genomes into brains for the simulation
         currentBrains = DecodeBrains(genomeList);
 
-        // Hold a reference to the first as initial champion
         championBrain = currentBrains[0];
         championScore = float.NegativeInfinity;
         currentGeneration = 1;
-        
-        // Debug
-        lastLoggedGenomeId = genomeList[0].Id;
-        Debug.Log($"[NeatEngine] Initialization: Starting population with example Genome ID [{lastLoggedGenomeId}] (Nodes: {genomeList[0].NeuronGeneList.Count}, Edges: {genomeList[0].ConnectionGeneList.Count})");
-        
+
         return new List<IEvolvableBrain>(currentBrains);
     }
 
     public List<IEvolvableBrain> EvolveNextGeneration(List<float> fitnessScores)
     {
-        Debug.Log($"[NeatEngine] Evolving next generation. Population size: {currentSettings.PopulationSize}");
         if (currentSettings.PopulationSize == 0) return new List<IEvolvableBrain>(currentBrains);
 
         // Stamp fitness scores directly onto the genome objects BEFORE calling
@@ -121,21 +95,17 @@ public class NeatEngine : IEvolutionEngine
         List<NeatGenome> currentGenomeList = evolutionAlgorithm.GenomeList as List<NeatGenome>;
         StampFitnessScores(currentGenomeList, fitnessScores);
 
-        // Debug
+        // Track the all-time champion
         float maxScore = float.NegativeInfinity;
-        float sumScore = 0f;
         int bestIndex = 0;
-        for (int i = 0; i < fitnessScores.Count; i++) 
-        { 
-            sumScore += fitnessScores[i]; 
-            if (fitnessScores[i] > maxScore) 
+        for (int i = 0; i < fitnessScores.Count; i++)
+        {
+            if (fitnessScores[i] > maxScore)
             {
                 maxScore = fitnessScores[i];
                 bestIndex = i;
             }
         }
-        float avgScore = fitnessScores.Count > 0 ? sumScore / fitnessScores.Count : 0f;
-        Debug.Log($"[NeatEngine] Generation {currentGeneration} received scores -> Max: {maxScore}, Avg: {avgScore}");
 
         if (maxScore > championScore)
         {
@@ -145,45 +115,25 @@ public class NeatEngine : IEvolutionEngine
             championBrain = new NeatBrain(bestGenomeThisGen, bestBlackBox);
         }
 
-        // NEAT_DEBUG_LOG: Log generation stats before creating next one
-        NeatLogger.LogGenerationEnd(currentGeneration, fitnessScores, evolutionAlgorithm.CurrentChampGenome, evolutionAlgorithm.SpecieList);
+        // SharpNEAT 2.4 uses probabilistic rounding for per-species elite counts,
+        // which can randomly wipe small species (including ones with top performers).
+        // We save the top genomes and re-inject any that get lost.
+        int eliteGuardCount = Mathf.Max(1, Mathf.CeilToInt(currentGenomeList.Count * 0.02f));
+        var savedElites = new List<NeatGenome>(eliteGuardCount);
+        {
+            var sorted = new List<NeatGenome>(currentGenomeList);
+            sorted.Sort((a, b) => b.EvaluationInfo.Fitness.CompareTo(a.EvaluationInfo.Fitness));
+            for (int i = 0; i < eliteGuardCount && i < sorted.Count; i++)
+                savedElites.Add(sorted[i]);
+        }
 
-        // Let SharpNEAT handle speciation, selection, crossover, mutation,
-        // and creating the next generation. The evaluator is a no-op since
-        // fitness was already stamped above.
         evolutionAlgorithm.StepOneGeneration();
 
-        // NEAT_DEBUG_LOG: Log generation start
-        NeatLogger.LogGenerationStart(currentGeneration + 1, currentSettings.PopulationSize, 25 /* eaParams.SpecieCount */, 0.3, 0.3);
-
-        // Get the new population of genomes from the algorithm
         List<NeatGenome> genomeList = evolutionAlgorithm.GenomeList as List<NeatGenome>;
 
-        // Decode all new genomes into usable brains
+        InjectMissingElites(savedElites, genomeList);
+
         currentBrains = DecodeBrains(genomeList);
-
-        // Track the champion
-        NeatGenome bestGenome = evolutionAlgorithm.CurrentChampGenome;
-        
-        // Debug
-        // Log a sample genome ID that is NOT the current champion to show evolution is happening.
-        // This avoids the "elitism trap" where the champion genome ID remains the same across generations.
-        NeatGenome sampleOffspring = null;
-        foreach (var genome in genomeList)
-        {
-            if (genome.Id != bestGenome.Id && genome.Id != lastLoggedGenomeId)
-            {
-                sampleOffspring = genome;
-                break;
-            }
-        }
-
-        if (sampleOffspring != null)
-        {
-            // Debug
-            Debug.Log($"[NeatEngine] Generation {currentGeneration} evolution check: Example offspring Genome ID [{sampleOffspring.Id}] (Nodes: {sampleOffspring.NeuronGeneList.Count}, Edges: {sampleOffspring.ConnectionGeneList.Count})");
-            lastLoggedGenomeId = sampleOffspring.Id;
-        }
 
         currentGeneration++;
         return new List<IEvolvableBrain>(currentBrains);
@@ -241,43 +191,66 @@ public class NeatEngine : IEvolutionEngine
         }
     }
 
-    // Helper: decode a list of genomes into NeatBrain wrappers
     private List<NeatBrain> DecodeBrains(List<NeatGenome> genomeList)
     {
         var brains = new List<NeatBrain>(genomeList.Count);
         for (int i = 0; i < genomeList.Count; i++)
         {
             IBlackBox blackBox = genomeDecoder.Decode(genomeList[i]);
-            NeatBrain brain = new NeatBrain(genomeList[i], blackBox);
-            
-            // NEAT_DEBUG_LOG: assign tracking info
-            brain.GenomeId = genomeList[i].Id;
-            bool isChamp = (evolutionAlgorithm != null && evolutionAlgorithm.CurrentChampGenome != null && genomeList[i].Id == evolutionAlgorithm.CurrentChampGenome.Id);
-            brain.IsDebugTarget = isChamp || (i == 0 && (evolutionAlgorithm == null || evolutionAlgorithm.CurrentChampGenome == null));
-            
-            brains.Add(brain);
+            brains.Add(new NeatBrain(genomeList[i], blackBox));
         }
         return brains;
     }
 
-    /// <summary>
-    /// Stamps fitness scores directly onto genome objects. Must be called
-    /// BEFORE StepOneGeneration() while the genome list is still in the
-    /// same order as our decoded brains.
-    /// 
-    /// SharpNEAT requires fitness >= 0, so we shift negative scores up
-    /// and add a small baseline to prevent zero-fitness species wipeouts.
-    /// </summary>
+    private void InjectMissingElites(List<NeatGenome> savedElites, List<NeatGenome> genomeList)
+    {
+        var postEvoIds = new HashSet<uint>();
+        foreach (var g in genomeList)
+            postEvoIds.Add(g.Id);
+
+        foreach (var elite in savedElites)
+        {
+            if (postEvoIds.Contains(elite.Id))
+                continue;
+
+            int worstIdx = 0;
+            double worstFitness = genomeList[0].EvaluationInfo.Fitness;
+            for (int i = 1; i < genomeList.Count; i++)
+            {
+                if (genomeList[i].EvaluationInfo.Fitness < worstFitness)
+                {
+                    worstFitness = genomeList[i].EvaluationInfo.Fitness;
+                    worstIdx = i;
+                }
+            }
+
+            NeatGenome replaced = genomeList[worstIdx];
+            genomeList[worstIdx] = elite;
+
+            var specieList = evolutionAlgorithm.SpecieList;
+            for (int s = 0; s < specieList.Count; s++)
+            {
+                var specieGenomes = specieList[s].GenomeList;
+                int idx = specieGenomes.IndexOf(replaced);
+                if (idx >= 0)
+                {
+                    specieGenomes[idx] = elite;
+                    break;
+                }
+            }
+
+            postEvoIds.Add(elite.Id);
+        }
+    }
+
     private void StampFitnessScores(List<NeatGenome> genomeList, List<float> scores)
     {
-        // Find minimum score for shifting
         float minScore = float.MaxValue;
         for (int i = 0; i < scores.Count; i++)
         {
             if (scores[i] < minScore) minScore = scores[i];
         }
 
-        // Shift negative scores to positive; add baseline so worst != 0
         float shift = minScore < 0f ? System.Math.Abs(minScore) : 0f;
         float baseline = 1.0f;
 
