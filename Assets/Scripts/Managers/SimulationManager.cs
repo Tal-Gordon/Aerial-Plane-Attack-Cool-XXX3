@@ -129,8 +129,9 @@ public class SimulationManager : MonoBehaviour
                 return new EvolutionaryParadigm(new ClassicNeuroEvoEngine());
             case AIType.NEAT:
                 return new EvolutionaryParadigm(new NeatEngine());
-            // case AIType.PPO:
-            //     return new RLParadigm();
+            case AIType.PPO_MLAgents:
+            case AIType.SAC_MLAgents:
+                return new RLParadigm();
             default:
                 Debug.LogError($"[SimulationManager] Unsupported AI type: {type}");
                 return null;

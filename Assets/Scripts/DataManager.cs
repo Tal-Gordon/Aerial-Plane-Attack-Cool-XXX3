@@ -49,13 +49,30 @@ public static class DataManager
             //         NetworkShape = new[] { 12, 24, 12, 4 },
             //     },
             // },
+            // [GameMode.MaxAltitude] = new SimulationSettings
+            // {
+            //     PopulationSize = 1000,
+            //     AIType = AIType.NEAT,
+            //     SpawnRadius = 0f,
+            //     SpawnFormation = SpawnFormation.Random,
+            //     NeatSettings = new NeatSettings
+            //     {
+            //         InputSize = 12,
+            //         OutputSize = 4,
+            //     },
+            //     RLSettings = new RLSettings
+            //     {
+            //         InputSize = 12,
+            //         OutputSize = 4,
+            //     },
+            // },
             [GameMode.MaxAltitude] = new SimulationSettings
             {
-                PopulationSize = 1000,
-                AIType = AIType.NEAT,
+                PopulationSize = 10,
+                AIType = AIType.PPO_MLAgents,
                 SpawnRadius = 0f,
                 SpawnFormation = SpawnFormation.Random,
-                NeatSettings = new NeatSettings
+                RLSettings = new RLSettings
                 {
                     InputSize = 12,
                     OutputSize = 4,
@@ -73,13 +90,30 @@ public static class DataManager
             //         NetworkShape = new[] { 19, 16, 16, 4 },
             //     },
             // },
+            // [GameMode.FlightSchool] = new SimulationSettings
+            // {
+            //     PopulationSize = 1000,
+            //     AIType = AIType.NEAT,
+            //     SpawnRadius = 0f,
+            //     SpawnFormation = SpawnFormation.Random,
+            //     NeatSettings = new NeatSettings
+            //     {
+            //         InputSize = 19,
+            //         OutputSize = 4,
+            //     },
+            //     RLSettings = new RLSettings
+            //     {
+            //         InputSize = 19,
+            //         OutputSize = 4,
+            //     },
+            // },
             [GameMode.FlightSchool] = new SimulationSettings
             {
-                PopulationSize = 1000,
-                AIType = AIType.NEAT,
+                PopulationSize = 100,
+                AIType = AIType.PPO_MLAgents,
                 SpawnRadius = 0f,
                 SpawnFormation = SpawnFormation.Random,
-                NeatSettings = new NeatSettings
+                RLSettings = new RLSettings
                 {
                     InputSize = 19,
                     OutputSize = 4,
@@ -308,13 +342,82 @@ public class NeatSettings : EvoSettings
 [Serializable]
 public class RLSettings
 {
+    // Network
+    public int InputSize = 12;
+    public int OutputSize = 4;
+    public int HiddenUnits = 256;
+    public int NumLayers = 2;
+    public bool Normalize = true;
+
+    // PPO hyperparameters
     public float LearningRate = 3e-4f;
+    public int BatchSize = 4096;
+    public int BufferSize = 20480;
+    public float Beta = 5e-3f;
+    public float Epsilon = 0.2f;
+    public float Lambd = 0.95f;
+    public int NumEpoch = 2;
+
+    // Reward
     public float Gamma = 0.99f;
+
+    // Run settings
+    public int MaxSteps = 5000000;
+    public int TimeHorizon = 128;
+    public int DecisionPeriod = 5;
 
     public RLSettings Clone() =>
         new()
         {
+            InputSize = InputSize,
+            OutputSize = OutputSize,
+            HiddenUnits = HiddenUnits,
+            NumLayers = NumLayers,
+            Normalize = Normalize,
             LearningRate = LearningRate,
+            BatchSize = BatchSize,
+            BufferSize = BufferSize,
+            Beta = Beta,
+            Epsilon = Epsilon,
+            Lambd = Lambd,
+            NumEpoch = NumEpoch,
             Gamma = Gamma,
+            MaxSteps = MaxSteps,
+            TimeHorizon = TimeHorizon,
+            DecisionPeriod = DecisionPeriod,
         };
+
+    public string ToYaml(string behaviorName = "JetBrain")
+    {
+        return $@"behaviors:
+  {behaviorName}:
+    trainer_type: ppo
+
+    hyperparameters:
+      batch_size: {BatchSize}
+      buffer_size: {BufferSize}
+      learning_rate: {LearningRate:E1}
+      beta: {Beta:E1}
+      epsilon: {Epsilon}
+      lambd: {Lambd}
+      num_epoch: {NumEpoch}
+      learning_rate_schedule: linear
+
+    network_settings:
+      normalize: {Normalize.ToString().ToLower()}
+      hidden_units: {HiddenUnits}
+      num_layers: {NumLayers}
+
+    reward_signals:
+      extrinsic:
+        gamma: {Gamma}
+        strength: 1.0
+
+    max_steps: {MaxSteps}
+    time_horizon: {TimeHorizon}
+    summary_freq: 10000
+    keep_checkpoints: 5
+    checkpoint_interval: 100000
+";
+    }
 }

@@ -111,3 +111,9 @@ CLAUDE.md.meta
 # Debug artifacts
 NeatDebugLog*
 
+# ML-Agents training artifacts
+/results/
+/config/
+/ProfilerCaptures/
+/[Aa]ssets/ML-Agents/
+
