@@ -90,6 +90,12 @@ public class JetMLAgent : Agent
 
         if (objective.CheckTerminalState(jetAgent))
         {
+            if (jetAgent.HasCrashed)
+            {
+                AddReward(-5000f);
+                jetAgent.CurrentFitness -= 5000f;
+            }
+
             EndEpisode();
         }
     }
