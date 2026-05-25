@@ -42,6 +42,9 @@ public class SimulationManager : MonoBehaviour
         // Instantiate the population (factory — done once)
         population = InstantiatePopulation(settings.PopulationSize);
 
+        // Activate the correct sensor on each agent for this mode
+        ConfigureSensors(population, objective);
+
         // Create the correct paradigm for the chosen AI type
         activeParadigm = CreateParadigm(settings.AIType);
         if (activeParadigm == null) return;
@@ -106,6 +109,31 @@ public class SimulationManager : MonoBehaviour
     }
 
     // ── Private helpers ──────────────────────────────────────────────
+
+    private void ConfigureSensors(List<JetAgent> population, IObjective objective)
+    {
+        SensorType required = objective.RequiredSensorType;
+
+        foreach (var jetAgent in population)
+        {
+            ISensor activeSensor = null;
+
+            foreach (var sensor in jetAgent.GetComponents<ISensor>())
+            {
+                if (sensor is MonoBehaviour mb)
+                {
+                    bool match = sensor.SensorType == required;
+                    mb.enabled = match;
+                    if (match) activeSensor = sensor;
+                }
+            }
+
+            if (activeSensor != null)
+                jetAgent.Sensor = activeSensor;
+            else
+                Debug.LogWarning($"[SimulationManager] No sensor of type {required} found on {jetAgent.name}. Add the matching sensor component to the jet prefab.");
+        }
+    }
 
     private List<JetAgent> InstantiatePopulation(int count)
     {

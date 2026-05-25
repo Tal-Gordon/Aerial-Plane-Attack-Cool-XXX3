@@ -6,6 +6,8 @@ namespace Assets.Scripts.Sensors
 {
 	public class WaypointSensors: BasicFlightSensors
 	{
+		public override SensorType SensorType => SensorType.Waypoint;
+
 		[HideInInspector]
 		public Transform currentWaypoint;
 

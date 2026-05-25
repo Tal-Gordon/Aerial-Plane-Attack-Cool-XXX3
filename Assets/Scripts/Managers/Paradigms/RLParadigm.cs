@@ -20,8 +20,9 @@ public class RLParadigm : ITrainingParadigm
     private SimulationSnapshot cachedSnapshot;
     private TrainerProcessLauncher trainerLauncher;
 
-    private static readonly string YamlPath =
-        Path.Combine(Application.dataPath, "..", "config", "jet_ppo.yaml");
+    private string AlgorithmName => settings.AIType == AIType.SAC_MLAgents ? "SAC" : "PPO";
+    private string YamlFileName => settings.AIType == AIType.SAC_MLAgents ? "jet_sac.yaml" : "jet_ppo.yaml";
+    private string YamlPath => Path.Combine(Application.dataPath, "..", "config", YamlFileName);
 
     public void Initialize(List<JetAgent> population, SimulationSettings settings, IObjective objective)
     {
@@ -37,14 +38,15 @@ public class RLParadigm : ITrainingParadigm
         WriteYamlConfig();
 
         trainerLauncher = new TrainerProcessLauncher();
-        if (!trainerLauncher.Launch("config/jet_ppo.yaml"))
+        string runId = settings.AIType == AIType.SAC_MLAgents ? "sac_training" : "training";
+        if (!trainerLauncher.Launch($"config/{YamlFileName}", runId))
         {
-            Debug.LogError("[RLParadigm] Python trainer failed to start. Agents will fall back to heuristic mode.");
+            Debug.LogError($"[RLParadigm] Python trainer failed to start ({AlgorithmName}). Agents will fall back to heuristic mode.");
         }
 
         cachedSnapshot = new SimulationSnapshot
         {
-            ParadigmName = "RL (PPO)",
+            ParadigmName = $"RL ({AlgorithmName})",
             Population = population,
             RLData = new RLSnapshot()
         };
@@ -139,7 +141,7 @@ public class RLParadigm : ITrainingParadigm
         if (!Directory.Exists(dir))
             Directory.CreateDirectory(dir);
 
-        string yaml = settings.RLSettings.ToYaml();
+        string yaml = settings.RLSettings.ToYaml(settings.AIType);
         File.WriteAllText(YamlPath, yaml);
         Debug.Log($"[RLParadigm] Training config written to {YamlPath}");
     }
