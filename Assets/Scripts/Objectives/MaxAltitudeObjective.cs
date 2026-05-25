@@ -7,6 +7,7 @@ using UnityEngine.UIElements;
 public class MaxAltitudeObjective : MonoBehaviour, IObjective
 {
     public DataManager.GameMode Mode => DataManager.GameMode.MaxAltitude;
+    public SensorType RequiredSensorType => SensorType.BasicFlight;
     
     [SerializeField] private float maxTimeAllowed = 15f;
     private int spawnRadius = 0;
