@@ -103,7 +103,6 @@ GameObject:
   - component: {fileID: 4450701645668443857}
   - component: {fileID: 3641281719087979610}
   - component: {fileID: 346840953204065755}
-  - component: {fileID: 4913679530034684416}
   - component: {fileID: 7857637353285484887}
   - component: {fileID: 5739497274694273398}
   - component: {fileID: 413301666170439925}
@@ -518,19 +517,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BasicFlightSensors
 --- !u!114 &346840953204065755
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 835737604007996434}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f66ccfd4d5cfedd42a1c36b7b76f7b5f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Assets.Scripts.Sensors.WaypointSensors
-  currentWaypoint: {fileID: 0}
---- !u!114 &4913679530034684416
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

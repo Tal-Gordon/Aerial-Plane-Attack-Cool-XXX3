@@ -60,7 +60,7 @@ public class RLParadigm : ITrainingParadigm
             if (mlAgent == null)
                 mlAgent = go.AddComponent<JetMLAgent>();
 
-            ConfigureBehaviorParameters(go);
+            ConfigureBehaviorParameters(jetAgent);
             ConfigureDecisionRequester(go);
 
             mlAgent.Inject(objective, this, i, population.Count);
@@ -73,12 +73,19 @@ public class RLParadigm : ITrainingParadigm
         }
     }
 
-    private void ConfigureBehaviorParameters(GameObject go)
+    private void ConfigureBehaviorParameters(JetAgent jetAgent)
     {
         var rl = settings.RLSettings;
-        var bp = go.GetComponent<BehaviorParameters>();
+        var bp = jetAgent.gameObject.GetComponent<BehaviorParameters>();
 
-        bp.BrainParameters.VectorObservationSize = rl.InputSize;
+        // The observation size must match the active sensor exactly or ML-Agents throws
+        // at connect. Derive it from the sensor so the two can't silently drift; treat
+        // RLSettings.InputSize as a sanity check and warn (don't fail) on mismatch.
+        int observationSize = jetAgent.Sensor?.GetSensorCount() ?? rl.InputSize;
+        if (jetAgent.Sensor != null && observationSize != rl.InputSize)
+            Debug.LogWarning($"[RLParadigm] RLSettings.InputSize ({rl.InputSize}) does not match the active sensor's count ({observationSize}). Using the sensor count; update InputSize to silence this.");
+
+        bp.BrainParameters.VectorObservationSize = observationSize;
         bp.BrainParameters.ActionSpec = ActionSpec.MakeContinuous(rl.OutputSize);
         bp.BehaviorName = "JetBrain";
         bp.BehaviorType = BehaviorType.Default;

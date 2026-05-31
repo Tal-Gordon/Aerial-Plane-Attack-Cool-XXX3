@@ -394,6 +394,12 @@ public class RLSettings
     public int TimeHorizon = 128;
     public int DecisionPeriod = 5;
 
+    // Engine settings. ML-Agents pushes this to Unity's Time.timeScale on connect.
+    // Defaults to 1 so RL runs start at normal speed (like the evolutionary modes)
+    // instead of mlagents-learn's hardcoded default of 20. The in-game slider can
+    // still scale time up afterward. Raise this for faster headless training.
+    public float TrainingTimeScale = 1f;
+
     // SAC hyperparameters
     public float InitEntCoef = 1.0f;
     public float Tau = 0.005f;
@@ -419,6 +425,7 @@ public class RLSettings
             MaxSteps = MaxSteps,
             TimeHorizon = TimeHorizon,
             DecisionPeriod = DecisionPeriod,
+            TrainingTimeScale = TrainingTimeScale,
             InitEntCoef = InitEntCoef,
             Tau = Tau,
             StepsPerUpdate = StepsPerUpdate,
@@ -458,6 +465,9 @@ public class RLSettings
     summary_freq: 10000
     keep_checkpoints: 5
     checkpoint_interval: 100000
+
+engine_settings:
+  time_scale: {TrainingTimeScale}
 ";
         }
 
@@ -490,6 +500,9 @@ public class RLSettings
     summary_freq: 10000
     keep_checkpoints: 5
     checkpoint_interval: 100000
+
+engine_settings:
+  time_scale: {TrainingTimeScale}
 ";
     }
 }

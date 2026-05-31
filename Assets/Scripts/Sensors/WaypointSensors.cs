@@ -13,6 +13,7 @@ namespace Assets.Scripts.Sensors
 
 		private float maxDistance = 2000f;
 		private float[] cachedFinalObs;
+		private bool warnedNoWaypoint = false;
 
 		public override float[] GetObservationData()
 		{
@@ -47,9 +48,12 @@ namespace Assets.Scripts.Sensors
 				finalObs[index++] = localHoopForward.y;
 				finalObs[index++] = localHoopForward.z;
 			}
-			else
+			else if (!warnedNoWaypoint)
 			{
-				Debug.Log("No waypoints detected");
+				// One-shot: this runs every physics frame, so never log unconditionally here.
+				// A null waypoint means the objective never wired one up (see SetStartingState).
+				Debug.LogWarning($"[WaypointSensors] {name} has no currentWaypoint set; waypoint observations will read as zero.");
+				warnedNoWaypoint = true;
 			}
 
 			return finalObs;
