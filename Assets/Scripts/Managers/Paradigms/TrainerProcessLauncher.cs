@@ -185,6 +185,19 @@ public class TrainerProcessLauncher : IDisposable
         }
     }
 
+    // TODO (deferred until demo/packaging — intentionally NOT done during normal dev):
+    // Goal: a self-contained, "double-click and it runs" build that bundles the ENTIRE
+    // Python stack (Python + torch + mlagents) INSIDE the artifact, so the user installs
+    // nothing themselves. Bloated on purpose — it's a show-off dev tool, not a lean product.
+    // Plan:
+    //   1. conda-pack the working 'mlagents' env into a relocatable folder shipped next to
+    //      the build:  conda pack -n mlagents -o mlagents-env.tar.gz   (env is pinned in
+    //      environment.yml at the repo root). Keep the GPU torch for fast on-device training;
+    //      only swap to CPU-only torch if you need the demo to run on non-NVIDIA machines.
+    //   2. Make this method check that BUNDLED interpreter first (e.g. alongside the
+    //      executable / under StreamingAssets), then fall back to the conda / MLAGENTS_PYTHON
+    //      search below. Same code path then works in the editor (your conda env) and in a
+    //      built demo (the bundled env). This is a release-time artifact, not a dev dependency.
     private static string FindCondaPython()
     {
         string envVar = Environment.GetEnvironmentVariable("MLAGENTS_PYTHON");
