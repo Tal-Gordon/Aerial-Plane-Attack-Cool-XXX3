@@ -21,6 +21,10 @@ dependencies:
   - xz=5.8.2=h53af0af_0
   - zlib=1.3.1=h1c6eee0_1
   - pip:
+      # Required so the torch "+cuXXX" wheels below resolve — they live on PyTorch's own
+      # index, NOT PyPI, so without this `conda env create -f environment.yml` fails on the
+      # torch line. See the torch lines below for CPU / older-CUDA alternatives.
+      - --extra-index-url https://download.pytorch.org/whl/cu130
       - absl-py==2.4.0
       - annotated-doc==0.0.4
       - anyio==4.13.0
@@ -69,6 +73,13 @@ dependencies:
       - sympy==1.14.0
       - tensorboard==2.20.0
       - tensorboard-data-server==0.7.2
+      # CUDA 13 build. Needs an NVIDIA driver new enough for CUDA 13; it ALSO runs on
+      # CPU-only machines (auto-falls back to CPU), just as a larger download.
+      #   - Older NVIDIA GPU/driver: change the --extra-index-url above AND the "+cu130"
+      #     suffix here to your CUDA version, e.g. cu121 with torch==...+cu121. Wheels are
+      #     built per CUDA version and are NOT backward/forward compatible across majors.
+      #   - No NVIDIA GPU and want a lean env: use https://download.pytorch.org/whl/cpu and
+      #     the matching "+cpu" wheels. Keep torch and torchvision versions in sync.
       - torch==2.12.0+cu130
       - torchvision==0.27.0+cu130
       - tqdm==4.67.3
