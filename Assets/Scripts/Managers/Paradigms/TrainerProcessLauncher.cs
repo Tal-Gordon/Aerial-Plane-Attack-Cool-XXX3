@@ -62,6 +62,10 @@ public class TrainerProcessLauncher : IDisposable
             Debug.Log($"[TrainerLauncher] Started mlagents-learn (PID {trainerProcess.Id}). " +
                       $"Waiting up to {timeoutSeconds}s for port {port}...");
 
+            // TODO: WaitForPort blocks the Unity main thread (up to timeoutSeconds) while the
+            // Python trainer boots, freezing the editor/game on every RL launch and contributing
+            // to the first-frame hitch. Consider moving trainer startup off the main thread
+            // (coroutine/Task) and only handing the population to the paradigm once the port is ready.
             bool ready = WaitForPort(timeoutSeconds);
             if (ready)
                 Debug.Log($"[TrainerLauncher] Trainer ready on port {port}.");

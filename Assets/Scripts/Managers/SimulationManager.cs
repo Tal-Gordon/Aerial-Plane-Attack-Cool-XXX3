@@ -117,6 +117,7 @@ public class SimulationManager : MonoBehaviour
         foreach (var jetAgent in population)
         {
             ISensor activeSensor = null;
+            int matchCount = 0;
 
             foreach (var sensor in jetAgent.GetComponents<ISensor>())
             {
@@ -124,9 +125,18 @@ public class SimulationManager : MonoBehaviour
                 {
                     bool match = sensor.SensorType == required;
                     mb.enabled = match;
-                    if (match) activeSensor = sensor;
+                    if (match)
+                    {
+                        matchCount++;
+                        // Keep the FIRST match so this agrees with the GetComponent<T>()
+                        // calls elsewhere (e.g. objectives writing currentWaypoint).
+                        if (activeSensor == null) activeSensor = sensor;
+                    }
                 }
             }
+
+            if (matchCount > 1)
+                Debug.LogWarning($"[SimulationManager] {jetAgent.name} has {matchCount} sensors of type {required}. Only one per type is supported — remove the duplicates from the jet prefab, or the wrong instance may be used.");
 
             if (activeSensor != null)
                 jetAgent.Sensor = activeSensor;
