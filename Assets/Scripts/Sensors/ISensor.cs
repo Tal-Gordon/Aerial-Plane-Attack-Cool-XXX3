@@ -1,8 +1,16 @@
 using UnityEngine;
 
+public enum SensorType
+{
+    BasicFlight,
+    Waypoint,
+}
+
 public interface ISensor
 {
-    public float[] GetObservationData();
+    SensorType SensorType { get; }
 
-    public int GetSensorCount();
+    float[] GetObservationData();
+
+    int GetSensorCount();
 }

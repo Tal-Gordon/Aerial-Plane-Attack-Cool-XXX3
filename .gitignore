@@ -102,6 +102,7 @@ InitTestScene*.unity*
 
 # Claude Code
 CLAUDE.md
+CLAUDE.md.meta
 .claude/
 
 # VS Code
@@ -109,4 +110,10 @@ CLAUDE.md
 
 # Debug artifacts
 NeatDebugLog*
-
+
+# ML-Agents training artifacts
+/results/
+/config/
+/ProfilerCaptures/
+/[Aa]ssets/ML-Agents/
+

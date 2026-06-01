@@ -9,12 +9,16 @@ public class TimeScaleWidget : UIWidget
     [SerializeField] private TextMeshProUGUI valueLabel;
 
     private float lastDisplayedScale = -1f;
+    private float preThrottleScale = -1f;
+    private int goodFramesSinceThrottle = 0;
+    private const int RecoveryFrames = 3;
 
     protected override void OnInitialize()
     {
         informativeLabel.text = "Time Scale";
         timeScaleSlider.minValue = 0.02f;
         timeScaleSlider.maxValue = 10f;
+        timeScaleSlider.value = 1f;
         timeScaleSlider.onValueChanged.AddListener(SetTimeScale);
     }
 
@@ -22,7 +26,7 @@ public class TimeScaleWidget : UIWidget
     {
         // Sync slider to actual timescale without triggering the listener
         timeScaleSlider.SetValueWithoutNotify(snapshot.TimeScale);
-        
+
         if (snapshot.TimeScale != lastDisplayedScale)
         {
             lastDisplayedScale = snapshot.TimeScale;
@@ -44,7 +48,13 @@ public class TimeScaleWidget : UIWidget
                 informativeLabel.color = Color.red;
                 informativeLabel.text = "Time Scale (Critical)";
             }
-            
+
+            // Save the scale we were at before throttling (skip startup — stale slider value)
+            if (preThrottleScale < 0f && Time.unscaledTime > 1f)
+                preThrottleScale = Time.timeScale;
+
+            goodFramesSinceThrottle = 0;
+
             // Auto-correct: Throttle time scale to recover frame time
             float newScale = Mathf.Max(1f, Time.timeScale - 10f * Time.unscaledDeltaTime);
             timeScaleSlider.value = newScale; // Triggers SetTimeScale automatically
@@ -52,6 +62,8 @@ public class TimeScaleWidget : UIWidget
         // Warning threshold: hardware bottleneck
         else if (realFPS < 20f)
         {
+            preThrottleScale = -1f;
+            goodFramesSinceThrottle = 0;
             if (informativeLabel)
             {
                 informativeLabel.color = Color.yellow;
@@ -60,6 +72,18 @@ public class TimeScaleWidget : UIWidget
         }
         else
         {
+            // Restore timescale after a transient spike (e.g. ML-Agents training update)
+            if (preThrottleScale > 0f)
+            {
+                goodFramesSinceThrottle++;
+                if (goodFramesSinceThrottle >= RecoveryFrames)
+                {
+                    timeScaleSlider.value = preThrottleScale;
+                    preThrottleScale = -1f;
+                    goodFramesSinceThrottle = 0;
+                }
+            }
+
             if (informativeLabel)
             {
                 informativeLabel.color = new Color32(31, 31, 31, 255);
@@ -71,7 +95,7 @@ public class TimeScaleWidget : UIWidget
     public void SetTimeScale(float value)
     {
         Time.timeScale = value;
-        
+
         if (value > 0f)
         {
             // For slow-mo (< 1x), scale down fixedDeltaTime to keep it smooth.

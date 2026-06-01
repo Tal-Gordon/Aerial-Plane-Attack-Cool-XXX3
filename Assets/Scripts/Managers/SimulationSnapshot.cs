@@ -28,6 +28,8 @@ public class EvoSnapshot
 
 public class RLSnapshot
 {
-    public float AverageEpisodeReward;
-    public int EpisodeCount;
+    public int TotalEpisodes;
+    public float TrainingTime;
+    public float BestCumulativeScore;
+    public float[] CumulativeScores;
 }

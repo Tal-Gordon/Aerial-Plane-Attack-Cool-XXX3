@@ -42,6 +42,9 @@ public class SimulationManager : MonoBehaviour
         // Instantiate the population (factory — done once)
         population = InstantiatePopulation(settings.PopulationSize);
 
+        // Activate the correct sensor on each agent for this mode
+        ConfigureSensors(population, objective);
+
         // Create the correct paradigm for the chosen AI type
         activeParadigm = CreateParadigm(settings.AIType);
         if (activeParadigm == null) return;
@@ -107,6 +110,41 @@ public class SimulationManager : MonoBehaviour
 
     // ── Private helpers ──────────────────────────────────────────────
 
+    private void ConfigureSensors(List<JetAgent> population, IObjective objective)
+    {
+        SensorType required = objective.RequiredSensorType;
+
+        foreach (var jetAgent in population)
+        {
+            ISensor activeSensor = null;
+            int matchCount = 0;
+
+            foreach (var sensor in jetAgent.GetComponents<ISensor>())
+            {
+                if (sensor is MonoBehaviour mb)
+                {
+                    bool match = sensor.SensorType == required;
+                    mb.enabled = match;
+                    if (match)
+                    {
+                        matchCount++;
+                        // Keep the FIRST match so this agrees with the GetComponent<T>()
+                        // calls elsewhere (e.g. objectives writing currentWaypoint).
+                        if (activeSensor == null) activeSensor = sensor;
+                    }
+                }
+            }
+
+            if (matchCount > 1)
+                Debug.LogWarning($"[SimulationManager] {jetAgent.name} has {matchCount} sensors of type {required}. Only one per type is supported — remove the duplicates from the jet prefab, or the wrong instance may be used.");
+
+            if (activeSensor != null)
+                jetAgent.Sensor = activeSensor;
+            else
+                Debug.LogWarning($"[SimulationManager] No sensor of type {required} found on {jetAgent.name}. Add the matching sensor component to the jet prefab.");
+        }
+    }
+
     private List<JetAgent> InstantiatePopulation(int count)
     {
         var pop = new List<JetAgent>(count);
@@ -129,8 +167,9 @@ public class SimulationManager : MonoBehaviour
                 return new EvolutionaryParadigm(new ClassicNeuroEvoEngine());
             case AIType.NEAT:
                 return new EvolutionaryParadigm(new NeatEngine());
-            // case AIType.PPO:
-            //     return new RLParadigm();
+            case AIType.PPO_MLAgents:
+            case AIType.SAC_MLAgents:
+                return new RLParadigm();
             default:
                 Debug.LogError($"[SimulationManager] Unsupported AI type: {type}");
                 return null;

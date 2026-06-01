@@ -5,6 +5,7 @@ using UnityEngine;
 public class FlightSchoolObjective : MonoBehaviour, IObjective
 {
     public DataManager.GameMode Mode => DataManager.GameMode.FlightSchool;
+    public SensorType RequiredSensorType => SensorType.Waypoint;
 
     // The Track
     [SerializeField] private Transform[] waypoints;
