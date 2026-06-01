@@ -13,6 +13,9 @@ public class PauseMenuController : MonoBehaviour
     [Header("Input")]
     public InputAction pauseAction;
 
+    private float savedTimeScale = 1f;
+    private float savedFixedDeltaTime = 0.02f;
+
     private void OnEnable()
     {
         pauseAction.Enable();
@@ -41,13 +44,18 @@ public class PauseMenuController : MonoBehaviour
     public void Resume()
     {
         pauseMenuUI.SetActive(false);
-        Time.timeScale = 1f;
-        Time.fixedDeltaTime = 0.02f;
+        // Restore the speed we were running at before the pause
+        Time.timeScale = savedTimeScale > 0f ? savedTimeScale : 1f;
+        Time.fixedDeltaTime = savedFixedDeltaTime > 0f ? savedFixedDeltaTime : 0.02f;
         IsGamePaused = false;
     }
 
     public void Pause()
     {
+        // Save the current simulation speed and physics resolution
+        savedTimeScale = Time.timeScale;
+        savedFixedDeltaTime = Time.fixedDeltaTime;
+
         pauseMenuUI.SetActive(true);
         Time.timeScale = 0f;
         IsGamePaused = true;
