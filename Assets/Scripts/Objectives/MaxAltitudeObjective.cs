@@ -2,13 +2,15 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
 
+// TODO: An old best jet might be worse but have a higher score due to change in hyperparameters, fix this.
+
 public class MaxAltitudeObjective : MonoBehaviour, IObjective
 {
     public DataManager.GameMode Mode => DataManager.GameMode.MaxAltitude;
-    [SerializeField]
-    private float maxTimeAllowed = 15f;
+    
+    [SerializeField] private float maxTimeAllowed = 15f;
     private int spawnRadius = 0;
-    private float lambda = 0.1f;
+    [SerializeField] private float lambda = 10f;
 
     // Previous state trackers
     private Dictionary<JetAgent, float> lastYPosition = new Dictionary<JetAgent, float>();
@@ -60,6 +62,18 @@ public class MaxAltitudeObjective : MonoBehaviour, IObjective
         float heightScore = agent.transform.position.y - agent.StartingPosition.y;
         float l2Penalty = lambda * agent.TotalControlEffort;
         return heightScore - l2Penalty;
+    }
+
+    public Dictionary<string, float> GetRewardBreakdown(JetAgent agent)
+    {
+        float heightScore = agent.transform.position.y - agent.StartingPosition.y;
+        float l2Penalty = lambda * agent.TotalControlEffort;
+        
+        return new Dictionary<string, float>
+        {
+            { "Height", heightScore },
+            { "Effort Penalty", -l2Penalty }
+        };
     }
 
     public bool CheckTerminalState(JetAgent agent)

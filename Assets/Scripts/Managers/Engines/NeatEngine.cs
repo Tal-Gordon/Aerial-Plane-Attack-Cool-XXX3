@@ -1,0 +1,266 @@
+using UnityEngine;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Xml;
+using SharpNeat.Core;
+using SharpNeat.Genomes.Neat;
+using SharpNeat.Decoders;
+using SharpNeat.Decoders.Neat;
+using SharpNeat.DistanceMetrics;
+using SharpNeat.EvolutionAlgorithms;
+using SharpNeat.EvolutionAlgorithms.ComplexityRegulation;
+using SharpNeat.Phenomes;
+using SharpNeat.SpeciationStrategies;
+
+public class NeatEngine : IEvolutionEngine
+{
+    private SimulationSettings currentSettings;
+
+    private List<NeatBrain> currentBrains;
+    private NeatBrain championBrain;
+    private float championScore = float.NegativeInfinity;
+
+    private int currentGeneration;
+
+    // SharpNEAT internals
+    private NeatGenomeFactory genomeFactory;
+    private NeatGenomeDecoder genomeDecoder;
+    private SteppableNeatEvolutionAlgorithm<NeatGenome> evolutionAlgorithm;
+    private NeatEvolutionAlgorithmParameters eaParams;
+    private PreScoredGenomeListEvaluator evaluator;
+
+    public List<IEvolvableBrain> InitializeGeneration(SimulationSettings settings)
+    {
+        currentSettings = settings;
+        var neatSettings = currentSettings.NeatSettings;
+
+        var genomeParams = new NeatGenomeParameters();
+
+        genomeParams.AddNodeMutationProbability = 0.02;
+        genomeParams.AddConnectionMutationProbability = 0.05;
+        genomeParams.DeleteConnectionMutationProbability = 0.02;
+        genomeParams.ConnectionWeightMutationProbability = 0.96;
+
+        // NEAT paper starts fully connected input→output with zero hidden nodes.
+        // At 5% default, 19×4=76 possible connections yields ~4 actual connections,
+        // leaving most outputs unconnected (stuck at sigmoid(0)=0.5 → remapped 0).
+        genomeParams.InitialInterconnectionsProportion = 1.0;
+
+        genomeFactory = new NeatGenomeFactory(neatSettings.InputSize, neatSettings.OutputSize, genomeParams);
+        genomeDecoder = new NeatGenomeDecoder(NetworkActivationScheme.CreateCyclicFixedTimestepsScheme(1));
+        evaluator = new PreScoredGenomeListEvaluator();
+
+        eaParams = new NeatEvolutionAlgorithmParameters();
+
+        eaParams.SpecieCount = 10;
+        eaParams.ElitismProportion = 0.2;
+        eaParams.SelectionProportion = 0.4;
+
+        var speciationStrategy = new KMeansClusteringStrategy<NeatGenome>(new ManhattanDistanceMetric());
+
+        // No complexity ceiling — let NEAT grow freely. The 1.5x relative ceiling
+        // was suppressing structural mutations while the population was stuck at
+        // minimal complexity due to the reward function punishing any behavior.
+        var complexityRegulation = new NullComplexityRegulationStrategy();
+
+        evolutionAlgorithm = new SteppableNeatEvolutionAlgorithm<NeatGenome>(
+            eaParams,
+            speciationStrategy,
+            complexityRegulation
+        );
+
+        List<NeatGenome> genomeList = genomeFactory.CreateGenomeList(currentSettings.PopulationSize, 0);
+        evolutionAlgorithm.Initialize(evaluator, genomeFactory, genomeList);
+
+        currentBrains = DecodeBrains(genomeList);
+
+        championBrain = currentBrains[0];
+        championScore = float.NegativeInfinity;
+        currentGeneration = 1;
+
+        return new List<IEvolvableBrain>(currentBrains);
+    }
+
+    public List<IEvolvableBrain> EvolveNextGeneration(List<float> fitnessScores)
+    {
+        if (currentSettings.PopulationSize == 0) return new List<IEvolvableBrain>(currentBrains);
+
+        // Stamp fitness scores directly onto the genome objects BEFORE calling
+        // StepOneGeneration(). This is critical because PerformOneGeneration()
+        // internally creates offspring and rebuilds the genome list as
+        // [elites... | offspring...] BEFORE calling Evaluate(). If we relied on
+        // index-based stamping inside Evaluate(), scores would be assigned to
+        // the wrong genomes.
+        List<NeatGenome> currentGenomeList = evolutionAlgorithm.GenomeList as List<NeatGenome>;
+        StampFitnessScores(currentGenomeList, fitnessScores);
+
+        // Track the all-time champion
+        float maxScore = float.NegativeInfinity;
+        int bestIndex = 0;
+        for (int i = 0; i < fitnessScores.Count; i++)
+        {
+            if (fitnessScores[i] > maxScore)
+            {
+                maxScore = fitnessScores[i];
+                bestIndex = i;
+            }
+        }
+
+        if (maxScore > championScore)
+        {
+            championScore = maxScore;
+            NeatGenome bestGenomeThisGen = currentGenomeList[bestIndex];
+            IBlackBox bestBlackBox = genomeDecoder.Decode(bestGenomeThisGen);
+            championBrain = new NeatBrain(bestGenomeThisGen, bestBlackBox);
+        }
+
+        // SharpNEAT 2.4 uses probabilistic rounding for per-species elite counts,
+        // which can randomly wipe small species (including ones with top performers).
+        // We save the top genomes and re-inject any that get lost.
+        int eliteGuardCount = Mathf.Max(1, Mathf.CeilToInt(currentGenomeList.Count * 0.02f));
+        var savedElites = new List<NeatGenome>(eliteGuardCount);
+        {
+            var sorted = new List<NeatGenome>(currentGenomeList);
+            sorted.Sort((a, b) => b.EvaluationInfo.Fitness.CompareTo(a.EvaluationInfo.Fitness));
+            for (int i = 0; i < eliteGuardCount && i < sorted.Count; i++)
+                savedElites.Add(sorted[i]);
+        }
+
+        evolutionAlgorithm.StepOneGeneration();
+
+        List<NeatGenome> genomeList = evolutionAlgorithm.GenomeList as List<NeatGenome>;
+
+        InjectMissingElites(savedElites, genomeList);
+
+        currentBrains = DecodeBrains(genomeList);
+
+        currentGeneration++;
+        return new List<IEvolvableBrain>(currentBrains);
+    }
+
+    public IEvolvableBrain GetChampionBrain()
+    {
+        return championBrain;
+    }
+
+    public float GetChampionScore()
+    {
+        return championScore;
+    }
+
+    public void SaveChampion(string directoryPath)
+    {
+        try
+        {
+            string filePath = Path.Combine(directoryPath, "champion.genome.xml");
+
+            XmlWriterSettings writerSettings = new XmlWriterSettings { Indent = true };
+            using (XmlWriter writer = XmlWriter.Create(filePath, writerSettings))
+            {
+                NeatGenomeXmlIO.WriteComplete(writer, championBrain.Genome, true);
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[NeatEngine] Failed to save champion: {e.Message}");
+        }
+    }
+
+    public void LoadChampion(string directoryPath)
+    {
+        try
+        {
+            string filePath = Path.Combine(directoryPath, "champion.genome.xml");
+            if (!File.Exists(filePath))
+            {
+                Debug.LogWarning("[NeatEngine] No saved champion found.");
+                return;
+            }
+
+            using (XmlReader reader = XmlReader.Create(filePath))
+            {
+                NeatGenome genome = NeatGenomeXmlIO.ReadCompleteGenomeList(reader, true, genomeFactory)[0];
+                IBlackBox blackBox = genomeDecoder.Decode(genome);
+                championBrain = new NeatBrain(genome, blackBox);
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[NeatEngine] Failed to load champion: {e.Message}");
+        }
+    }
+
+    private List<NeatBrain> DecodeBrains(List<NeatGenome> genomeList)
+    {
+        var brains = new List<NeatBrain>(genomeList.Count);
+        for (int i = 0; i < genomeList.Count; i++)
+        {
+            IBlackBox blackBox = genomeDecoder.Decode(genomeList[i]);
+            brains.Add(new NeatBrain(genomeList[i], blackBox));
+        }
+        return brains;
+    }
+
+    private void InjectMissingElites(List<NeatGenome> savedElites, List<NeatGenome> genomeList)
+    {
+        var postEvoIds = new HashSet<uint>();
+        foreach (var g in genomeList)
+            postEvoIds.Add(g.Id);
+
+        foreach (var elite in savedElites)
+        {
+            if (postEvoIds.Contains(elite.Id))
+                continue;
+
+            int worstIdx = 0;
+            double worstFitness = genomeList[0].EvaluationInfo.Fitness;
+            for (int i = 1; i < genomeList.Count; i++)
+            {
+                if (genomeList[i].EvaluationInfo.Fitness < worstFitness)
+                {
+                    worstFitness = genomeList[i].EvaluationInfo.Fitness;
+                    worstIdx = i;
+                }
+            }
+
+            NeatGenome replaced = genomeList[worstIdx];
+            genomeList[worstIdx] = elite;
+
+            var specieList = evolutionAlgorithm.SpecieList;
+            for (int s = 0; s < specieList.Count; s++)
+            {
+                var specieGenomes = specieList[s].GenomeList;
+                int idx = specieGenomes.IndexOf(replaced);
+                if (idx >= 0)
+                {
+                    specieGenomes[idx] = elite;
+                    break;
+                }
+            }
+
+            postEvoIds.Add(elite.Id);
+        }
+    }
+
+    private void StampFitnessScores(List<NeatGenome> genomeList, List<float> scores)
+    {
+        float minScore = float.MaxValue;
+        for (int i = 0; i < scores.Count; i++)
+        {
+            if (scores[i] < minScore) minScore = scores[i];
+        }
+
+        float shift = minScore < 0f ? System.Math.Abs(minScore) : 0f;
+        float baseline = 1.0f;
+
+        for (int i = 0; i < genomeList.Count; i++)
+        {
+            double fitness = i < scores.Count
+                ? scores[i] + shift + baseline
+                : baseline;
+
+            genomeList[i].EvaluationInfo.SetFitness(fitness);
+        }
+    }
+}
