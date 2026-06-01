@@ -49,18 +49,49 @@ public static class DataManager
             //         NetworkShape = new[] { 12, 24, 12, 4 },
             //     },
             // },
-            [GameMode.MaxAltitude] = new SimulationSettings
-            {
-                PopulationSize = 1000,
-                AIType = AIType.NEAT,
-                SpawnRadius = 0f,
-                SpawnFormation = SpawnFormation.Random,
-                NeatSettings = new NeatSettings
-                {
-                    InputSize = 12,
-                    OutputSize = 4,
-                },
-            },
+            // [GameMode.MaxAltitude] = new SimulationSettings
+            // {
+            //     PopulationSize = 1000,
+            //     AIType = AIType.NEAT,
+            //     SpawnRadius = 0f,
+            //     SpawnFormation = SpawnFormation.Random,
+            //     NeatSettings = new NeatSettings
+            //     {
+            //         InputSize = 12,
+            //         OutputSize = 4,
+            //     },
+            //     RLSettings = new RLSettings
+            //     {
+            //         InputSize = 12,
+            //         OutputSize = 4,
+            //     },
+            // },
+            // [GameMode.MaxAltitude] = new SimulationSettings
+            // {
+            //     PopulationSize = 10,
+            //     AIType = AIType.PPO_MLAgents,
+            //     SpawnRadius = 0f,
+            //     SpawnFormation = SpawnFormation.Random,
+            //     RLSettings = new RLSettings
+            //     {
+            //         InputSize = 12,
+            //         OutputSize = 4,
+            //     },
+            // },
+            // [GameMode.MaxAltitude] = new SimulationSettings
+            // {
+            //     PopulationSize = 10,
+            //     AIType = AIType.SAC_MLAgents,
+            //     SpawnRadius = 0f,
+            //     SpawnFormation = SpawnFormation.Random,
+            //     RLSettings = new RLSettings
+            //     {
+            //         InputSize = 12,
+            //         OutputSize = 4,
+            //         BatchSize = 128,
+            //         BufferSize = 50000,
+            //     },
+            // },
             // [GameMode.FlightSchool] = new SimulationSettings
             // {
             //     PopulationSize = 2000,
@@ -73,16 +104,47 @@ public static class DataManager
             //         NetworkShape = new[] { 19, 16, 16, 4 },
             //     },
             // },
+            // [GameMode.FlightSchool] = new SimulationSettings
+            // {
+            //     PopulationSize = 1000,
+            //     AIType = AIType.NEAT,
+            //     SpawnRadius = 0f,
+            //     SpawnFormation = SpawnFormation.Random,
+            //     NeatSettings = new NeatSettings
+            //     {
+            //         InputSize = 19,
+            //         OutputSize = 4,
+            //     },
+            //     RLSettings = new RLSettings
+            //     {
+            //         InputSize = 19,
+            //         OutputSize = 4,
+            //     },
+            // },
+            // [GameMode.FlightSchool] = new SimulationSettings
+            // {
+            //     PopulationSize = 100,
+            //     AIType = AIType.PPO_MLAgents,
+            //     SpawnRadius = 0f,
+            //     SpawnFormation = SpawnFormation.Random,
+            //     RLSettings = new RLSettings
+            //     {
+            //         InputSize = 19,
+            //         OutputSize = 4,
+            //     },
+            // },
             [GameMode.FlightSchool] = new SimulationSettings
             {
-                PopulationSize = 1000,
-                AIType = AIType.NEAT,
+                PopulationSize = 10,
+                AIType = AIType.SAC_MLAgents,
                 SpawnRadius = 0f,
                 SpawnFormation = SpawnFormation.Random,
-                NeatSettings = new NeatSettings
+                RLSettings = new RLSettings
                 {
                     InputSize = 19,
                     OutputSize = 4,
+                    BatchSize = 128,
+                    BufferSize = 50000,
                 },
             },
             [GameMode.Dogfight] = new SimulationSettings
@@ -308,13 +370,139 @@ public class NeatSettings : EvoSettings
 [Serializable]
 public class RLSettings
 {
+    // Network
+    public int InputSize = 12;
+    public int OutputSize = 4;
+    public int HiddenUnits = 256;
+    public int NumLayers = 2;
+    public bool Normalize = true;
+
+    // PPO hyperparameters
     public float LearningRate = 3e-4f;
+    public int BatchSize = 4096;
+    public int BufferSize = 20480;
+    public float Beta = 5e-3f;
+    public float Epsilon = 0.2f;
+    public float Lambd = 0.95f;
+    public int NumEpoch = 2;
+
+    // Reward
     public float Gamma = 0.99f;
+
+    // Run settings
+    public int MaxSteps = 5000000;
+    public int TimeHorizon = 128;
+    public int DecisionPeriod = 5;
+
+    // Engine settings. ML-Agents pushes this to Unity's Time.timeScale on connect.
+    // Defaults to 1 so RL runs start at normal speed (like the evolutionary modes)
+    // instead of mlagents-learn's hardcoded default of 20. The in-game slider can
+    // still scale time up afterward. Raise this for faster headless training.
+    public float TrainingTimeScale = 1f;
+
+    // SAC hyperparameters
+    public float InitEntCoef = 1.0f;
+    public float Tau = 0.005f;
+    public float StepsPerUpdate = 10f;
+    public int BufferInitSteps = 0;
 
     public RLSettings Clone() =>
         new()
         {
+            InputSize = InputSize,
+            OutputSize = OutputSize,
+            HiddenUnits = HiddenUnits,
+            NumLayers = NumLayers,
+            Normalize = Normalize,
             LearningRate = LearningRate,
+            BatchSize = BatchSize,
+            BufferSize = BufferSize,
+            Beta = Beta,
+            Epsilon = Epsilon,
+            Lambd = Lambd,
+            NumEpoch = NumEpoch,
             Gamma = Gamma,
+            MaxSteps = MaxSteps,
+            TimeHorizon = TimeHorizon,
+            DecisionPeriod = DecisionPeriod,
+            TrainingTimeScale = TrainingTimeScale,
+            InitEntCoef = InitEntCoef,
+            Tau = Tau,
+            StepsPerUpdate = StepsPerUpdate,
+            BufferInitSteps = BufferInitSteps,
         };
+
+    public string ToYaml(AIType aiType, string behaviorName = "JetBrain")
+    {
+        if (aiType == AIType.SAC_MLAgents)
+        {
+            return $@"behaviors:
+  {behaviorName}:
+    trainer_type: sac
+
+    hyperparameters:
+      batch_size: {BatchSize}
+      buffer_size: {BufferSize}
+      learning_rate: {LearningRate:E1}
+      buffer_init_steps: {BufferInitSteps}
+      tau: {Tau}
+      steps_per_update: {StepsPerUpdate:F1}
+      init_entcoef: {InitEntCoef}
+      learning_rate_schedule: constant
+
+    network_settings:
+      normalize: {Normalize.ToString().ToLower()}
+      hidden_units: {HiddenUnits}
+      num_layers: {NumLayers}
+
+    reward_signals:
+      extrinsic:
+        gamma: {Gamma}
+        strength: 1.0
+
+    max_steps: {MaxSteps}
+    time_horizon: {TimeHorizon}
+    summary_freq: 10000
+    keep_checkpoints: 5
+    checkpoint_interval: 100000
+
+engine_settings:
+  time_scale: {TrainingTimeScale}
+";
+        }
+
+        return $@"behaviors:
+  {behaviorName}:
+    trainer_type: ppo
+
+    hyperparameters:
+      batch_size: {BatchSize}
+      buffer_size: {BufferSize}
+      learning_rate: {LearningRate:E1}
+      beta: {Beta:E1}
+      epsilon: {Epsilon}
+      lambd: {Lambd}
+      num_epoch: {NumEpoch}
+      learning_rate_schedule: linear
+
+    network_settings:
+      normalize: {Normalize.ToString().ToLower()}
+      hidden_units: {HiddenUnits}
+      num_layers: {NumLayers}
+
+    reward_signals:
+      extrinsic:
+        gamma: {Gamma}
+        strength: 1.0
+
+    max_steps: {MaxSteps}
+    time_horizon: {TimeHorizon}
+    summary_freq: 10000
+    keep_checkpoints: 5
+    checkpoint_interval: 100000
+
+engine_settings:
+  time_scale: {TrainingTimeScale}
+";
+    }
 }

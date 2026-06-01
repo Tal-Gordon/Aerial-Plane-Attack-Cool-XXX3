@@ -2,9 +2,14 @@ using UnityEngine;
 
 public class BasicFlightSensors : MonoBehaviour, ISensor
 {
+    public virtual SensorType SensorType => SensorType.BasicFlight;
+
     private Rigidbody rb;
     private float[] cachedObs;
 
+    // These max values are used to normalize the sensor data.
+    // They should be set based on the expected maximums for the plane's performance.
+    // Needs to be tuned based on the actual plane and environment settings.
     private float maxSpeed = 1000f;
     private float maxPitchRate = 3f;
     private float maxYawRate = 1f;
