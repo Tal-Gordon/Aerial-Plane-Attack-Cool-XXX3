@@ -44,35 +44,35 @@ public static class DataManager
     private static readonly Dictionary<GameMode, SimulationSettings> Defaults =
         new()
         {
-            [GameMode.MaxAltitude] = new SimulationSettings
-            {
-                PopulationSize = 1000,
-                AIType = AIType.FixedNeuroEvo,
-                SpawnRadius = 50f,
-                SpawnFormation = SpawnFormation.Random,
-                NeuroEvoSettings = new NeuroEvoSettings
-                {
-                    MutationRate = 0.1f,
-                    NetworkShape = new[] { 12, 24, 12, 4 },
-                },
-            },
             // [GameMode.MaxAltitude] = new SimulationSettings
             // {
             //     PopulationSize = 1000,
-            //     AIType = AIType.NEAT,
-            //     SpawnRadius = 0f,
+            //     AIType = AIType.FixedNeuroEvo,
+            //     SpawnRadius = 50f,
             //     SpawnFormation = SpawnFormation.Random,
-            //     NeatSettings = new NeatSettings
+            //     NeuroEvoSettings = new NeuroEvoSettings
             //     {
-            //         InputSize = 12,
-            //         OutputSize = 4,
-            //     },
-            //     RLSettings = new RLSettings
-            //     {
-            //         InputSize = 12,
-            //         OutputSize = 4,
+            //         MutationRate = 0.1f,
+            //         NetworkShape = new[] { 12, 24, 12, 4 },
             //     },
             // },
+            [GameMode.MaxAltitude] = new SimulationSettings
+            {
+                PopulationSize = 1000,
+                AIType = AIType.NEAT,
+                SpawnRadius = 0f,
+                SpawnFormation = SpawnFormation.Random,
+                NeatSettings = new NeatSettings
+                {
+                    InputSize = 12,
+                    OutputSize = 4,
+                },
+                RLSettings = new RLSettings
+                {
+                    InputSize = 12,
+                    OutputSize = 4,
+                },
+            },
             // [GameMode.MaxAltitude] = new SimulationSettings
             // {
             //     PopulationSize = 10,

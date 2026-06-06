@@ -12,7 +12,12 @@ public class ClassicNeuroEvoEngine : IEvolutionEngine
     private List<NeuroEvoBrain> currentBrains;
     private NeuroEvoBrain championBrain;
     private float championScore;
-    
+
+    // Reusable read-only snapshot of the previous generation. Offspring are bred
+    // from this so tournament selection never copies a slot that was already
+    // overwritten by an earlier offspring in the same loop.
+    private List<NeuroEvoBrain> parentPool;
+
     private int currentGeneration;
 
     public List<IEvolvableBrain> InitializeGeneration(SimulationSettings settings)
@@ -71,6 +76,21 @@ public class ClassicNeuroEvoEngine : IEvolutionEngine
             currentBrains[0].Copy(championBrain);
         }
 
+        // Snapshot the parents BEFORE we start overwriting offspring slots. Each
+        // parentPool[i] mirrors the (now sorted, champion-injected) currentBrains[i]
+        // and lines up with sortedScores[i]. Breeding reads only from this pool, so a
+        // tournament winner is always the genome that earned its score — never a slot
+        // already replaced by a mutated child earlier in the loop.
+        if (parentPool == null || parentPool.Count != popSize)
+        {
+            int[] shape = currentSettings.NeuroEvoSettings.NetworkShape;
+            parentPool = new List<NeuroEvoBrain>(popSize);
+            for (int i = 0; i < popSize; i++)
+                parentPool.Add(new NeuroEvoBrain(shape));
+        }
+        for (int i = 0; i < popSize; i++)
+            parentPool[i].Copy(currentBrains[i]);
+
         // --- Tournament selection for the remaining slots ---
         int tournamentSize = 5;
         System.Random rng = new System.Random();
@@ -91,8 +111,8 @@ public class ClassicNeuroEvoEngine : IEvolutionEngine
                 }
             }
 
-            // Copy the tournament winner into this slot and mutate it
-            currentBrains[i].Copy(currentBrains[bestIdx]);
+            // Copy the tournament winner (from the immutable parent snapshot) and mutate it
+            currentBrains[i].Copy(parentPool[bestIdx]);
             currentBrains[i].Mutate(currentSettings.ActiveEvoSettings.MutationRate);
         }
 
