@@ -2,7 +2,9 @@ using UnityEngine;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using System.Xml;
+using Newtonsoft.Json;
 using SharpNeat.Core;
 using SharpNeat.Genomes.Neat;
 using SharpNeat.Decoders;
@@ -35,6 +37,27 @@ public class NeatEngine : IEvolutionEngine
     public List<IEvolvableBrain> InitializeGeneration(SimulationSettings settings)
     {
         currentSettings = settings;
+
+        BuildScaffolding();
+
+        List<NeatGenome> genomeList = genomeFactory.CreateGenomeList(currentSettings.PopulationSize, 0);
+        evolutionAlgorithm.Initialize(evaluator, genomeFactory, genomeList);
+
+        currentBrains = DecodeBrains(genomeList);
+
+        championBrain = currentBrains[0];
+        championScore = float.NegativeInfinity;
+        currentGeneration = 1;
+
+        return new List<IEvolvableBrain>(currentBrains);
+    }
+
+    // Builds the SharpNEAT scaffolding (genome factory, decoder, evaluator, EA)
+    // from currentSettings. Shared by InitializeGeneration (fresh genomes) and
+    // RestoreState (loaded genomes) so both run on identical configuration.
+    // Leaves the EA uninitialized — the caller supplies the seed genome list.
+    private void BuildScaffolding()
+    {
         var neatSettings = currentSettings.NeatSettings;
 
         var genomeParams = new NeatGenomeParameters();
@@ -71,17 +94,6 @@ public class NeatEngine : IEvolutionEngine
             speciationStrategy,
             complexityRegulation
         );
-
-        List<NeatGenome> genomeList = genomeFactory.CreateGenomeList(currentSettings.PopulationSize, 0);
-        evolutionAlgorithm.Initialize(evaluator, genomeFactory, genomeList);
-
-        currentBrains = DecodeBrains(genomeList);
-
-        championBrain = currentBrains[0];
-        championScore = float.NegativeInfinity;
-        currentGeneration = 1;
-
-        return new List<IEvolvableBrain>(currentBrains);
     }
 
     public List<IEvolvableBrain> EvolveNextGeneration(List<float> fitnessScores)
@@ -195,18 +207,84 @@ public class NeatEngine : IEvolutionEngine
 
     public string CaptureState()
     {
-        // TODO: serialize the full genome population (NeatGenomeXmlIO.WriteComplete
-        // per genome). Until then only champion save/load (SaveChampion) is supported.
-        Debug.LogWarning("[NeatEngine] Full-population state save is not implemented yet; nothing was captured.");
-        return null;
+        // Snapshot the live genomes backing the current brains. The whole population
+        // and the champion are serialized with SharpNEAT's complete-genome XML
+        // (same format as SaveChampion), each stored as an XML string inside an
+        // opaque NeatEngineState JSON blob.
+        var genomes = new List<NeatGenome>(currentBrains.Count);
+        foreach (NeatBrain brain in currentBrains)
+            genomes.Add(brain.Genome);
+
+        var state = new NeatEngineState
+        {
+            PopulationXml = WriteGenomesToXml(genomes),
+            ChampionXml = championBrain != null ? WriteGenomesToXml(new List<NeatGenome> { championBrain.Genome }) : null,
+            ChampionScore = championScore,
+            Generation = currentGeneration,
+        };
+
+        return JsonConvert.SerializeObject(state);
     }
 
     public List<IEvolvableBrain> RestoreState(string stateJson, SimulationSettings settings)
     {
-        // TODO: rebuild the genome population from a CaptureState() blob.
-        // For now, fall back to a fresh generation so loading still runs.
-        Debug.LogWarning("[NeatEngine] Full-population state load is not implemented yet; starting a fresh generation instead.");
-        return InitializeGeneration(settings);
+        currentSettings = settings;
+
+        var state = JsonConvert.DeserializeObject<NeatEngineState>(stateJson);
+
+        // Rebuild the SharpNEAT scaffolding before any genome can be read — genomes
+        // cannot be deserialized without a live factory + decoder.
+        BuildScaffolding();
+
+        // ReadCompleteGenomeList reseeds the factory's genome/innovation ID
+        // generators above the max loaded ID and reattaches each genome to the
+        // factory, so subsequent mutation/crossover never reissues an existing ID.
+        // (Verified in SharpNeatLib 2.4.4: it calls GenomeIdGenerator.Reset /
+        // InnovationIdGenerator.Reset with Math.Max(Peek, maxId + 1).)
+        List<NeatGenome> genomeList = ReadGenomesFromXml(state.PopulationXml);
+
+        evolutionAlgorithm.Initialize(evaluator, genomeFactory, genomeList);
+
+        currentBrains = DecodeBrains(genomeList);
+
+        // Restore the champion from its own genome (decoded independently — it is
+        // not part of the live EA population, only used for reporting). Reading it
+        // through the same factory keeps the ID generators monotonic.
+        if (!string.IsNullOrEmpty(state.ChampionXml))
+        {
+            NeatGenome championGenome = ReadGenomesFromXml(state.ChampionXml)[0];
+            IBlackBox championBlackBox = genomeDecoder.Decode(championGenome);
+            championBrain = new NeatBrain(championGenome, championBlackBox);
+        }
+        else
+        {
+            championBrain = currentBrains[0];
+        }
+
+        championScore = state.ChampionScore;
+        currentGeneration = state.Generation;
+
+        return new List<IEvolvableBrain>(currentBrains);
+    }
+
+    private static string WriteGenomesToXml(IList<NeatGenome> genomes)
+    {
+        var sb = new StringBuilder();
+        var writerSettings = new XmlWriterSettings { Indent = false };
+        using (XmlWriter writer = XmlWriter.Create(sb, writerSettings))
+        {
+            NeatGenomeXmlIO.WriteComplete(writer, genomes, true);
+        }
+        return sb.ToString();
+    }
+
+    private List<NeatGenome> ReadGenomesFromXml(string xml)
+    {
+        using (var stringReader = new StringReader(xml))
+        using (XmlReader reader = XmlReader.Create(stringReader))
+        {
+            return NeatGenomeXmlIO.ReadCompleteGenomeList(reader, true, genomeFactory);
+        }
     }
 
     private List<NeatBrain> DecodeBrains(List<NeatGenome> genomeList)
@@ -281,4 +359,19 @@ public class NeatEngine : IEvolutionEngine
             genomeList[i].EvaluationInfo.SetFitness(fitness);
         }
     }
+}
+
+/// <summary>
+/// Serializable genome payload for NeatEngine. Stored as the opaque EngineState
+/// string inside a TrainingSaveData. The genomes are kept as SharpNEAT complete
+/// XML strings (same format as NeatEngine.SaveChampion) — opaque to everyone but
+/// NeatEngine.
+/// </summary>
+[Serializable]
+public class NeatEngineState
+{
+    public string PopulationXml;   // complete-genome XML for the whole population
+    public string ChampionXml;     // complete-genome XML for the champion (single genome)
+    public float ChampionScore;    // raw champion score (pre fitness-shift)
+    public int Generation;
 }
