@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 /// <summary>
 /// The single Unity-side manager. Instantiates the population once,
@@ -8,6 +9,7 @@ using UnityEngine;
 /// </summary>
 public class SimulationManager : MonoBehaviour
 {
+    // TODO: Add a controls per step parameter
     [Header("Simulation Setup")]
     [SerializeField] private GameObject jetPrefab;
 
@@ -33,7 +35,7 @@ public class SimulationManager : MonoBehaviour
         }
 
         // TODO: Remove in production
-        DataManager.ResetToDefaults(objective.Mode);
+        // DataManager.ResetToDefaults(objective.Mode);
 
         // Load settings for this mode
         var mode = objective.Mode;
@@ -58,6 +60,19 @@ public class SimulationManager : MonoBehaviour
         // The paradigm owns the entire lifecycle: step rewards,
         // terminal checks, generation/episode boundaries, resets.
         activeParadigm?.Tick();
+    }
+
+    private void Update()
+    {
+        // Temporary hotkeys for testing save/load until UI buttons are wired up.
+        var keyboard = Keyboard.current;
+        if (keyboard == null) return;
+
+        if (keyboard.sKey.wasPressedThisFrame)
+            SaveState();
+
+        if (keyboard.lKey.wasPressedThisFrame)
+            LoadState();
     }
 
     private void OnDestroy()
@@ -106,6 +121,74 @@ public class SimulationManager : MonoBehaviour
         string dir = DataManager.ModePath(objective.Mode);
         DataManager.EnsureDirectory(dir);
         activeParadigm.SaveChampion(dir);
+    }
+
+    /// <summary>
+    /// Saves the full training state (all brains + AI/objective params + stats)
+    /// for the current mode and AI type, overwriting any previous save.
+    /// </summary>
+    public void SaveState()
+    {
+        if (activeParadigm == null) return;
+        activeParadigm.SaveState();
+    }
+
+    /// <summary>
+    /// Completely resets the simulation and rebuilds it from the saved run for
+    /// the current mode + AI type: re-applies the saved settings and objective
+    /// parameters, re-instantiates the population at the saved size, and loads
+    /// the saved brains. Training then resumes normally.
+    /// </summary>
+    public void LoadState()
+    {
+        if (objective == null) return;
+
+        TrainingSaveData data = DataManager.LoadTrainingState(objective.Mode, settings.AIType);
+        if (data == null)
+        {
+            Debug.LogWarning($"[SimulationManager] No saved state found for {objective.Mode}/{settings.AIType}.");
+            return;
+        }
+
+        // Tear down the current run
+        activeParadigm?.Dispose();
+        activeParadigm = null;
+        DestroyPopulation();
+
+        // Re-apply saved settings (population size, mutation rate, shape, ...)
+        // and persist them so a later restart matches the loaded run.
+        if (data.Settings != null)
+        {
+            settings = data.Settings;
+            DataManager.SaveSettings(objective.Mode, settings);
+        }
+
+        // Re-apply saved objective parameters
+        objective.SetParameters(data.ObjectiveParameters);
+
+        // Rebuild the population at the saved size and re-wire sensors
+        population = InstantiatePopulation(settings.PopulationSize);
+        ConfigureSensors(population, objective);
+
+        // Recreate the paradigm, seed it, then overwrite the fresh brains with the saved ones
+        activeParadigm = CreateParadigm(settings.AIType);
+        if (activeParadigm == null) return;
+
+        activeParadigm.Initialize(population, settings, objective);
+        activeParadigm.LoadState();
+
+        Debug.Log($"[SimulationManager] Loaded saved {settings.AIType} run for {objective.Mode}.");
+    }
+
+    private void DestroyPopulation()
+    {
+        if (population == null) return;
+
+        foreach (JetAgent jet in population)
+            if (jet != null) Destroy(jet.gameObject);
+
+        population.Clear();
+        selectedAgent = null;
     }
 
     // ── Private helpers ──────────────────────────────────────────────

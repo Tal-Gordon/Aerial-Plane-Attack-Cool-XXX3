@@ -44,4 +44,19 @@ public interface ITrainingParadigm
     /// Delegates to the underlying engine or framework.
     /// </summary>
     public void SaveChampion(string directoryPath);
+
+    /// <summary>
+    /// Captures the full training state (every brain, AI/objective parameters,
+    /// and stats) into a TrainingSaveData and persists it via DataManager,
+    /// keyed by the current mode + AI type. Overwrites any previous save.
+    /// </summary>
+    public void SaveState();
+
+    /// <summary>
+    /// Restores the brains/stats previously written by <see cref="SaveState"/>
+    /// into the already-initialized population, then respawns the jets so
+    /// training continues from the saved run. Settings and objective parameters
+    /// are applied by SimulationManager before the population is rebuilt.
+    /// </summary>
+    public void LoadState();
 }

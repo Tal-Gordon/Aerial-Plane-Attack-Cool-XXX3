@@ -30,6 +30,8 @@ public class NeatEngine : IEvolutionEngine
     private NeatEvolutionAlgorithmParameters eaParams;
     private PreScoredGenomeListEvaluator evaluator;
 
+    // TODO: Make it so that in the flight school objective it starts with 0 edges
+    // TODO: Make sure the negative score handling doesn't cause issues (NEAT expects positive fitness values, so we shift them all up by the absolute value of the most negative score + a small baseline to avoid zero fitness)
     public List<IEvolvableBrain> InitializeGeneration(SimulationSettings settings)
     {
         currentSettings = settings;
@@ -189,6 +191,22 @@ public class NeatEngine : IEvolutionEngine
         {
             Debug.LogError($"[NeatEngine] Failed to load champion: {e.Message}");
         }
+    }
+
+    public string CaptureState()
+    {
+        // TODO: serialize the full genome population (NeatGenomeXmlIO.WriteComplete
+        // per genome). Until then only champion save/load (SaveChampion) is supported.
+        Debug.LogWarning("[NeatEngine] Full-population state save is not implemented yet; nothing was captured.");
+        return null;
+    }
+
+    public List<IEvolvableBrain> RestoreState(string stateJson, SimulationSettings settings)
+    {
+        // TODO: rebuild the genome population from a CaptureState() blob.
+        // For now, fall back to a fresh generation so loading still runs.
+        Debug.LogWarning("[NeatEngine] Full-population state load is not implemented yet; starting a fresh generation instead.");
+        return InitializeGeneration(settings);
     }
 
     private List<NeatBrain> DecodeBrains(List<NeatGenome> genomeList)

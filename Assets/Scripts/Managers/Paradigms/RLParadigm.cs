@@ -142,6 +142,16 @@ public class RLParadigm : ITrainingParadigm
         Debug.Log("[RLParadigm] Champion saving not yet implemented. Train via mlagents-learn and export the .onnx model.");
     }
 
+    public void SaveState()
+    {
+        Debug.Log("[RLParadigm] State saving not yet implemented. Train via mlagents-learn and export the .onnx model.");
+    }
+
+    public void LoadState()
+    {
+        Debug.Log("[RLParadigm] State loading not yet implemented. Use mlagents-learn's --resume / --initialize-from instead.");
+    }
+
     private void WriteYamlConfig()
     {
         string dir = Path.GetDirectoryName(YamlPath);

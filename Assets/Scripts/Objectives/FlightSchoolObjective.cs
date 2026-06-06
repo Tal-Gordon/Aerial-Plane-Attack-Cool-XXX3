@@ -245,6 +245,33 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
         return new Dictionary<string, float>();
     }
 
+    public Dictionary<string, float> GetParameters() => new Dictionary<string, float>
+    {
+        { "hoopRadius", hoopRadius },
+        { "lambda", lambda },
+        { "distanceRewardMultiplier", distanceRewardMultiplier },
+        { "hoopPassReward", hoopPassReward },
+        { "backwardsDriftPenalty", backwardsDriftPenalty },
+        { "lookAtRewardWeight", lookAtRewardWeight },
+        { "maxTimeAllowed", maxTimeAllowed },
+        { "timeBonusMultiplier", timeBonusMultiplier },
+        { "timeBetweenHoopsAllowed", timeBetweenHoopsAllowed },
+    };
+
+    public void SetParameters(Dictionary<string, float> parameters)
+    {
+        if (parameters == null) return;
+        if (parameters.TryGetValue("hoopRadius", out float v)) hoopRadius = v;
+        if (parameters.TryGetValue("lambda", out v)) lambda = v;
+        if (parameters.TryGetValue("distanceRewardMultiplier", out v)) distanceRewardMultiplier = v;
+        if (parameters.TryGetValue("hoopPassReward", out v)) hoopPassReward = v;
+        if (parameters.TryGetValue("backwardsDriftPenalty", out v)) backwardsDriftPenalty = v;
+        if (parameters.TryGetValue("lookAtRewardWeight", out v)) lookAtRewardWeight = v;
+        if (parameters.TryGetValue("maxTimeAllowed", out v)) maxTimeAllowed = v;
+        if (parameters.TryGetValue("timeBonusMultiplier", out v)) timeBonusMultiplier = v;
+        if (parameters.TryGetValue("timeBetweenHoopsAllowed", out v)) timeBetweenHoopsAllowed = v;
+    }
+
     public bool CheckTerminalState(JetAgent agent)
     {
         if (agent.HasCrashed) return true;
