@@ -32,23 +32,30 @@ public static class DataManager
     private static string SettingsPath(GameMode mode) =>
         Path.Combine(ModePath(mode), "settings.json");
 
+    /// <summary>
+    /// One save slot per (mode, AI type) so each AI/objective combination is
+    /// stored separately and overwrites only its own previous save.
+    /// </summary>
+    public static string SaveStatePath(GameMode mode, AIType aiType) =>
+        Path.Combine(ModePath(mode), $"save_{aiType}.json");
+
     // ── Hard-coded defaults per mode ──────────────────────────────────────────
 
     private static readonly Dictionary<GameMode, SimulationSettings> Defaults =
         new()
         {
-            // [GameMode.MaxAltitude] = new SimulationSettings
-            // {
-            //     PopulationSize = 2000,
-            //     AIType = AIType.FixedNeuroEvo,
-            //     SpawnRadius = 50f,
-            //     SpawnFormation = SpawnFormation.Random,
-            //     NeuroEvoSettings = new NeuroEvoSettings
-            //     {
-            //         MutationRate = 0.1f,
-            //         NetworkShape = new[] { 12, 24, 12, 4 },
-            //     },
-            // },
+            [GameMode.MaxAltitude] = new SimulationSettings
+            {
+                PopulationSize = 1000,
+                AIType = AIType.FixedNeuroEvo,
+                SpawnRadius = 50f,
+                SpawnFormation = SpawnFormation.Random,
+                NeuroEvoSettings = new NeuroEvoSettings
+                {
+                    MutationRate = 0.1f,
+                    NetworkShape = new[] { 12, 24, 12, 4 },
+                },
+            },
             // [GameMode.MaxAltitude] = new SimulationSettings
             // {
             //     PopulationSize = 1000,
@@ -92,18 +99,18 @@ public static class DataManager
             //         BufferSize = 50000,
             //     },
             // },
-            // [GameMode.FlightSchool] = new SimulationSettings
-            // {
-            //     PopulationSize = 2000,
-            //     AIType = AIType.FixedNeuroEvo,
-            //     SpawnRadius = 0f,
-            //     SpawnFormation = SpawnFormation.Random,
-            //     NeuroEvoSettings = new NeuroEvoSettings
-            //     {
-            //         MutationRate = 0.1f,
-            //         NetworkShape = new[] { 19, 16, 16, 4 },
-            //     },
-            // },
+            [GameMode.FlightSchool] = new SimulationSettings
+            {
+                PopulationSize = 1111,
+                AIType = AIType.FixedNeuroEvo,
+                SpawnRadius = 0f,
+                SpawnFormation = SpawnFormation.Random,
+                NeuroEvoSettings = new NeuroEvoSettings
+                {
+                    MutationRate = 0.1f,
+                    NetworkShape = new[] { 19, 16, 16, 4 },
+                },
+            },
             // [GameMode.FlightSchool] = new SimulationSettings
             // {
             //     PopulationSize = 1000,
@@ -133,20 +140,20 @@ public static class DataManager
             //         OutputSize = 4,
             //     },
             // },
-            [GameMode.FlightSchool] = new SimulationSettings
-            {
-                PopulationSize = 10,
-                AIType = AIType.SAC_MLAgents,
-                SpawnRadius = 0f,
-                SpawnFormation = SpawnFormation.Random,
-                RLSettings = new RLSettings
-                {
-                    InputSize = 19,
-                    OutputSize = 4,
-                    BatchSize = 128,
-                    BufferSize = 50000,
-                },
-            },
+            // [GameMode.FlightSchool] = new SimulationSettings
+            // {
+            //     PopulationSize = 10,
+            //     AIType = AIType.SAC_MLAgents,
+            //     SpawnRadius = 0f,
+            //     SpawnFormation = SpawnFormation.Random,
+            //     RLSettings = new RLSettings
+            //     {
+            //         InputSize = 19,
+            //         OutputSize = 4,
+            //         BatchSize = 128,
+            //         BufferSize = 50000,
+            //     },
+            // },
             [GameMode.Dogfight] = new SimulationSettings
             {
                 PopulationSize = 10,
@@ -237,6 +244,55 @@ public static class DataManager
     }
 
 
+
+    // ── Training state (full save/load) ────────────────────────────────────────
+
+    /// <summary>
+    /// True if a saved training run exists for this (mode, AI type) pair.
+    /// </summary>
+    public static bool HasTrainingState(GameMode mode, AIType aiType) =>
+        File.Exists(SaveStatePath(mode, aiType));
+
+    /// <summary>
+    /// Persists a full training snapshot for <paramref name="mode"/> /
+    /// <paramref name="aiType"/>, overwriting any previous save for that pair.
+    /// </summary>
+    public static void SaveTrainingState(GameMode mode, AIType aiType, TrainingSaveData data)
+    {
+        try
+        {
+            EnsureDirectory(ModePath(mode));
+            string json = JsonConvert.SerializeObject(data, Formatting.Indented);
+            File.WriteAllText(SaveStatePath(mode, aiType), json);
+            Debug.Log($"[DataManager] Saved training state for {mode}/{aiType}.");
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[DataManager] Failed to save training state for {mode}/{aiType}: {e.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Loads the saved training snapshot for <paramref name="mode"/> /
+    /// <paramref name="aiType"/>, or null if none exists / it is corrupt.
+    /// </summary>
+    public static TrainingSaveData LoadTrainingState(GameMode mode, AIType aiType)
+    {
+        string path = SaveStatePath(mode, aiType);
+        if (!File.Exists(path))
+            return null;
+
+        try
+        {
+            string json = File.ReadAllText(path);
+            return JsonConvert.DeserializeObject<TrainingSaveData>(json);
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[DataManager] Failed to read training state for {mode}/{aiType}: {e.Message}");
+            return null;
+        }
+    }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 

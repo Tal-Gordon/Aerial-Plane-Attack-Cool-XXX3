@@ -192,6 +192,76 @@ public class EvolutionaryParadigm : ITrainingParadigm
         engine.SaveChampion(directoryPath);
     }
 
+    public void SaveState()
+    {
+        // Gather population stats at save time
+        float topScore = float.NegativeInfinity;
+        float sum = 0f;
+        foreach (JetAgent jet in population)
+        {
+            float fitness = jet.CurrentFitness;
+            if (fitness > topScore) topScore = fitness;
+            sum += fitness;
+        }
+        int count = population.Count;
+        float average = count > 0 ? sum / count : 0f;
+        if (count == 0) topScore = 0f;
+
+        var data = new TrainingSaveData
+        {
+            AIType = settings.AIType,
+            Mode = objective.Mode,
+            Settings = settings.Clone(),
+            ObjectiveParameters = objective.GetParameters(),
+            Generation = currentGeneration,
+            PopulationSize = count,
+            ChampionScore = engine.GetChampionScore(),
+            TopScore = topScore,
+            AverageScore = average,
+            SavedAtUtc = System.DateTime.UtcNow.ToString("o"),
+            EngineState = engine.CaptureState(),
+        };
+
+        DataManager.SaveTrainingState(objective.Mode, settings.AIType, data);
+    }
+
+    public void LoadState()
+    {
+        TrainingSaveData data = DataManager.LoadTrainingState(objective.Mode, settings.AIType);
+        if (data == null || string.IsNullOrEmpty(data.EngineState))
+        {
+            Debug.LogWarning($"[EvolutionaryParadigm] No restorable brain state for {objective.Mode}/{settings.AIType}; keeping the freshly initialized population.");
+            return;
+        }
+
+        // Rebuild the engine's brains from the saved blob
+        List<IEvolvableBrain> restoredBrains = engine.RestoreState(data.EngineState, settings);
+
+        // Resume the generation counter so the run continues where it left off
+        currentGeneration = Mathf.Max(1, data.Generation);
+
+        // Assign restored brains and respawn the whole population for the next generation
+        int n = Mathf.Min(population.Count, restoredBrains.Count);
+        for (int i = 0; i < n; i++)
+        {
+            population[i].Brain = restoredBrains[i];
+            population[i].ResetAgent();
+            objective.SetStartingState(population[i], i, population.Count);
+            population[i].gameObject.SetActive(true);
+        }
+        aliveCount = n;
+
+        // Refresh the snapshot so the UI reflects the loaded values immediately
+        cachedSnapshot.IterationNumber = currentGeneration;
+        cachedSnapshot.AgentsAlive = aliveCount;
+        cachedSnapshot.ChampionScore = engine.GetChampionScore();
+        cachedSnapshot.EvoData.ChampionBrain = engine.GetChampionBrain();
+        cachedSnapshot.EvoData.MutationRate = settings.ActiveEvoSettings.MutationRate;
+        cachedSnapshot.EvoData.Lambda = settings.ActiveEvoSettings.Lambda;
+
+        Debug.Log($"<color=cyan>[EvolutionaryParadigm]</color> Loaded saved run for {objective.Mode}/{settings.AIType}. Resuming at generation {currentGeneration} with {n} brains | Champion: {engine.GetChampionScore():F2}");
+    }
+
     // ── UI Event Listeners ───────────────────────────────────────────
 
     private void OnMutationRateChanged(float rate)

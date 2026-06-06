@@ -77,6 +77,19 @@ public class MaxAltitudeObjective : MonoBehaviour, IObjective
         };
     }
 
+    public Dictionary<string, float> GetParameters() => new Dictionary<string, float>
+    {
+        { "lambda", lambda },
+        { "maxTimeAllowed", maxTimeAllowed },
+    };
+
+    public void SetParameters(Dictionary<string, float> parameters)
+    {
+        if (parameters == null) return;
+        if (parameters.TryGetValue("lambda", out float l)) lambda = l;
+        if (parameters.TryGetValue("maxTimeAllowed", out float t)) maxTimeAllowed = t;
+    }
+
     public bool CheckTerminalState(JetAgent agent)
     {
         if (agent.HasCrashed)

@@ -143,4 +143,57 @@ public class ClassicNeuroEvoEngine : IEvolutionEngine
             Debug.LogError($"[ClassicNeuroEvoEngine] Failed to load champion: {e.Message}");
         }
     }
+
+    public string CaptureState()
+    {
+        var state = new NeuroEvoEngineState
+        {
+            Shape = currentSettings.NeuroEvoSettings.NetworkShape,
+            Population = new List<float[]>(currentBrains.Count),
+            Champion = championBrain.Serialize(),
+            ChampionScore = championScore,
+            Generation = currentGeneration,
+        };
+
+        foreach (NeuroEvoBrain brain in currentBrains)
+            state.Population.Add(brain.Serialize());
+
+        return JsonConvert.SerializeObject(state);
+    }
+
+    public List<IEvolvableBrain> RestoreState(string stateJson, SimulationSettings settings)
+    {
+        currentSettings = settings;
+
+        var state = JsonConvert.DeserializeObject<NeuroEvoEngineState>(stateJson);
+
+        currentBrains = new List<NeuroEvoBrain>(state.Population.Count);
+        foreach (float[] weights in state.Population)
+        {
+            var brain = new NeuroEvoBrain(state.Shape);
+            brain.Deserialize(weights);
+            currentBrains.Add(brain);
+        }
+
+        championBrain = new NeuroEvoBrain(state.Shape);
+        championBrain.Deserialize(state.Champion);
+        championScore = state.ChampionScore;
+        currentGeneration = state.Generation;
+
+        return new List<IEvolvableBrain>(currentBrains);
+    }
+}
+
+/// <summary>
+/// Serializable brain payload for ClassicNeuroEvoEngine. Stored as the opaque
+/// EngineState string inside a TrainingSaveData.
+/// </summary>
+[Serializable]
+public class NeuroEvoEngineState
+{
+    public int[] Shape;
+    public List<float[]> Population;  // each brain's flattened weights + biases
+    public float[] Champion;
+    public float ChampionScore;
+    public int Generation;
 }
