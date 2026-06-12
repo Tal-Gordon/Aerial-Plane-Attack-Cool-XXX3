@@ -7544,7 +7544,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SimulationManager
   jetPrefab: {fileID: 835737604007996434, guid: 0fdbe5b94ba85dc45b773bb0b40fae7a, type: 3}
-  objectiveProvider: {fileID: 1388875908}
+  objectiveProvider: {fileID: 1943075242}
 --- !u!1001 &2110373115
 PrefabInstance:
   m_ObjectHideFlags: 0

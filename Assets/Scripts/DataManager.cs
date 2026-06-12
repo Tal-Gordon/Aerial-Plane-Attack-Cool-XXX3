@@ -56,35 +56,35 @@ public static class DataManager
             //         NetworkShape = new[] { 12, 24, 12, 4 },
             //     },
             // },
-            [GameMode.MaxAltitude] = new SimulationSettings
-            {
-                PopulationSize = 1000,
-                AIType = AIType.NEAT,
-                SpawnRadius = 0f,
-                SpawnFormation = SpawnFormation.Random,
-                NeatSettings = new NeatSettings
-                {
-                    InputSize = 12,
-                    OutputSize = 4,
-                },
-                RLSettings = new RLSettings
-                {
-                    InputSize = 12,
-                    OutputSize = 4,
-                },
-            },
             // [GameMode.MaxAltitude] = new SimulationSettings
             // {
-            //     PopulationSize = 10,
-            //     AIType = AIType.PPO_MLAgents,
+            //     PopulationSize = 1000,
+            //     AIType = AIType.NEAT,
             //     SpawnRadius = 0f,
             //     SpawnFormation = SpawnFormation.Random,
+            //     NeatSettings = new NeatSettings
+            //     {
+            //         InputSize = 12,
+            //         OutputSize = 4,
+            //     },
             //     RLSettings = new RLSettings
             //     {
             //         InputSize = 12,
             //         OutputSize = 4,
             //     },
             // },
+            [GameMode.MaxAltitude] = new SimulationSettings
+            {
+                PopulationSize = 100,
+                AIType = AIType.PPO_MLAgents,
+                SpawnRadius = 0f,
+                SpawnFormation = SpawnFormation.Random,
+                RLSettings = new RLSettings
+                {
+                    InputSize = 12,
+                    OutputSize = 4,
+                },
+            },
             // [GameMode.MaxAltitude] = new SimulationSettings
             // {
             //     PopulationSize = 10,
@@ -99,18 +99,18 @@ public static class DataManager
             //         BufferSize = 50000,
             //     },
             // },
-            [GameMode.FlightSchool] = new SimulationSettings
-            {
-                PopulationSize = 1111,
-                AIType = AIType.FixedNeuroEvo,
-                SpawnRadius = 0f,
-                SpawnFormation = SpawnFormation.Random,
-                NeuroEvoSettings = new NeuroEvoSettings
-                {
-                    MutationRate = 0.1f,
-                    NetworkShape = new[] { 19, 16, 16, 4 },
-                },
-            },
+            // [GameMode.FlightSchool] = new SimulationSettings
+            // {
+            //     PopulationSize = 1111,
+            //     AIType = AIType.FixedNeuroEvo,
+            //     SpawnRadius = 0f,
+            //     SpawnFormation = SpawnFormation.Random,
+            //     NeuroEvoSettings = new NeuroEvoSettings
+            //     {
+            //         MutationRate = 0.1f,
+            //         NetworkShape = new[] { 19, 16, 16, 4 },
+            //     },
+            // },
             // [GameMode.FlightSchool] = new SimulationSettings
             // {
             //     PopulationSize = 1000,
@@ -128,18 +128,18 @@ public static class DataManager
             //         OutputSize = 4,
             //     },
             // },
-            // [GameMode.FlightSchool] = new SimulationSettings
-            // {
-            //     PopulationSize = 100,
-            //     AIType = AIType.PPO_MLAgents,
-            //     SpawnRadius = 0f,
-            //     SpawnFormation = SpawnFormation.Random,
-            //     RLSettings = new RLSettings
-            //     {
-            //         InputSize = 19,
-            //         OutputSize = 4,
-            //     },
-            // },
+            [GameMode.FlightSchool] = new SimulationSettings
+            {
+                PopulationSize = 100,
+                AIType = AIType.PPO_MLAgents,
+                SpawnRadius = 0f,
+                SpawnFormation = SpawnFormation.Random,
+                RLSettings = new RLSettings
+                {
+                    InputSize = 19,
+                    OutputSize = 4,
+                },
+            },
             // [GameMode.FlightSchool] = new SimulationSettings
             // {
             //     PopulationSize = 10,
@@ -450,6 +450,14 @@ public class RLSettings
     public int TimeHorizon = 128;
     public int DecisionPeriod = 5;
 
+    // How often (in trainer steps) mlagents-learn writes a checkpoint to
+    // results/<run-id>/. This bounds save granularity: SaveState can only
+    // capture the latest checkpoint, so anything trained since it is not in
+    // the save. Keep this small enough that pressing save shortly after
+    // progress actually captures it; each checkpoint also exports an .onnx,
+    // so very small values add periodic hitches during training.
+    public int CheckpointInterval = 25000;
+
     // Engine settings. ML-Agents pushes this to Unity's Time.timeScale on connect.
     // Defaults to 1 so RL runs start at normal speed (like the evolutionary modes)
     // instead of mlagents-learn's hardcoded default of 20. The in-game slider can
@@ -481,6 +489,7 @@ public class RLSettings
             MaxSteps = MaxSteps,
             TimeHorizon = TimeHorizon,
             DecisionPeriod = DecisionPeriod,
+            CheckpointInterval = CheckpointInterval,
             TrainingTimeScale = TrainingTimeScale,
             InitEntCoef = InitEntCoef,
             Tau = Tau,
@@ -520,7 +529,7 @@ public class RLSettings
     time_horizon: {TimeHorizon}
     summary_freq: 10000
     keep_checkpoints: 5
-    checkpoint_interval: 100000
+    checkpoint_interval: {CheckpointInterval}
 
 engine_settings:
   time_scale: {TrainingTimeScale}
@@ -555,7 +564,7 @@ engine_settings:
     time_horizon: {TimeHorizon}
     summary_freq: 10000
     keep_checkpoints: 5
-    checkpoint_interval: 100000
+    checkpoint_interval: {CheckpointInterval}
 
 engine_settings:
   time_scale: {TrainingTimeScale}
