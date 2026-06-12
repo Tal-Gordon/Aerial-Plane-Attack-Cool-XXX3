@@ -53,10 +53,12 @@ public interface ITrainingParadigm
     public void SaveState();
 
     /// <summary>
-    /// Restores the brains/stats previously written by <see cref="SaveState"/>
-    /// into the already-initialized population, then respawns the jets so
-    /// training continues from the saved run. Settings and objective parameters
-    /// are applied by SimulationManager before the population is rebuilt.
+    /// Restores the state previously written by <see cref="SaveState"/> into the
+    /// already-initialized population, then respawns the jets so training
+    /// continues from the saved run (evo: overwrites the fresh brains; RL: starts
+    /// the trainer in resume mode from the saved checkpoint). Settings and
+    /// objective parameters are applied by SimulationManager before the
+    /// population is rebuilt.
     /// </summary>
     public void LoadState();
 }
