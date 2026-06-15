@@ -24,6 +24,13 @@ public class SimulationManager : MonoBehaviour
     private List<JetAgent> population;
     private JetAgent selectedAgent;
 
+    // ── Inference mode ───────────────────────────────────────────────
+    // Inference reduces the run to a single jet that replays the saved champion /
+    // policy on a loop, owned by the active paradigm. Training is fully torn down
+    // while inference is active; nothing learns and nothing is saved. Pressing the
+    // toggle key rebuilds the training run from the same save (LoadState).
+    private bool inInferenceMode = false;
+
     private void Start()
     {
         // Resolve the objective
@@ -35,7 +42,7 @@ public class SimulationManager : MonoBehaviour
         }
 
         // TODO: Remove in production
-        // DataManager.ResetToDefaults(objective.Mode);
+        DataManager.ResetToDefaults(objective.Mode);
 
         // Load settings for this mode
         var mode = objective.Mode;
@@ -57,6 +64,14 @@ public class SimulationManager : MonoBehaviour
 
     private void FixedUpdate()
     {
+        if (inInferenceMode)
+        {
+            // The paradigm owns the replay loop (evo pumps the objective + respawns;
+            // RL is driven by ML-Agents and this is a no-op).
+            activeParadigm?.TickInference();
+            return;
+        }
+
         // The paradigm owns the entire lifecycle: step rewards,
         // terminal checks, generation/episode boundaries, resets.
         activeParadigm?.Tick();
@@ -68,11 +83,22 @@ public class SimulationManager : MonoBehaviour
         var keyboard = Keyboard.current;
         if (keyboard == null) return;
 
-        if (keyboard.sKey.wasPressedThisFrame)
-            SaveState();
+        // Save/load only apply to a live training run, not during inference replay.
+        if (!inInferenceMode)
+        {
+            if (keyboard.sKey.wasPressedThisFrame)
+                SaveState();
 
-        if (keyboard.lKey.wasPressedThisFrame)
-            LoadState();
+            if (keyboard.lKey.wasPressedThisFrame)
+                LoadState();
+        }
+
+        // Inference toggle: 'i' replays the saved champion, 't' resumes training.
+        if (keyboard.iKey.wasPressedThisFrame)
+            EnterInferenceMode();
+
+        if (keyboard.tKey.wasPressedThisFrame)
+            ExitInferenceMode();
     }
 
     private void OnDestroy()
@@ -90,6 +116,7 @@ public class SimulationManager : MonoBehaviour
     {
         if (activeParadigm == null) return new SimulationSnapshot();
 
+        // The paradigm fills its own snapshot for both training and inference.
         SimulationSnapshot snapshot = activeParadigm.GetSnapshot();
 
         // Manager stamps on the fields only IT knows about
@@ -189,6 +216,75 @@ public class SimulationManager : MonoBehaviour
 
         population.Clear();
         selectedAgent = null;
+    }
+
+    // ── Inference mode ───────────────────────────────────────────────
+
+    /// <summary>
+    /// Tears down the training run, reduces the scene to a single jet, and hands
+    /// that jet to the paradigm to replay the saved champion/policy on repeat.
+    /// Only works when a saved run exists and the active paradigm supports
+    /// inference. Triggering inference never writes a save of its own; the actual
+    /// replay (and its per-step loop) is owned by the paradigm.
+    /// </summary>
+    public void EnterInferenceMode()
+    {
+        if (inInferenceMode) return;
+        if (objective == null || activeParadigm == null) return;
+
+        if (!activeParadigm.CanRunInference)
+        {
+            Debug.LogWarning($"[SimulationManager] Inference mode is not yet implemented for {settings.AIType}.");
+            return;
+        }
+
+        // Inference replays a saved run, so one must exist first.
+        if (!DataManager.HasTrainingState(objective.Mode, settings.AIType))
+        {
+            Debug.LogWarning($"[SimulationManager] No saved run for {objective.Mode}/{settings.AIType}. Train and save (S) before entering inference.");
+            return;
+        }
+
+        // Stop training and clear the whole population off the screen, then rebuild
+        // a fresh single-jet run for the paradigm to drive in inference.
+        activeParadigm.Dispose();
+        activeParadigm = null;
+        DestroyPopulation();
+
+        population = InstantiatePopulation(1);
+        ConfigureSensors(population, objective);
+
+        activeParadigm = CreateParadigm(settings.AIType);
+        if (activeParadigm == null) return;
+
+        activeParadigm.Initialize(population, settings, objective);
+
+        if (!activeParadigm.StartInference())
+        {
+            Debug.LogWarning("[SimulationManager] Could not start inference; rebuilding the training run from the save.");
+            LoadState();
+            return;
+        }
+
+        inInferenceMode = true;
+        Debug.Log($"<color=yellow>[SimulationManager]</color> Inference ON for {objective.Mode}/{settings.AIType}. Press 'T' to resume training from the save.");
+    }
+
+    /// <summary>
+    /// Leaves inference mode and rebuilds the training run from the same save the
+    /// champion came from, so training continues exactly where it left off.
+    /// </summary>
+    public void ExitInferenceMode()
+    {
+        if (!inInferenceMode) return;
+
+        inInferenceMode = false;
+
+        // LoadState disposes the inference paradigm (evo: nothing; RL: kills the
+        // inference trainer + recycles the Academy) and rebuilds the training run
+        // from the save, resuming where it left off.
+        LoadState();
+        Debug.Log("<color=yellow>[SimulationManager]</color> Inference OFF. Resumed training from the saved run.");
     }
 
     // ── Private helpers ──────────────────────────────────────────────

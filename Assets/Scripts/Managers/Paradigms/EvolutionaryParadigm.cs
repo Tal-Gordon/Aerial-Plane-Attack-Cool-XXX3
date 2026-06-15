@@ -21,6 +21,9 @@ public class EvolutionaryParadigm : ITrainingParadigm
     private int aliveCount = 0;
     private int currentGeneration = 1;
 
+    private bool inferenceMode = false;
+    private JetAgent inferenceJet;
+
     private SimulationSnapshot cachedSnapshot;
 
     public EvolutionaryParadigm(IEvolutionEngine engine)
@@ -260,6 +263,71 @@ public class EvolutionaryParadigm : ITrainingParadigm
         cachedSnapshot.EvoData.Lambda = settings.ActiveEvoSettings.Lambda;
 
         Debug.Log($"<color=cyan>[EvolutionaryParadigm]</color> Loaded saved run for {objective.Mode}/{settings.AIType}. Resuming at generation {currentGeneration} with {n} brains | Champion: {engine.GetChampionScore():F2}");
+    }
+
+    public IBrain LoadChampionBrain()
+    {
+        TrainingSaveData data = DataManager.LoadTrainingState(objective.Mode, settings.AIType);
+        if (data == null || string.IsNullOrEmpty(data.EngineState))
+        {
+            Debug.LogWarning($"[EvolutionaryParadigm] No saved champion to load for {objective.Mode}/{settings.AIType}.");
+            return null;
+        }
+
+        // Rebuild the engine from the saved blob (this restores its champion too)
+        // and hand back the champion. We discard the rest of the restored
+        // population — the caller only flies the champion during inference.
+        engine.RestoreState(data.EngineState, settings);
+        return engine.GetChampionBrain();
+    }
+
+    // ── Inference replay ─────────────────────────────────────────────
+
+    public bool CanRunInference => true;
+
+    public bool StartInference()
+    {
+        IBrain champion = LoadChampionBrain();
+        if (champion == null) return false;
+
+        // The manager has spawned exactly one sensor-wired jet for us.
+        inferenceJet = population[0];
+        inferenceJet.Brain = champion;
+        inferenceJet.ResetAgent();
+        objective.SetStartingState(inferenceJet, 0, 1);
+        inferenceJet.gameObject.SetActive(true);
+
+        inferenceMode = true;
+
+        // Repurpose the cached snapshot for the inference display.
+        cachedSnapshot.ParadigmName = "Inference";
+        cachedSnapshot.AgentsAlive = 1;
+        cachedSnapshot.ChampionScore = engine.GetChampionScore();
+        cachedSnapshot.EvoData.ChampionBrain = engine.GetChampionBrain();
+        return true;
+    }
+
+    public void TickInference()
+    {
+        if (inferenceJet == null) return;
+        if (!inferenceJet.gameObject.activeInHierarchy) return;
+
+        // No learning, no evolution. We still pump the objective step exactly like
+        // training does, because progression side-effects live there (e.g.
+        // FlightSchool advances the target hoop and retargets the sensor inside
+        // GetStepReward — skip it and the brain gets stale observations). The
+        // reward is accumulated only so terminal checks that read it stay
+        // consistent; ResetAgent clears it each loop.
+        inferenceJet.CurrentFitness += objective.GetStepReward(inferenceJet);
+
+        if (objective.CheckTerminalState(inferenceJet))
+        {
+            inferenceJet.ResetAgent();
+            objective.SetStartingState(inferenceJet, 0, 1);
+            inferenceJet.gameObject.SetActive(true);
+        }
+
+        cachedSnapshot.AgentsAlive = inferenceJet.gameObject.activeInHierarchy ? 1 : 0;
     }
 
     // ── UI Event Listeners ───────────────────────────────────────────

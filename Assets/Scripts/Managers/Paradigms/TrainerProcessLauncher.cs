@@ -18,7 +18,7 @@ public class TrainerProcessLauncher : IDisposable
         this.port = port;
     }
 
-    public bool Launch(string yamlRelativePath, string runId = "training", bool resume = false, int timeoutSeconds = 60)
+    public bool Launch(string yamlRelativePath, string runId = "training", bool resume = false, bool inference = false, int timeoutSeconds = 60)
     {
         string pythonPath = FindCondaPython();
         if (pythonPath == null)
@@ -41,10 +41,15 @@ public class TrainerProcessLauncher : IDisposable
         // whether a saved checkpoint has been staged into results/<run-id>/.
         string runModeFlag = resume ? "--resume" : "--force";
 
+        // --inference loads the (resumed) policy and runs it WITHOUT training — no
+        // gradient updates, no new checkpoints. Always paired with --resume so a
+        // saved model is actually loaded; on its own it would replay a random net.
+        string inferenceFlag = inference ? " --inference" : "";
+
         var psi = new ProcessStartInfo
         {
             FileName = pythonPath,
-            Arguments = $"-u -m mlagents.trainers.learn \"{yamlRelativePath}\" --run-id={runId} {runModeFlag}",
+            Arguments = $"-u -m mlagents.trainers.learn \"{yamlRelativePath}\" --run-id={runId} {runModeFlag}{inferenceFlag}",
             WorkingDirectory = projectRoot,
             UseShellExecute = false,
             CreateNoWindow = true,
