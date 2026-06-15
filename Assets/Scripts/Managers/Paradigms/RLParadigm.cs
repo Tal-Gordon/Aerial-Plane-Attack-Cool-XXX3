@@ -31,6 +31,10 @@ public class RLParadigm : ITrainingParadigm
     // without leaving Play mode.
     private bool trainerStarted;
 
+    // When true the trainer was launched with --inference: it loads the saved
+    // policy and runs it without learning. SaveState/episode learning are inert.
+    private bool inferenceMode;
+
     private string AlgorithmName => settings.AIType == AIType.SAC_MLAgents ? "SAC" : "PPO";
     private string YamlFileName => settings.AIType == AIType.SAC_MLAgents ? "jet_sac.yaml" : "jet_ppo.yaml";
     private string YamlPath => Path.Combine(Application.dataPath, "..", "config", YamlFileName);
@@ -79,7 +83,7 @@ public class RLParadigm : ITrainingParadigm
     // only then wires up the agents: the first agent/DecisionRequester to touch
     // Academy.Instance creates the Academy, which immediately tries to bind to
     // the trainer — so the trainer must already be listening on the port.
-    private void StartTrainer(bool resume)
+    private void StartTrainer(bool resume, bool inference = false)
     {
         trainerStarted = true;
 
@@ -88,14 +92,19 @@ public class RLParadigm : ITrainingParadigm
         // --force does NOT clear old checkpoint files, so a fresh run would leave
         // a previously staged checkpoint.pt lying around — and SaveState would
         // silently snapshot that stale state instead of this run's. Wipe the live
-        // results so a fresh run's saves can only contain its own data.
+        // results so a fresh run's saves can only contain its own data. Inference
+        // always resumes, so this never runs for it.
         if (!resume)
             ClearLiveResults();
 
         trainerLauncher = new TrainerProcessLauncher();
-        if (!trainerLauncher.Launch($"config/{YamlFileName}", RunId, resume))
+        if (!trainerLauncher.Launch($"config/{YamlFileName}", RunId, resume, inference))
         {
             Debug.LogError($"[RLParadigm] Python trainer failed to start ({AlgorithmName}). Agents will fall back to heuristic mode.");
+        }
+        else if (inference)
+        {
+            Debug.Log($"[RLParadigm] Replaying saved {AlgorithmName} policy in inference mode (no learning, run-id {RunId}).");
         }
         else if (resume)
         {
@@ -194,6 +203,48 @@ public class RLParadigm : ITrainingParadigm
     public IBrain GetChampionBrain()
     {
         return null;
+    }
+
+    public IBrain LoadChampionBrain()
+    {
+        // RL has no in-process IBrain — the policy lives in the trainer/checkpoint
+        // and is replayed by launching mlagents-learn with --inference (see
+        // StartInference). This hook is only meaningful for the in-memory
+        // evolutionary brains, so it stays null here.
+        return null;
+    }
+
+    // ── Inference replay ─────────────────────────────────────────────
+
+    public bool CanRunInference => true;
+
+    public bool StartInference()
+    {
+        // Replay the SAVED policy, not the live run: stage the saved checkpoint
+        // into the live results dir (same as a resume) so the trainer can load it.
+        if (!StageSavedCheckpoint())
+        {
+            Debug.LogWarning($"[RLParadigm] No usable checkpoint in the save for {objective.Mode}/{settings.AIType}; cannot run inference. Train, save, then retry.");
+            return false;
+        }
+
+        inferenceMode = true;
+        cachedSnapshot.ParadigmName = $"Inference ({AlgorithmName})";
+
+        // --resume loads the staged checkpoint; --inference runs it with no
+        // learning. The single jet the manager spawned binds to this trainer and
+        // its episodes auto-respawn, looping the course exactly like training but
+        // with a frozen policy.
+        StartTrainer(resume: true, inference: true);
+        return true;
+    }
+
+    public void TickInference()
+    {
+        // ML-Agents + the inference trainer drive the lone agent (observe → act →
+        // EndEpisode → OnEpisodeBegin respawns). Nothing to pump here; just keep
+        // the snapshot's alive count current.
+        cachedSnapshot.AgentsAlive = population.Count;
     }
 
     public float GetChampionScore()
