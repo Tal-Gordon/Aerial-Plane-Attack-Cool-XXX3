@@ -21,7 +21,6 @@ public class EvolutionaryParadigm : ITrainingParadigm
     private int aliveCount = 0;
     private int currentGeneration = 1;
 
-    private bool inferenceMode = false;
     private JetAgent inferenceJet;
 
     private SimulationSnapshot cachedSnapshot;
@@ -296,8 +295,6 @@ public class EvolutionaryParadigm : ITrainingParadigm
         inferenceJet.ResetAgent();
         objective.SetStartingState(inferenceJet, 0, 1);
         inferenceJet.gameObject.SetActive(true);
-
-        inferenceMode = true;
 
         // Repurpose the cached snapshot for the inference display.
         cachedSnapshot.ParadigmName = "Inference";

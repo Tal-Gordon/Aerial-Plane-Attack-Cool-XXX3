@@ -42,7 +42,7 @@ public class SimulationManager : MonoBehaviour
         }
 
         // TODO: Remove in production
-        DataManager.ResetToDefaults(objective.Mode);
+        // DataManager.ResetToDefaults(objective.Mode);
 
         // Load settings for this mode
         var mode = objective.Mode;

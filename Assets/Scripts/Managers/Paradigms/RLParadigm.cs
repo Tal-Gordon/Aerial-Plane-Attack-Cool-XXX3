@@ -31,10 +31,6 @@ public class RLParadigm : ITrainingParadigm
     // without leaving Play mode.
     private bool trainerStarted;
 
-    // When true the trainer was launched with --inference: it loads the saved
-    // policy and runs it without learning. SaveState/episode learning are inert.
-    private bool inferenceMode;
-
     private string AlgorithmName => settings.AIType == AIType.SAC_MLAgents ? "SAC" : "PPO";
     private string YamlFileName => settings.AIType == AIType.SAC_MLAgents ? "jet_sac.yaml" : "jet_ppo.yaml";
     private string YamlPath => Path.Combine(Application.dataPath, "..", "config", YamlFileName);
@@ -228,7 +224,6 @@ public class RLParadigm : ITrainingParadigm
             return false;
         }
 
-        inferenceMode = true;
         cachedSnapshot.ParadigmName = $"Inference ({AlgorithmName})";
 
         // --resume loads the staged checkpoint; --inference runs it with no
