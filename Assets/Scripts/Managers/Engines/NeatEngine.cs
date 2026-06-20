@@ -70,7 +70,7 @@ public class NeatEngine : IEvolutionEngine
         // NEAT paper starts fully connected input→output with zero hidden nodes.
         // At 5% default, 19×4=76 possible connections yields ~4 actual connections,
         // leaving most outputs unconnected (stuck at sigmoid(0)=0.5 → remapped 0).
-        genomeParams.InitialInterconnectionsProportion = 1.0;
+        // genomeParams.InitialInterconnectionsProportion = 1.0;
 
         genomeFactory = new NeatGenomeFactory(neatSettings.InputSize, neatSettings.OutputSize, genomeParams);
         genomeDecoder = new NeatGenomeDecoder(NetworkActivationScheme.CreateCyclicFixedTimestepsScheme(1));

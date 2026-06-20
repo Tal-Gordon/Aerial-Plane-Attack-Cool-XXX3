@@ -111,35 +111,35 @@ public static class DataManager
             //         NetworkShape = new[] { 19, 16, 16, 4 },
             //     },
             // },
-            // [GameMode.FlightSchool] = new SimulationSettings
-            // {
-            //     PopulationSize = 1000,
-            //     AIType = AIType.NEAT,
-            //     SpawnRadius = 0f,
-            //     SpawnFormation = SpawnFormation.Random,
-            //     NeatSettings = new NeatSettings
-            //     {
-            //         InputSize = 19,
-            //         OutputSize = 4,
-            //     },
-            //     RLSettings = new RLSettings
-            //     {
-            //         InputSize = 19,
-            //         OutputSize = 4,
-            //     },
-            // },
             [GameMode.FlightSchool] = new SimulationSettings
             {
-                PopulationSize = 100,
-                AIType = AIType.PPO_MLAgents,
+                PopulationSize = 1000,
+                AIType = AIType.NEAT,
                 SpawnRadius = 0f,
                 SpawnFormation = SpawnFormation.Random,
+                NeatSettings = new NeatSettings
+                {
+                    InputSize = 19,
+                    OutputSize = 4,
+                },
                 RLSettings = new RLSettings
                 {
                     InputSize = 19,
                     OutputSize = 4,
                 },
             },
+            // [GameMode.FlightSchool] = new SimulationSettings
+            // {
+            //     PopulationSize = 100,
+            //     AIType = AIType.PPO_MLAgents,
+            //     SpawnRadius = 0f,
+            //     SpawnFormation = SpawnFormation.Random,
+            //     RLSettings = new RLSettings
+            //     {
+            //         InputSize = 19,
+            //         OutputSize = 4,
+            //     },
+            // },
             // [GameMode.FlightSchool] = new SimulationSettings
             // {
             //     PopulationSize = 10,
@@ -292,6 +292,111 @@ public static class DataManager
             Debug.LogError($"[DataManager] Failed to read training state for {mode}/{aiType}: {e.Message}");
             return null;
         }
+    }
+
+    // ── Protected (temporary) save slot ────────────────────────────────────────
+    // The reward-parameter commit round-trips Save→Load to apply staged changes
+    // while keeping the trained brains/policy. To avoid clobbering the user's real
+    // manual save, the caller backs it up before the round-trip and restores it
+    // after. A save slot is the JSON file plus, for RL, the checkpoint directory.
+
+    /// <summary>RL checkpoint directory for a slot — mirrors RLParadigm.SaveCheckpointDir.</summary>
+    private static string CheckpointDirPath(GameMode mode, AIType aiType) =>
+        Path.Combine(ModePath(mode), $"rl_checkpoint_{aiType}");
+
+    private static string BackupStatePath(GameMode mode, AIType aiType) =>
+        Path.Combine(ModePath(mode), $"save_{aiType}.bak.json");
+
+    private static string BackupCheckpointDirPath(GameMode mode, AIType aiType) =>
+        Path.Combine(ModePath(mode), $"rl_checkpoint_{aiType}.bak");
+
+    /// <summary>
+    /// Copies the current save slot (JSON + RL checkpoint dir) aside so a
+    /// subsequent overwrite can be undone with <see cref="RestoreTrainingStateBackup"/>.
+    /// Copies (not moves) so the original is always recoverable if interrupted.
+    /// </summary>
+    public static void BackupTrainingState(GameMode mode, AIType aiType)
+    {
+        try
+        {
+            string json = SaveStatePath(mode, aiType);
+            if (File.Exists(json))
+                File.Copy(json, BackupStatePath(mode, aiType), overwrite: true);
+
+            string checkpointDir = CheckpointDirPath(mode, aiType);
+            if (Directory.Exists(checkpointDir))
+            {
+                string backupDir = BackupCheckpointDirPath(mode, aiType);
+                if (Directory.Exists(backupDir)) Directory.Delete(backupDir, true);
+                CopyDirectory(checkpointDir, backupDir);
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[DataManager] Failed to back up training state for {mode}/{aiType}: {e.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Restores the backup made by <see cref="BackupTrainingState"/> over the real
+    /// slot, discarding whatever was written in between and removing the backup.
+    /// </summary>
+    public static void RestoreTrainingStateBackup(GameMode mode, AIType aiType)
+    {
+        try
+        {
+            string backupJson = BackupStatePath(mode, aiType);
+            if (File.Exists(backupJson))
+            {
+                string json = SaveStatePath(mode, aiType);
+                if (File.Exists(json)) File.Delete(json);
+                File.Move(backupJson, json);
+            }
+
+            string backupDir = BackupCheckpointDirPath(mode, aiType);
+            if (Directory.Exists(backupDir))
+            {
+                string checkpointDir = CheckpointDirPath(mode, aiType);
+                if (Directory.Exists(checkpointDir)) Directory.Delete(checkpointDir, true);
+                Directory.Move(backupDir, checkpointDir);
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[DataManager] Failed to restore training state backup for {mode}/{aiType}: {e.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Deletes the save slot (JSON + RL checkpoint dir) for a (mode, AI type).
+    /// Used to remove a temporary slot created only as a Save→Load vehicle when
+    /// the user had no real save to protect.
+    /// </summary>
+    public static void DeleteTrainingState(GameMode mode, AIType aiType)
+    {
+        try
+        {
+            string json = SaveStatePath(mode, aiType);
+            if (File.Exists(json)) File.Delete(json);
+
+            string checkpointDir = CheckpointDirPath(mode, aiType);
+            if (Directory.Exists(checkpointDir)) Directory.Delete(checkpointDir, true);
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[DataManager] Failed to delete training state for {mode}/{aiType}: {e.Message}");
+        }
+    }
+
+    private static void CopyDirectory(string sourceDir, string destDir)
+    {
+        Directory.CreateDirectory(destDir);
+
+        foreach (string file in Directory.GetFiles(sourceDir))
+            File.Copy(file, Path.Combine(destDir, Path.GetFileName(file)), overwrite: true);
+
+        foreach (string subDir in Directory.GetDirectories(sourceDir))
+            CopyDirectory(subDir, Path.Combine(destDir, Path.GetFileName(subDir)));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

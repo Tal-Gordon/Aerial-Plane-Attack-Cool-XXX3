@@ -245,6 +245,8 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
         return new Dictionary<string, float>();
     }
 
+    // To add a tunable parameter: add the field, an entry here, in SetParameters,
+    // and a descriptor in GetParameterDescriptors below.
     public Dictionary<string, float> GetParameters() => new Dictionary<string, float>
     {
         { "hoopRadius", hoopRadius },
@@ -257,6 +259,21 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
         { "timeBonusMultiplier", timeBonusMultiplier },
         { "timeBetweenHoopsAllowed", timeBetweenHoopsAllowed },
     };
+
+    // Only the reward-shaping weights are user-tunable dials. The remaining
+    // GetParameters keys (hoopRadius, the time limits) are still saved/loaded but
+    // intentionally NOT exposed here, so they can't be changed from the UI.
+    // Descriptors are immutable metadata — built once and shared.
+    private static readonly ParameterDescriptor[] Descriptors =
+    {
+        new ParameterDescriptor("lambda", "Effort Penalty (lambda)", 0f, 10f, 1f),
+        new ParameterDescriptor("distanceRewardMultiplier", "Distance Reward", 0f, 5f, 0.4f),
+        new ParameterDescriptor("hoopPassReward", "Hoop Pass Reward", 0f, 10000f, 2000f),
+        new ParameterDescriptor("backwardsDriftPenalty", "Backwards Drift Penalty", 0f, 50f, 2f),
+        new ParameterDescriptor("lookAtRewardWeight", "Look-At Reward", 0f, 100f, 10f),
+    };
+
+    public IReadOnlyList<ParameterDescriptor> GetParameterDescriptors() => Descriptors;
 
     public void SetParameters(Dictionary<string, float> parameters)
     {
