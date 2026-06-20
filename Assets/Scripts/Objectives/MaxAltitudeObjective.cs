@@ -77,11 +77,23 @@ public class MaxAltitudeObjective : MonoBehaviour, IObjective
         };
     }
 
+    // To add a tunable parameter: add the field, an entry here, in SetParameters,
+    // and a descriptor in GetParameterDescriptors below.
     public Dictionary<string, float> GetParameters() => new Dictionary<string, float>
     {
         { "lambda", lambda },
         { "maxTimeAllowed", maxTimeAllowed },
     };
+
+    // Only lambda is a user-tunable dial. maxTimeAllowed is still saved/loaded via
+    // GetParameters but intentionally NOT exposed here, so it can't be changed
+    // from the UI. Descriptors are immutable metadata — built once and shared.
+    private static readonly ParameterDescriptor[] Descriptors =
+    {
+        new ParameterDescriptor("lambda", "Effort Penalty (lambda)", 0f, 50f, 10f),
+    };
+
+    public IReadOnlyList<ParameterDescriptor> GetParameterDescriptors() => Descriptors;
 
     public void SetParameters(Dictionary<string, float> parameters)
     {

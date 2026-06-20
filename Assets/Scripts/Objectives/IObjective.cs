@@ -1,7 +1,10 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public interface IObjective
+// IObjective extends ITunableParameters so its reward/terminal knobs
+// (GetParameters / SetParameters / GetParameterDescriptors) plug straight into
+// the generic ParameterTuner. Save/load already round-trips GetParameters().
+public interface IObjective : ITunableParameters
 {
     DataManager.GameMode Mode { get; }
 
@@ -17,17 +20,4 @@ public interface IObjective
     public bool CheckTerminalState(JetAgent agent);
 
     public Dictionary<string, float> GetRewardBreakdown(JetAgent agent);
-
-    /// <summary>
-    /// Returns this objective's tunable reward/terminal parameters as a flat
-    /// name → value map, for saving. Keys must match those read by
-    /// <see cref="SetParameters"/>.
-    /// </summary>
-    public Dictionary<string, float> GetParameters();
-
-    /// <summary>
-    /// Applies previously-saved parameters (from <see cref="GetParameters"/>).
-    /// Unknown keys are ignored; missing keys keep their current value.
-    /// </summary>
-    public void SetParameters(Dictionary<string, float> parameters);
 }

@@ -42,7 +42,7 @@ public class SimulationManager : MonoBehaviour
         }
 
         // TODO: Remove in production
-        // DataManager.ResetToDefaults(objective.Mode);
+        DataManager.ResetToDefaults(objective.Mode);
 
         // Load settings for this mode
         var mode = objective.Mode;
@@ -53,6 +53,15 @@ public class SimulationManager : MonoBehaviour
 
         // Activate the correct sensor on each agent for this mode
         ConfigureSensors(population, objective);
+
+        // Expose the objective's reward parameters for runtime tuning. The UI
+        // stages edits on this tuner; committing routes back into
+        // CommitRewardParameters below. The objective is long-lived (never
+        // recreated by load/inference), so this binding stays valid.
+        ParameterTuners.Reward = new ParameterTuner(objective, CommitRewardParameters);
+
+        // TEMP: prove the observer fires. Remove with the rest of the smoke test.
+        ParameterTuners.Reward.OnStateChanged += LogRewardTunerState;
 
         // Create the correct paradigm for the chosen AI type
         activeParadigm = CreateParadigm(settings.AIType);
@@ -99,11 +108,73 @@ public class SimulationManager : MonoBehaviour
 
         if (keyboard.tKey.wasPressedThisFrame)
             ExitInferenceMode();
+
+        // ── TEMP: reward-tuning smoke test (remove once the UI is wired) ──
+        // K = stage a bump on the first reward param, C = commit, V = discard.
+        if (keyboard.kKey.wasPressedThisFrame) TempStageRewardParam();
+        if (keyboard.cKey.wasPressedThisFrame) ParameterTuners.Reward?.Commit();
+        if (keyboard.vKey.wasPressedThisFrame) ParameterTuners.Reward?.Discard();
+    }
+
+    // ── TEMP: reward-tuning smoke test helpers (remove once the UI is wired) ──
+    private void TempStageRewardParam()
+    {
+        ParameterTuner tuner = ParameterTuners.Reward;
+        if (tuner == null || tuner.Descriptors.Count == 0) return;
+
+        ParameterDescriptor d = tuner.Descriptors[0];
+        float current = tuner.GetEffectiveValue(d.Key);
+        // Bump by 10% of the range, wrapping back to Min once we hit Max.
+        float step = (d.Max - d.Min) * 0.1f;
+        float next = current + step > d.Max ? d.Min : current + step;
+
+        tuner.Stage(d.Key, next);
+        Debug.Log($"[RewardTuneTest] Staged '{d.Key}' -> {next:F2} | live={tuner.GetLiveValue(d.Key):F2} effective={tuner.GetEffectiveValue(d.Key):F2}");
+    }
+
+    private void LogRewardTunerState()
+    {
+        ParameterTuner tuner = ParameterTuners.Reward;
+        if (tuner == null) return;
+        Debug.Log($"[RewardTuneTest] OnStateChanged — pending changes: {tuner.HasPendingChanges} ({tuner.Pending.Count})");
     }
 
     private void OnDestroy()
     {
         activeParadigm?.Dispose();
+        if (ParameterTuners.Reward != null) ParameterTuners.Reward = null;
+    }
+
+    // ── Reward-parameter tuning ──────────────────────────────────────
+    // Called by ParameterTuner.Commit() with the user's staged edits. Reward
+    // changes are NOT applied on the fly — committing applies them via a clean
+    // Save→Load restart so the trained brains/policy carry over and (for RL) the
+    // trainer relaunches cleanly with the new reward dynamics. The round-trip is
+    // wrapped so the user's real manual save is never overwritten.
+    private void CommitRewardParameters(Dictionary<string, float> staged)
+    {
+        if (objective == null || activeParadigm == null || staged == null || staged.Count == 0)
+            return;
+
+        // Apply onto the live objective so SaveState bakes the new values in.
+        objective.SetParameters(staged);
+
+        var mode = objective.Mode;
+        var aiType = settings.AIType;
+
+        // Protect the user's real save: back it up, use the slot purely as a
+        // Save→Load vehicle, then restore it (or delete the slot if there was
+        // nothing to protect).
+        bool realExisted = DataManager.HasTrainingState(mode, aiType);
+        if (realExisted) DataManager.BackupTrainingState(mode, aiType);
+
+        SaveState();   // current brains/policy + new params → slot
+        LoadState();   // rebuild the run from it, re-applying the params
+
+        if (realExisted) DataManager.RestoreTrainingStateBackup(mode, aiType);
+        else             DataManager.DeleteTrainingState(mode, aiType);
+
+        Debug.Log($"<color=cyan>[SimulationManager]</color> Committed {staged.Count} reward parameter change(s) for {mode}/{aiType}; real save left untouched.");
     }
 
     // ── Public API ───────────────────────────────────────────────────
