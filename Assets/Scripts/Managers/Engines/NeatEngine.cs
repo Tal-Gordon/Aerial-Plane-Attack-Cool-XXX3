@@ -62,10 +62,13 @@ public class NeatEngine : IEvolutionEngine
 
         var genomeParams = new NeatGenomeParameters();
 
-        genomeParams.AddNodeMutationProbability = 0.02;
-        genomeParams.AddConnectionMutationProbability = 0.05;
-        genomeParams.DeleteConnectionMutationProbability = 0.02;
-        genomeParams.ConnectionWeightMutationProbability = 0.96;
+        // Read from NeatSettings (was hard-coded). These are runtime-tunable via
+        // the hyperparameter tuner; BuildScaffolding re-runs on RestoreState, so a
+        // committed change is picked up on the save→load round-trip.
+        genomeParams.AddNodeMutationProbability = neatSettings.AddNodeMutationProbability;
+        genomeParams.AddConnectionMutationProbability = neatSettings.AddConnectionMutationProbability;
+        genomeParams.DeleteConnectionMutationProbability = neatSettings.DeleteConnectionMutationProbability;
+        genomeParams.ConnectionWeightMutationProbability = neatSettings.ConnectionWeightMutationProbability;
 
         // NEAT paper starts fully connected input→output with zero hidden nodes.
         // At 5% default, 19×4=76 possible connections yields ~4 actual connections,
@@ -78,9 +81,9 @@ public class NeatEngine : IEvolutionEngine
 
         eaParams = new NeatEvolutionAlgorithmParameters();
 
-        eaParams.SpecieCount = 10;
-        eaParams.ElitismProportion = 0.2;
-        eaParams.SelectionProportion = 0.4;
+        eaParams.SpecieCount = neatSettings.SpecieCount;
+        eaParams.ElitismProportion = neatSettings.ElitismProportion;
+        eaParams.SelectionProportion = neatSettings.SelectionProportion;
 
         var speciationStrategy = new KMeansClusteringStrategy<NeatGenome>(new ManhattanDistanceMetric());
 
