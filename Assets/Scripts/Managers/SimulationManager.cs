@@ -24,6 +24,12 @@ public class SimulationManager : MonoBehaviour
     private List<JetAgent> population;
     private JetAgent selectedAgent;
 
+    // Adapter backing ParameterTuners.Hyperparameters. Reads/writes the live
+    // settings through () => settings, so it stays valid when LoadState swaps the
+    // settings object. Kept so the commit handler can apply staged values and
+    // read each descriptor's RequiresReset flag.
+    private ModelHyperparameters hyperParams;
+
     // ── Inference mode ───────────────────────────────────────────────
     // Inference reduces the run to a single jet that replays the saved champion /
     // policy on a loop, owned by the active paradigm. Training is fully torn down
@@ -60,8 +66,15 @@ public class SimulationManager : MonoBehaviour
         // recreated by load/inference), so this binding stays valid.
         ParameterTuners.Reward = new ParameterTuner(objective, CommitRewardParameters);
 
-        // TEMP: prove the observer fires. Remove with the rest of the smoke test.
+        // Expose the model's hyperparameters as a second, independent tuner. The
+        // adapter reads the live settings (which load swaps out) via the closure,
+        // and the commit routes hot vs cold per descriptor (see CommitHyperparameters).
+        hyperParams = new ModelHyperparameters(() => settings);
+        ParameterTuners.Hyperparameters = new ParameterTuner(hyperParams, CommitHyperparameters);
+
+        // TEMP: prove the observers fire. Remove with the rest of the smoke test.
         ParameterTuners.Reward.OnStateChanged += LogRewardTunerState;
+        ParameterTuners.Hyperparameters.OnStateChanged += LogHyperTunerState;
 
         // Create the correct paradigm for the chosen AI type
         activeParadigm = CreateParadigm(settings.AIType);
@@ -114,6 +127,15 @@ public class SimulationManager : MonoBehaviour
         if (keyboard.kKey.wasPressedThisFrame) TempStageRewardParam();
         if (keyboard.cKey.wasPressedThisFrame) ParameterTuners.Reward?.Commit();
         if (keyboard.vKey.wasPressedThisFrame) ParameterTuners.Reward?.Discard();
+
+        // ── TEMP: hyperparameter-tuning smoke test (remove once the UI is wired) ──
+        // H = stage a HOT knob (round-trip keeps trained state),
+        // B = stage a COLD knob (commit rebuilds from scratch),
+        // N = commit, M = discard.
+        if (keyboard.hKey.wasPressedThisFrame) TempStageHyperParam(wantReset: false);
+        if (keyboard.bKey.wasPressedThisFrame) TempStageHyperParam(wantReset: true);
+        if (keyboard.nKey.wasPressedThisFrame) ParameterTuners.Hyperparameters?.Commit();
+        if (keyboard.mKey.wasPressedThisFrame) ParameterTuners.Hyperparameters?.Discard();
     }
 
     // ── TEMP: reward-tuning smoke test helpers (remove once the UI is wired) ──
@@ -139,10 +161,42 @@ public class SimulationManager : MonoBehaviour
         Debug.Log($"[RewardTuneTest] OnStateChanged — pending changes: {tuner.HasPendingChanges} ({tuner.Pending.Count})");
     }
 
+    // Stages a bump on the first hyperparameter whose RequiresReset matches
+    // wantReset, so the smoke test can exercise both the hot (round-trip) and
+    // cold (rebuild) commit paths.
+    private void TempStageHyperParam(bool wantReset)
+    {
+        ParameterTuner tuner = ParameterTuners.Hyperparameters;
+        if (tuner == null) return;
+
+        foreach (ParameterDescriptor d in tuner.Descriptors)
+        {
+            if (d.RequiresReset != wantReset) continue;
+
+            float current = tuner.GetEffectiveValue(d.Key);
+            float step = (d.Max - d.Min) * 0.1f;
+            float next = current + step > d.Max ? d.Min : current + step;
+
+            tuner.Stage(d.Key, next);
+            Debug.Log($"[HyperTuneTest] Staged '{d.Key}' ({(d.RequiresReset ? "COLD" : "HOT")}) -> {next:F3} | live={tuner.GetLiveValue(d.Key):F3} effective={tuner.GetEffectiveValue(d.Key):F3}");
+            return;
+        }
+
+        Debug.Log($"[HyperTuneTest] No {(wantReset ? "COLD" : "HOT")} hyperparameter to stage for {settings.AIType}.");
+    }
+
+    private void LogHyperTunerState()
+    {
+        ParameterTuner tuner = ParameterTuners.Hyperparameters;
+        if (tuner == null) return;
+        Debug.Log($"[HyperTuneTest] OnStateChanged — pending changes: {tuner.HasPendingChanges} ({tuner.Pending.Count})");
+    }
+
     private void OnDestroy()
     {
         activeParadigm?.Dispose();
         if (ParameterTuners.Reward != null) ParameterTuners.Reward = null;
+        if (ParameterTuners.Hyperparameters != null) ParameterTuners.Hyperparameters = null;
     }
 
     // ── Reward-parameter tuning ──────────────────────────────────────
@@ -159,12 +213,64 @@ public class SimulationManager : MonoBehaviour
         // Apply onto the live objective so SaveState bakes the new values in.
         objective.SetParameters(staged);
 
+        // Reward changes are always "hot" — keep the trained state.
+        ApplyHotCommit();
+
+        Debug.Log($"<color=cyan>[SimulationManager]</color> Committed {staged.Count} reward parameter change(s) for {objective.Mode}/{settings.AIType}; real save left untouched.");
+    }
+
+    // ── Hyperparameter tuning ────────────────────────────────────────
+    // Called by ParameterTuners.Hyperparameters.Commit(). The change is applied
+    // to the live settings, then adopted one of two ways depending on whether any
+    // staged key is "cold" (RequiresReset):
+    //   • all hot  → the same protected Save→Load round-trip as reward params, so
+    //     the trained brains/policy carry over (RL relaunches the trainer with the
+    //     regenerated YAML; evo/NEAT rebuild their engine from the new settings).
+    //   • any cold → a full rebuild from scratch. Population size / architecture
+    //     make the saved weights incompatible, so trained state is discarded — the
+    //     only correct option. The new settings are persisted as the live config.
+    private void CommitHyperparameters(Dictionary<string, float> staged)
+    {
+        if (objective == null || activeParadigm == null || staged == null || staged.Count == 0)
+            return;
+
+        bool requiresReset = StagedRequiresReset(staged);
+
+        // Apply onto the live settings so both paths bake the new values in
+        // (SaveState clones settings; RebuildFromScratch persists them).
+        hyperParams.SetParameters(staged);
+
+        if (requiresReset)
+        {
+            RebuildFromScratch();
+            Debug.Log($"<color=cyan>[SimulationManager]</color> Committed {staged.Count} hyperparameter change(s) for {objective.Mode}/{settings.AIType}; a cold change forced a rebuild — trained state was discarded.");
+        }
+        else
+        {
+            ApplyHotCommit();
+            Debug.Log($"<color=cyan>[SimulationManager]</color> Committed {staged.Count} hyperparameter change(s) for {objective.Mode}/{settings.AIType}; trained state kept, real save left untouched.");
+        }
+    }
+
+    // True if any staged key maps to a descriptor flagged RequiresReset.
+    private bool StagedRequiresReset(Dictionary<string, float> staged)
+    {
+        foreach (ParameterDescriptor d in hyperParams.GetParameterDescriptors())
+            if (d.RequiresReset && staged.ContainsKey(d.Key))
+                return true;
+        return false;
+    }
+
+    // Adopts already-applied (live) parameter edits without losing trained state:
+    // a Save→Load round-trip wrapped so the user's real manual save is never
+    // overwritten — backed up, used purely as a vehicle, then restored (or the
+    // temp slot deleted if there was nothing to protect). Shared by reward and
+    // hot-hyperparameter commits.
+    private void ApplyHotCommit()
+    {
         var mode = objective.Mode;
         var aiType = settings.AIType;
 
-        // Protect the user's real save: back it up, use the slot purely as a
-        // Save→Load vehicle, then restore it (or delete the slot if there was
-        // nothing to protect).
         bool realExisted = DataManager.HasTrainingState(mode, aiType);
         if (realExisted) DataManager.BackupTrainingState(mode, aiType);
 
@@ -173,8 +279,28 @@ public class SimulationManager : MonoBehaviour
 
         if (realExisted) DataManager.RestoreTrainingStateBackup(mode, aiType);
         else             DataManager.DeleteTrainingState(mode, aiType);
+    }
 
-        Debug.Log($"<color=cyan>[SimulationManager]</color> Committed {staged.Count} reward parameter change(s) for {mode}/{aiType}; real save left untouched.");
+    // Tears the run down and rebuilds it fresh from the current (already updated)
+    // settings, intentionally discarding trained state. Mirrors the Start() build
+    // path minus the settings load; persists the new settings as the live config
+    // so a later restart matches. Used for cold hyperparameter changes (population
+    // size, architecture) where the saved weights can't be restored.
+    private void RebuildFromScratch()
+    {
+        activeParadigm?.Dispose();
+        activeParadigm = null;
+        DestroyPopulation();
+
+        DataManager.SaveSettings(objective.Mode, settings);
+
+        population = InstantiatePopulation(settings.PopulationSize);
+        ConfigureSensors(population, objective);
+
+        activeParadigm = CreateParadigm(settings.AIType);
+        if (activeParadigm == null) return;
+
+        activeParadigm.Initialize(population, settings, objective);
     }
 
     // ── Public API ───────────────────────────────────────────────────

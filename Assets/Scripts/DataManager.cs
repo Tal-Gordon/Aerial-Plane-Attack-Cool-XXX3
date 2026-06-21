@@ -111,35 +111,35 @@ public static class DataManager
             //         NetworkShape = new[] { 19, 16, 16, 4 },
             //     },
             // },
-            [GameMode.FlightSchool] = new SimulationSettings
-            {
-                PopulationSize = 1000,
-                AIType = AIType.NEAT,
-                SpawnRadius = 0f,
-                SpawnFormation = SpawnFormation.Random,
-                NeatSettings = new NeatSettings
-                {
-                    InputSize = 19,
-                    OutputSize = 4,
-                },
-                RLSettings = new RLSettings
-                {
-                    InputSize = 19,
-                    OutputSize = 4,
-                },
-            },
             // [GameMode.FlightSchool] = new SimulationSettings
             // {
-            //     PopulationSize = 100,
-            //     AIType = AIType.PPO_MLAgents,
+            //     PopulationSize = 1000,
+            //     AIType = AIType.NEAT,
             //     SpawnRadius = 0f,
             //     SpawnFormation = SpawnFormation.Random,
+            //     NeatSettings = new NeatSettings
+            //     {
+            //         InputSize = 19,
+            //         OutputSize = 4,
+            //     },
             //     RLSettings = new RLSettings
             //     {
             //         InputSize = 19,
             //         OutputSize = 4,
             //     },
             // },
+            [GameMode.FlightSchool] = new SimulationSettings
+            {
+                PopulationSize = 100,
+                AIType = AIType.PPO_MLAgents,
+                SpawnRadius = 0f,
+                SpawnFormation = SpawnFormation.Random,
+                RLSettings = new RLSettings
+                {
+                    InputSize = 19,
+                    OutputSize = 4,
+                },
+            },
             // [GameMode.FlightSchool] = new SimulationSettings
             // {
             //     PopulationSize = 10,
@@ -514,9 +514,22 @@ public class NeuroEvoSettings : EvoSettings
 [Serializable]
 public class NeatSettings : EvoSettings
 {
-    // Future: complexity threshold, speciation params, etc.
     public int InputSize = 19;
     public int OutputSize = 4;
+
+    // SharpNEAT tunables. Defaults match the values NeatEngine.BuildScaffolding
+    // used to hard-code, so existing saves (which lack these fields) behave
+    // exactly as before. All are "hot": a save→load round-trip rebuilds the
+    // SharpNEAT scaffolding from these, and the restored population keeps
+    // evolving under the new values. (MutationRate, inherited from EvoSettings,
+    // is unused by NEAT — SharpNEAT drives mutation via the probabilities below.)
+    public int SpecieCount = 10;
+    public float ElitismProportion = 0.2f;
+    public float SelectionProportion = 0.4f;
+    public float AddNodeMutationProbability = 0.02f;
+    public float AddConnectionMutationProbability = 0.05f;
+    public float DeleteConnectionMutationProbability = 0.02f;
+    public float ConnectionWeightMutationProbability = 0.96f;
 
     public override EvoSettings Clone() =>
         new NeatSettings
@@ -525,6 +538,13 @@ public class NeatSettings : EvoSettings
             Lambda = Lambda,
             InputSize = InputSize,
             OutputSize = OutputSize,
+            SpecieCount = SpecieCount,
+            ElitismProportion = ElitismProportion,
+            SelectionProportion = SelectionProportion,
+            AddNodeMutationProbability = AddNodeMutationProbability,
+            AddConnectionMutationProbability = AddConnectionMutationProbability,
+            DeleteConnectionMutationProbability = DeleteConnectionMutationProbability,
+            ConnectionWeightMutationProbability = ConnectionWeightMutationProbability,
         };
 }
 

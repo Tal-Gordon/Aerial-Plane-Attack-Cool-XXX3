@@ -14,13 +14,26 @@ public struct ParameterDescriptor
     public float Max;
     public float DefaultValue;
 
-    public ParameterDescriptor(string key, string displayName, float min, float max, float defaultValue)
+    /// <summary>
+    /// Whether committing a change to this parameter requires a full reset that
+    /// discards trained state. False = "hot": the change is adopted via a
+    /// save→load round-trip that keeps the trained brains/policy (e.g. learning
+    /// rate, mutation probabilities). True = "cold": the change makes the saved
+    /// weights structurally incompatible, so the run must be rebuilt from scratch
+    /// (e.g. population size, network architecture). Reward parameters are always
+    /// hot. The owner of the tuner routes commit based on this flag; a UI can
+    /// also read it to section dials and warn before a destructive change.
+    /// </summary>
+    public bool RequiresReset;
+
+    public ParameterDescriptor(string key, string displayName, float min, float max, float defaultValue, bool requiresReset = false)
     {
         Key = key;
         DisplayName = displayName;
         Min = min;
         Max = max;
         DefaultValue = defaultValue;
+        RequiresReset = requiresReset;
     }
 }
 

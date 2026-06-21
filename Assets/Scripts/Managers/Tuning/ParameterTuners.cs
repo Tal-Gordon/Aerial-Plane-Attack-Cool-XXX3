@@ -12,4 +12,11 @@ public static class ParameterTuners
     /// <summary>Tuner for the active objective's reward/terminal parameters.
     /// Null when no run is active.</summary>
     public static ParameterTuner Reward { get; set; }
+
+    /// <summary>Tuner for the active model's hyperparameters (learning rate,
+    /// mutation, population size, architecture, …). Descriptors carry
+    /// <see cref="ParameterDescriptor.RequiresReset"/> so consumers can tell
+    /// "hot" knobs (kept on a round-trip) from "cold" ones (force a rebuild).
+    /// Null when no run is active.</summary>
+    public static ParameterTuner Hyperparameters { get; set; }
 }
