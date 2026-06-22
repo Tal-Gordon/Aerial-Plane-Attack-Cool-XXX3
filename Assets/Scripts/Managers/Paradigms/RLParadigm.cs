@@ -8,16 +8,23 @@ using UnityEngine;
 
 public class RLParadigm : ITrainingParadigm
 {
-    // TODO: Fix widget on all AI types
     private IObjective objective;
     private SimulationSettings settings;
     private List<JetAgent> population;
     private List<JetMLAgent> mlAgents;
 
-    private float[] cumulativeScores;
+    // Per-episode reward tracking (NOT cumulative across the run): lastEpisodeScores[i]
+    // is agent i's most recent completed-episode reward; bestEpisodeScore is the best
+    // single episode ever. Starts at -inf so the first episode (even a negative one,
+    // common for SAC early on) registers as the best instead of being hidden behind 0.
+    private float[] lastEpisodeScores;
     private int totalEpisodes;
-    private float bestCumulativeScore;
+    private float bestEpisodeScore = float.NegativeInfinity;
     private float trainingStartTime;
+
+    // bestEpisodeScore before any episode completes is the -inf sentinel; report 0
+    // instead so the UI / save metadata never show "-Infinity".
+    private float ReportedBest => float.IsNegativeInfinity(bestEpisodeScore) ? 0f : bestEpisodeScore;
 
     private SimulationSnapshot cachedSnapshot;
     private TrainerProcessLauncher trainerLauncher;
@@ -58,7 +65,7 @@ public class RLParadigm : ITrainingParadigm
         this.objective = objective;
 
         mlAgents = new List<JetMLAgent>(population.Count);
-        cumulativeScores = new float[population.Count];
+        lastEpisodeScores = new float[population.Count];
 
         trainingStartTime = Time.time;
 
@@ -178,11 +185,11 @@ public class RLParadigm : ITrainingParadigm
     public SimulationSnapshot GetSnapshot()
     {
         cachedSnapshot.IterationNumber = totalEpisodes;
-        cachedSnapshot.ChampionScore = bestCumulativeScore;
+        cachedSnapshot.ChampionScore = ReportedBest;
         cachedSnapshot.RLData.TotalEpisodes = totalEpisodes;
         cachedSnapshot.RLData.TrainingTime = Time.time - trainingStartTime;
-        cachedSnapshot.RLData.BestCumulativeScore = bestCumulativeScore;
-        cachedSnapshot.RLData.CumulativeScores = cumulativeScores;
+        cachedSnapshot.RLData.BestEpisodeScore = ReportedBest;
+        cachedSnapshot.RLData.LastEpisodeScores = lastEpisodeScores;
 
         return cachedSnapshot;
     }
@@ -190,10 +197,13 @@ public class RLParadigm : ITrainingParadigm
     public void RecordEpisodeEnd(int agentIndex, float episodeReward)
     {
         totalEpisodes++;
-        cumulativeScores[agentIndex] += episodeReward;
 
-        if (cumulativeScores[agentIndex] > bestCumulativeScore)
-            bestCumulativeScore = cumulativeScores[agentIndex];
+        // Record THIS episode's reward, replacing the agent's previous one — these
+        // are per-episode figures, never a running sum (that grew without bound).
+        lastEpisodeScores[agentIndex] = episodeReward;
+
+        if (episodeReward > bestEpisodeScore)
+            bestEpisodeScore = episodeReward;
     }
 
     public IBrain GetChampionBrain()
@@ -244,7 +254,7 @@ public class RLParadigm : ITrainingParadigm
 
     public float GetChampionScore()
     {
-        return bestCumulativeScore;
+        return ReportedBest;
     }
 
     public void SaveChampion(string directoryPath)
@@ -285,12 +295,12 @@ public class RLParadigm : ITrainingParadigm
 
         float topScore = float.NegativeInfinity;
         float sum = 0f;
-        for (int i = 0; i < cumulativeScores.Length; i++)
+        for (int i = 0; i < lastEpisodeScores.Length; i++)
         {
-            if (cumulativeScores[i] > topScore) topScore = cumulativeScores[i];
-            sum += cumulativeScores[i];
+            if (lastEpisodeScores[i] > topScore) topScore = lastEpisodeScores[i];
+            sum += lastEpisodeScores[i];
         }
-        int count = cumulativeScores.Length;
+        int count = lastEpisodeScores.Length;
         float average = count > 0 ? sum / count : 0f;
         if (count == 0) topScore = 0f;
 
@@ -302,7 +312,7 @@ public class RLParadigm : ITrainingParadigm
             ObjectiveParameters = objective.GetParameters(),
             Generation = totalEpisodes,
             PopulationSize = population.Count,
-            ChampionScore = bestCumulativeScore,
+            ChampionScore = ReportedBest,
             TopScore = topScore,
             AverageScore = average,
             SavedAtUtc = DateTime.UtcNow.ToString("o"),
@@ -329,7 +339,7 @@ public class RLParadigm : ITrainingParadigm
         TrainingSaveData data = DataManager.LoadTrainingState(objective.Mode, settings.AIType);
         if (data != null)
         {
-            bestCumulativeScore = data.ChampionScore;
+            bestEpisodeScore = data.ChampionScore;
             totalEpisodes = data.Generation;
         }
 

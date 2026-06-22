@@ -82,6 +82,7 @@ public class EvolutionaryParadigm : ITrainingParadigm
             // Log statistics
             float maxScore = float.NegativeInfinity;
             float minScore = float.PositiveInfinity;
+            float sumScore = 0f;
             JetAgent bestAgent = null;
 
             for (int i = 0; i < population.Count; i++)
@@ -93,7 +94,15 @@ public class EvolutionaryParadigm : ITrainingParadigm
                     bestAgent = population[i];
                 }
                 if (score < minScore) minScore = score;
+                sumScore += score;
             }
+
+            // Capture this generation's mean final fitness once, here. The snapshot
+            // then reports a stable per-generation average that stays comparable to
+            // the champion score, instead of climbing from zero as the next
+            // generation's freshly-spawned jets accumulate fitness frame by frame.
+            cachedSnapshot.EvoData.LastGenerationAverage =
+                population.Count > 0 ? sumScore / population.Count : 0f;
 
             string breakdownStr = "";
             if (bestAgent != null)
