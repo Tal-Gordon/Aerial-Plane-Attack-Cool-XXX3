@@ -35,6 +35,11 @@ public class EvoSnapshot
     // generation ends, so it holds steady (and stays comparable to the champion
     // score) instead of climbing from zero as a new generation's jets accumulate.
     public float LastGenerationAverage;
+
+    // Best final fitness within that same last generation (the generation's top
+    // performer, not the all-time champion). Pairs with LastGenerationAverage to
+    // feed the history graph's MAX/AVG lines.
+    public float LastGenerationMax;
 }
 
 public class RLSnapshot
@@ -42,10 +47,13 @@ public class RLSnapshot
     public int TotalEpisodes;
     public float TrainingTime;
 
-    // Per-EPISODE figures, not running totals across the whole run. BestEpisodeScore
-    // is the best single-episode reward seen; LastEpisodeScores[i] is agent i's most
-    // recent completed-episode reward. (These used to accumulate every episode, which
-    // made them grow/shrink without bound — up for PPO, deep negative for SAC.)
-    public float BestEpisodeScore;
-    public float[] LastEpisodeScores;
+    // Live MAX and AVG of jets' last-life scores (the reward each jet earned from
+    // birth to death), over jets that have finished at least one life. Both come
+    // from the same quantity, so MAX is just the top of what AVG averages — directly
+    // comparable, and shared by the numbers widget and the history graph.
+    // (Earlier these accumulated every episode and grew without bound — up for PPO,
+    // deep negative for SAC; and the headline "best" was an all-time record that
+    // dwarfed the average. Both are fixed.)
+    public float CurrentMax;
+    public float CurrentAvg;
 }

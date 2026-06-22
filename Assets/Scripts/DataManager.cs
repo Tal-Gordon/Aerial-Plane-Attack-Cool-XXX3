@@ -111,35 +111,35 @@ public static class DataManager
             //         NetworkShape = new[] { 19, 16, 16, 4 },
             //     },
             // },
-            [GameMode.FlightSchool] = new SimulationSettings
-            {
-                PopulationSize = 1000,
-                AIType = AIType.NEAT,
-                SpawnRadius = 0f,
-                SpawnFormation = SpawnFormation.Random,
-                NeatSettings = new NeatSettings
-                {
-                    InputSize = 19,
-                    OutputSize = 4,
-                },
-                RLSettings = new RLSettings
-                {
-                    InputSize = 19,
-                    OutputSize = 4,
-                },
-            },
             // [GameMode.FlightSchool] = new SimulationSettings
             // {
-            //     PopulationSize = 100,
-            //     AIType = AIType.PPO_MLAgents,
+            //     PopulationSize = 1000,
+            //     AIType = AIType.NEAT,
             //     SpawnRadius = 0f,
             //     SpawnFormation = SpawnFormation.Random,
+            //     NeatSettings = new NeatSettings
+            //     {
+            //         InputSize = 19,
+            //         OutputSize = 4,
+            //     },
             //     RLSettings = new RLSettings
             //     {
             //         InputSize = 19,
             //         OutputSize = 4,
             //     },
             // },
+            [GameMode.FlightSchool] = new SimulationSettings
+            {
+                PopulationSize = 100,
+                AIType = AIType.PPO_MLAgents,
+                SpawnRadius = 0f,
+                SpawnFormation = SpawnFormation.Random,
+                RLSettings = new RLSettings
+                {
+                    InputSize = 19,
+                    OutputSize = 4,
+                },
+            },
             // [GameMode.FlightSchool] = new SimulationSettings
             // {
             //     PopulationSize = 10,

@@ -14,17 +14,45 @@ public class RLParadigm : ITrainingParadigm
     private List<JetMLAgent> mlAgents;
 
     // Per-episode reward tracking (NOT cumulative across the run): lastEpisodeScores[i]
-    // is agent i's most recent completed-episode reward; bestEpisodeScore is the best
-    // single episode ever. Starts at -inf so the first episode (even a negative one,
-    // common for SAC early on) registers as the best instead of being hidden behind 0.
+    // is agent i's most recent completed-episode reward — i.e. the points that jet
+    // earned over its last life (birth to death). hasReported[i] marks whether that
+    // jet has finished at least one life yet, so the live MAX/AVG only count jets
+    // that have actually scored (early zeros don't drag them down).
     private float[] lastEpisodeScores;
+    private bool[] hasReported;
     private int totalEpisodes;
+
+    // All-time best single life ever — kept only for the saved "champion score",
+    // NOT shown live (the live MAX is the current population's best last life, so it
+    // stays comparable to the AVG). Starts at -inf so the first episode registers.
     private float bestEpisodeScore = float.NegativeInfinity;
     private float trainingStartTime;
 
     // bestEpisodeScore before any episode completes is the -inf sentinel; report 0
-    // instead so the UI / save metadata never show "-Infinity".
+    // instead so the save metadata never shows "-Infinity".
     private float ReportedBest => float.IsNegativeInfinity(bestEpisodeScore) ? 0f : bestEpisodeScore;
+
+    // Live MAX/AVG of jets' last-life scores, over jets that have finished a life.
+    // One shared definition feeding both the numbers widget and the history graph,
+    // so MAX is just the top of the same quantity AVG averages — directly comparable.
+    private void ComputeCurrentStats(out float max, out float avg)
+    {
+        float sum = 0f;
+        max = float.NegativeInfinity;
+        int n = 0;
+
+        for (int i = 0; i < lastEpisodeScores.Length; i++)
+        {
+            if (!hasReported[i]) continue;
+            float s = lastEpisodeScores[i];
+            if (s > max) max = s;
+            sum += s;
+            n++;
+        }
+
+        if (n == 0) { max = 0f; avg = 0f; }
+        else avg = sum / n;
+    }
 
     private SimulationSnapshot cachedSnapshot;
     private TrainerProcessLauncher trainerLauncher;
@@ -66,6 +94,7 @@ public class RLParadigm : ITrainingParadigm
 
         mlAgents = new List<JetMLAgent>(population.Count);
         lastEpisodeScores = new float[population.Count];
+        hasReported = new bool[population.Count];
 
         trainingStartTime = Time.time;
 
@@ -184,12 +213,14 @@ public class RLParadigm : ITrainingParadigm
 
     public SimulationSnapshot GetSnapshot()
     {
+        ComputeCurrentStats(out float curMax, out float curAvg);
+
         cachedSnapshot.IterationNumber = totalEpisodes;
-        cachedSnapshot.ChampionScore = ReportedBest;
+        cachedSnapshot.ChampionScore = ReportedBest; // all-time, used by inference/save
         cachedSnapshot.RLData.TotalEpisodes = totalEpisodes;
         cachedSnapshot.RLData.TrainingTime = Time.time - trainingStartTime;
-        cachedSnapshot.RLData.BestEpisodeScore = ReportedBest;
-        cachedSnapshot.RLData.LastEpisodeScores = lastEpisodeScores;
+        cachedSnapshot.RLData.CurrentMax = curMax;
+        cachedSnapshot.RLData.CurrentAvg = curAvg;
 
         return cachedSnapshot;
     }
@@ -198,9 +229,10 @@ public class RLParadigm : ITrainingParadigm
     {
         totalEpisodes++;
 
-        // Record THIS episode's reward, replacing the agent's previous one — these
-        // are per-episode figures, never a running sum (that grew without bound).
+        // Record THIS life's reward, replacing the agent's previous one — these are
+        // per-life figures, never a running sum (that grew without bound).
         lastEpisodeScores[agentIndex] = episodeReward;
+        hasReported[agentIndex] = true;
 
         if (episodeReward > bestEpisodeScore)
             bestEpisodeScore = episodeReward;
@@ -293,16 +325,7 @@ public class RLParadigm : ITrainingParadigm
         else
             Debug.LogWarning($"[RLParadigm] Save taken, but the trainer hasn't written a NEW checkpoint this session (it checkpoints every {settings.RLSettings.CheckpointInterval} steps) — loading this save resumes from the previously saved step, not from current progress. Train past the next checkpoint and save again to capture it.");
 
-        float topScore = float.NegativeInfinity;
-        float sum = 0f;
-        for (int i = 0; i < lastEpisodeScores.Length; i++)
-        {
-            if (lastEpisodeScores[i] > topScore) topScore = lastEpisodeScores[i];
-            sum += lastEpisodeScores[i];
-        }
-        int count = lastEpisodeScores.Length;
-        float average = count > 0 ? sum / count : 0f;
-        if (count == 0) topScore = 0f;
+        ComputeCurrentStats(out float topScore, out float average);
 
         var data = new TrainingSaveData
         {
@@ -339,6 +362,9 @@ public class RLParadigm : ITrainingParadigm
         TrainingSaveData data = DataManager.LoadTrainingState(objective.Mode, settings.AIType);
         if (data != null)
         {
+            // Carry the all-time best episode forward across the load. (Saves made
+            // before the per-episode fix stored a runaway accumulated value, so an
+            // old save will show an inflated BEST until you re-save with current code.)
             bestEpisodeScore = data.ChampionScore;
             totalEpisodes = data.Generation;
         }
