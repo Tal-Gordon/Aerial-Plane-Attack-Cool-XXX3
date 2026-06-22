@@ -97,12 +97,15 @@ public class EvolutionaryParadigm : ITrainingParadigm
                 sumScore += score;
             }
 
-            // Capture this generation's mean final fitness once, here. The snapshot
-            // then reports a stable per-generation average that stays comparable to
-            // the champion score, instead of climbing from zero as the next
-            // generation's freshly-spawned jets accumulate fitness frame by frame.
+            // Capture this generation's mean and top final fitness once, here. The
+            // snapshot then reports stable per-generation figures that stay
+            // comparable to the champion score, instead of climbing from zero as the
+            // next generation's freshly-spawned jets accumulate fitness frame by
+            // frame. Both feed the headline AVG and the history graph's two lines.
             cachedSnapshot.EvoData.LastGenerationAverage =
                 population.Count > 0 ? sumScore / population.Count : 0f;
+            cachedSnapshot.EvoData.LastGenerationMax =
+                population.Count > 0 ? maxScore : 0f;
 
             string breakdownStr = "";
             if (bestAgent != null)

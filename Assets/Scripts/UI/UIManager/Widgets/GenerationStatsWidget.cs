@@ -11,8 +11,10 @@ using TMPro;
 ///   Evolution : GEN / BEST / AVG (last gen) / ALIVE a‑of‑total + fill bar.
 ///               Objectives without gradual attrition (MaxAltitude) swap ALIVE
 ///               for a static POP and drop the bar (TracksAttrition == false).
-///   RL (PPO/SAC) : EPISODES / BEST / AVG / AGENTS / TIME, all per‑episode (no
-///                  alive‑bar — RL agents reset episodes individually).
+///   RL (PPO/SAC) : EPISODES / BEST / AVG / AGENTS / TIME — BEST is the all-time
+///                  record (like evo's champion); the comparable current MAX vs AVG
+///                  lives in the history graph. No alive‑bar (episodes reset
+///                  individually).
 ///   Inference : just the run label + BEST (it's a replay, nothing progresses)
 /// </summary>
 public class GenerationStatsWidget : UIWidget
@@ -84,8 +86,10 @@ public class GenerationStatsWidget : UIWidget
         int agents = snapshot.Population != null ? snapshot.Population.Count : 0;
 
         Show(generationLabel, $"EPISODES: {rl.TotalEpisodes}");
-        Show(topFitnessLabel, $"BEST: {FormatFitness(rl.BestEpisodeScore)}");
-        Show(avgFitnessLabel, $"AVG: {FormatFitness(AverageOf(rl.LastEpisodeScores))}");
+        // BEST = all-time record (same ChampionScore field evo's BEST uses). The
+        // comparable current MAX vs AVG lives in the history graph instead.
+        Show(topFitnessLabel, $"BEST: {FormatFitness(snapshot.ChampionScore)}");
+        Show(avgFitnessLabel, $"AVG: {FormatFitness(rl.CurrentAvg)}");
         Show(aliveLabel, $"AGENTS: {agents}");
         Show(deadLabel, $"TIME: {FormatTime(rl.TrainingTime)}");
 
@@ -107,16 +111,6 @@ public class GenerationStatsWidget : UIWidget
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────
-
-    private float AverageOf(float[] values)
-    {
-        if (values == null || values.Length == 0) return 0f;
-
-        float sum = 0f;
-        foreach (float v in values) sum += v;
-
-        return sum / values.Length;
-    }
 
     private void Show(TextMeshProUGUI label, string text)
     {
