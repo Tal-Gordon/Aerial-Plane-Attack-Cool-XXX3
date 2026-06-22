@@ -7,6 +7,10 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
     public DataManager.GameMode Mode => DataManager.GameMode.FlightSchool;
     public SensorType RequiredSensorType => SensorType.Waypoint;
 
+    // Jets crash / miss hoops at different times, so the population thins out
+    // gradually — an "alive" count is a meaningful live metric here.
+    public bool TracksAttrition => true;
+
     // The Track
     [SerializeField] private Transform[] waypoints;
 

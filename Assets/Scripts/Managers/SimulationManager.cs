@@ -319,6 +319,7 @@ public class SimulationManager : MonoBehaviour
         // Manager stamps on the fields only IT knows about
         snapshot.TimeScale = Time.timeScale;
         snapshot.SelectedAgent = selectedAgent;
+        snapshot.TracksAttrition = objective != null && objective.TracksAttrition;
 
         return snapshot;
     }

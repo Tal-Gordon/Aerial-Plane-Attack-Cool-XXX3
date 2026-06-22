@@ -8,6 +8,10 @@ public class MaxAltitudeObjective : MonoBehaviour, IObjective
 {
     public DataManager.GameMode Mode => DataManager.GameMode.MaxAltitude;
     public SensorType RequiredSensorType => SensorType.BasicFlight;
+
+    // Every jet ends on the same maxTimeAllowed limit, so the population doesn't
+    // thin out gradually — an "alive" count would be full then snap to zero.
+    public bool TracksAttrition => false;
     
     [SerializeField] private float maxTimeAllowed = 15f;
     private int spawnRadius = 0;

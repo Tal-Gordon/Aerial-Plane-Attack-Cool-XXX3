@@ -10,6 +10,13 @@ public interface IObjective : ITunableParameters
 
     SensorType RequiredSensorType { get; }
 
+    // True when jets terminate independently over the course of an iteration
+    // (e.g. crashing at different times), so an "alive" count is a meaningful,
+    // gradually-changing metric. False when they all end on the same shared
+    // condition (e.g. MaxAltitude's time limit), where alive is full-then-zero
+    // and the UI should hide it. See SimulationSnapshot.TracksAttrition.
+    bool TracksAttrition { get; }
+
     // TODO get rid of spawn radius, need to consult with Gordont
     public void SetStartingState(JetAgent agent, int index, int totalPopulation);
 
