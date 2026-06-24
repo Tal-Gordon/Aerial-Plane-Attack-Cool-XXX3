@@ -12,7 +12,12 @@ public class ClassicNeuroEvoEngine : IEvolutionEngine
     private List<NeuroEvoBrain> currentBrains;
     private NeuroEvoBrain championBrain;
     private float championScore;
-    
+
+    // Reusable read-only snapshot of the previous generation. Offspring are bred
+    // from this so tournament selection never copies a slot that was already
+    // overwritten by an earlier offspring in the same loop.
+    private List<NeuroEvoBrain> parentPool;
+
     private int currentGeneration;
 
     public List<IEvolvableBrain> InitializeGeneration(SimulationSettings settings)
@@ -71,6 +76,21 @@ public class ClassicNeuroEvoEngine : IEvolutionEngine
             currentBrains[0].Copy(championBrain);
         }
 
+        // Snapshot the parents BEFORE we start overwriting offspring slots. Each
+        // parentPool[i] mirrors the (now sorted, champion-injected) currentBrains[i]
+        // and lines up with sortedScores[i]. Breeding reads only from this pool, so a
+        // tournament winner is always the genome that earned its score — never a slot
+        // already replaced by a mutated child earlier in the loop.
+        if (parentPool == null || parentPool.Count != popSize)
+        {
+            int[] shape = currentSettings.NeuroEvoSettings.NetworkShape;
+            parentPool = new List<NeuroEvoBrain>(popSize);
+            for (int i = 0; i < popSize; i++)
+                parentPool.Add(new NeuroEvoBrain(shape));
+        }
+        for (int i = 0; i < popSize; i++)
+            parentPool[i].Copy(currentBrains[i]);
+
         // --- Tournament selection for the remaining slots ---
         int tournamentSize = 5;
         System.Random rng = new System.Random();
@@ -91,8 +111,8 @@ public class ClassicNeuroEvoEngine : IEvolutionEngine
                 }
             }
 
-            // Copy the tournament winner into this slot and mutate it
-            currentBrains[i].Copy(currentBrains[bestIdx]);
+            // Copy the tournament winner (from the immutable parent snapshot) and mutate it
+            currentBrains[i].Copy(parentPool[bestIdx]);
             currentBrains[i].Mutate(currentSettings.ActiveEvoSettings.MutationRate);
         }
 
@@ -143,4 +163,57 @@ public class ClassicNeuroEvoEngine : IEvolutionEngine
             Debug.LogError($"[ClassicNeuroEvoEngine] Failed to load champion: {e.Message}");
         }
     }
+
+    public string CaptureState()
+    {
+        var state = new NeuroEvoEngineState
+        {
+            Shape = currentSettings.NeuroEvoSettings.NetworkShape,
+            Population = new List<float[]>(currentBrains.Count),
+            Champion = championBrain.Serialize(),
+            ChampionScore = championScore,
+            Generation = currentGeneration,
+        };
+
+        foreach (NeuroEvoBrain brain in currentBrains)
+            state.Population.Add(brain.Serialize());
+
+        return JsonConvert.SerializeObject(state);
+    }
+
+    public List<IEvolvableBrain> RestoreState(string stateJson, SimulationSettings settings)
+    {
+        currentSettings = settings;
+
+        var state = JsonConvert.DeserializeObject<NeuroEvoEngineState>(stateJson);
+
+        currentBrains = new List<NeuroEvoBrain>(state.Population.Count);
+        foreach (float[] weights in state.Population)
+        {
+            var brain = new NeuroEvoBrain(state.Shape);
+            brain.Deserialize(weights);
+            currentBrains.Add(brain);
+        }
+
+        championBrain = new NeuroEvoBrain(state.Shape);
+        championBrain.Deserialize(state.Champion);
+        championScore = state.ChampionScore;
+        currentGeneration = state.Generation;
+
+        return new List<IEvolvableBrain>(currentBrains);
+    }
+}
+
+/// <summary>
+/// Serializable brain payload for ClassicNeuroEvoEngine. Stored as the opaque
+/// EngineState string inside a TrainingSaveData.
+/// </summary>
+[Serializable]
+public class NeuroEvoEngineState
+{
+    public int[] Shape;
+    public List<float[]> Population;  // each brain's flattened weights + biases
+    public float[] Champion;
+    public float ChampionScore;
+    public int Generation;
 }

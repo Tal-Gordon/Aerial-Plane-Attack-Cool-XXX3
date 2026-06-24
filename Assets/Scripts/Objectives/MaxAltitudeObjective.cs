@@ -8,6 +8,10 @@ public class MaxAltitudeObjective : MonoBehaviour, IObjective
 {
     public DataManager.GameMode Mode => DataManager.GameMode.MaxAltitude;
     public SensorType RequiredSensorType => SensorType.BasicFlight;
+
+    // Every jet ends on the same maxTimeAllowed limit, so the population doesn't
+    // thin out gradually — an "alive" count would be full then snap to zero.
+    public bool TracksAttrition => false;
     
     [SerializeField] private float maxTimeAllowed = 15f;
     private int spawnRadius = 0;
@@ -75,6 +79,31 @@ public class MaxAltitudeObjective : MonoBehaviour, IObjective
             { "Height", heightScore },
             { "Effort Penalty", -l2Penalty }
         };
+    }
+
+    // To add a tunable parameter: add the field, an entry here, in SetParameters,
+    // and a descriptor in GetParameterDescriptors below.
+    public Dictionary<string, float> GetParameters() => new Dictionary<string, float>
+    {
+        { "lambda", lambda },
+        { "maxTimeAllowed", maxTimeAllowed },
+    };
+
+    // Only lambda is a user-tunable dial. maxTimeAllowed is still saved/loaded via
+    // GetParameters but intentionally NOT exposed here, so it can't be changed
+    // from the UI. Descriptors are immutable metadata — built once and shared.
+    private static readonly ParameterDescriptor[] Descriptors =
+    {
+        new ParameterDescriptor("lambda", "Effort Penalty (lambda)", 0f, 50f, 10f),
+    };
+
+    public IReadOnlyList<ParameterDescriptor> GetParameterDescriptors() => Descriptors;
+
+    public void SetParameters(Dictionary<string, float> parameters)
+    {
+        if (parameters == null) return;
+        if (parameters.TryGetValue("lambda", out float l)) lambda = l;
+        if (parameters.TryGetValue("maxTimeAllowed", out float t)) maxTimeAllowed = t;
     }
 
     public bool CheckTerminalState(JetAgent agent)
