@@ -18,7 +18,7 @@ public class TrainerProcessLauncher : IDisposable
         this.port = port;
     }
 
-    public bool Launch(string yamlRelativePath, string runId = "training", int timeoutSeconds = 60)
+    public bool Launch(string yamlRelativePath, string runId = "training", bool resume = false, bool inference = false, int timeoutSeconds = 60)
     {
         string pythonPath = FindCondaPython();
         if (pythonPath == null)
@@ -36,10 +36,20 @@ public class TrainerProcessLauncher : IDisposable
 
         string projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
 
+        // --resume continues an existing run-id from its latest checkpoint; --force
+        // wipes any existing run-id and starts fresh. The caller picks based on
+        // whether a saved checkpoint has been staged into results/<run-id>/.
+        string runModeFlag = resume ? "--resume" : "--force";
+
+        // --inference loads the (resumed) policy and runs it WITHOUT training — no
+        // gradient updates, no new checkpoints. Always paired with --resume so a
+        // saved model is actually loaded; on its own it would replay a random net.
+        string inferenceFlag = inference ? " --inference" : "";
+
         var psi = new ProcessStartInfo
         {
             FileName = pythonPath,
-            Arguments = $"-u -m mlagents.trainers.learn \"{yamlRelativePath}\" --run-id={runId} --force",
+            Arguments = $"-u -m mlagents.trainers.learn \"{yamlRelativePath}\" --run-id={runId} {runModeFlag}{inferenceFlag}",
             WorkingDirectory = projectRoot,
             UseShellExecute = false,
             CreateNoWindow = true,
@@ -89,8 +99,14 @@ public class TrainerProcessLauncher : IDisposable
         {
             if (!trainerProcess.HasExited)
             {
-                Debug.Log("[TrainerLauncher] Killing trainer process...");
-                trainerProcess.Kill();
+                Debug.Log("[TrainerLauncher] Killing trainer process tree...");
+                // Kill the whole tree, not just the parent: mlagents-learn spawns an
+                // env-worker subprocess that inherits our stdout pipe and owns the
+                // trainer port. Killing only the parent orphans the worker, which then
+                // prints a BrokenPipe/EOFError traceback into the Unity console and
+                // keeps port 5004 busy for the next launch.
+                if (!TryKillProcessTree(trainerProcess.Id))
+                    trainerProcess.Kill();
                 trainerProcess.WaitForExit(3000);
             }
         }
@@ -98,6 +114,33 @@ public class TrainerProcessLauncher : IDisposable
 
         trainerProcess.Dispose();
         trainerProcess = null;
+    }
+
+    // Process.Kill(entireProcessTree) is .NET Core 3+ and not available on Unity's
+    // Mono profile, so shell out to taskkill instead.
+    private static bool TryKillProcessTree(int pid)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = "taskkill",
+                Arguments = $"/PID {pid} /T /F",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+
+            using var taskkill = Process.Start(psi);
+            if (taskkill == null) return false;
+
+            taskkill.WaitForExit(5000);
+            return taskkill.HasExited && taskkill.ExitCode == 0;
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"[TrainerLauncher] taskkill failed ({e.Message}); killing the parent process only.");
+            return false;
+        }
     }
 
     private bool WaitForPort(int timeoutSeconds)

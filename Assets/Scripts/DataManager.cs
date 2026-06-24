@@ -32,6 +32,13 @@ public static class DataManager
     private static string SettingsPath(GameMode mode) =>
         Path.Combine(ModePath(mode), "settings.json");
 
+    /// <summary>
+    /// One save slot per (mode, AI type) so each AI/objective combination is
+    /// stored separately and overwrites only its own previous save.
+    /// </summary>
+    public static string SaveStatePath(GameMode mode, AIType aiType) =>
+        Path.Combine(ModePath(mode), $"save_{aiType}.json");
+
     // ── Hard-coded defaults per mode ──────────────────────────────────────────
 
     private static readonly Dictionary<GameMode, SimulationSettings> Defaults =
@@ -39,7 +46,7 @@ public static class DataManager
         {
             // [GameMode.MaxAltitude] = new SimulationSettings
             // {
-            //     PopulationSize = 2000,
+            //     PopulationSize = 1000,
             //     AIType = AIType.FixedNeuroEvo,
             //     SpawnRadius = 50f,
             //     SpawnFormation = SpawnFormation.Random,
@@ -66,18 +73,18 @@ public static class DataManager
             //         OutputSize = 4,
             //     },
             // },
-            // [GameMode.MaxAltitude] = new SimulationSettings
-            // {
-            //     PopulationSize = 10,
-            //     AIType = AIType.PPO_MLAgents,
-            //     SpawnRadius = 0f,
-            //     SpawnFormation = SpawnFormation.Random,
-            //     RLSettings = new RLSettings
-            //     {
-            //         InputSize = 12,
-            //         OutputSize = 4,
-            //     },
-            // },
+            [GameMode.MaxAltitude] = new SimulationSettings
+            {
+                PopulationSize = 100,
+                AIType = AIType.PPO_MLAgents,
+                SpawnRadius = 0f,
+                SpawnFormation = SpawnFormation.Random,
+                RLSettings = new RLSettings
+                {
+                    InputSize = 12,
+                    OutputSize = 4,
+                },
+            },
             // [GameMode.MaxAltitude] = new SimulationSettings
             // {
             //     PopulationSize = 10,
@@ -94,7 +101,7 @@ public static class DataManager
             // },
             // [GameMode.FlightSchool] = new SimulationSettings
             // {
-            //     PopulationSize = 2000,
+            //     PopulationSize = 1111,
             //     AIType = AIType.FixedNeuroEvo,
             //     SpawnRadius = 0f,
             //     SpawnFormation = SpawnFormation.Random,
@@ -121,32 +128,32 @@ public static class DataManager
             //         OutputSize = 4,
             //     },
             // },
-            // [GameMode.FlightSchool] = new SimulationSettings
-            // {
-            //     PopulationSize = 100,
-            //     AIType = AIType.PPO_MLAgents,
-            //     SpawnRadius = 0f,
-            //     SpawnFormation = SpawnFormation.Random,
-            //     RLSettings = new RLSettings
-            //     {
-            //         InputSize = 19,
-            //         OutputSize = 4,
-            //     },
-            // },
             [GameMode.FlightSchool] = new SimulationSettings
             {
-                PopulationSize = 10,
-                AIType = AIType.SAC_MLAgents,
+                PopulationSize = 100,
+                AIType = AIType.PPO_MLAgents,
                 SpawnRadius = 0f,
                 SpawnFormation = SpawnFormation.Random,
                 RLSettings = new RLSettings
                 {
                     InputSize = 19,
                     OutputSize = 4,
-                    BatchSize = 128,
-                    BufferSize = 50000,
                 },
             },
+            // [GameMode.FlightSchool] = new SimulationSettings
+            // {
+            //     PopulationSize = 10,
+            //     AIType = AIType.SAC_MLAgents,
+            //     SpawnRadius = 0f,
+            //     SpawnFormation = SpawnFormation.Random,
+            //     RLSettings = new RLSettings
+            //     {
+            //         InputSize = 19,
+            //         OutputSize = 4,
+            //         BatchSize = 128,
+            //         BufferSize = 50000,
+            //     },
+            // },
             [GameMode.Dogfight] = new SimulationSettings
             {
                 PopulationSize = 10,
@@ -237,6 +244,160 @@ public static class DataManager
     }
 
 
+
+    // ── Training state (full save/load) ────────────────────────────────────────
+
+    /// <summary>
+    /// True if a saved training run exists for this (mode, AI type) pair.
+    /// </summary>
+    public static bool HasTrainingState(GameMode mode, AIType aiType) =>
+        File.Exists(SaveStatePath(mode, aiType));
+
+    /// <summary>
+    /// Persists a full training snapshot for <paramref name="mode"/> /
+    /// <paramref name="aiType"/>, overwriting any previous save for that pair.
+    /// </summary>
+    public static void SaveTrainingState(GameMode mode, AIType aiType, TrainingSaveData data)
+    {
+        try
+        {
+            EnsureDirectory(ModePath(mode));
+            string json = JsonConvert.SerializeObject(data, Formatting.Indented);
+            File.WriteAllText(SaveStatePath(mode, aiType), json);
+            Debug.Log($"[DataManager] Saved training state for {mode}/{aiType}.");
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[DataManager] Failed to save training state for {mode}/{aiType}: {e.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Loads the saved training snapshot for <paramref name="mode"/> /
+    /// <paramref name="aiType"/>, or null if none exists / it is corrupt.
+    /// </summary>
+    public static TrainingSaveData LoadTrainingState(GameMode mode, AIType aiType)
+    {
+        string path = SaveStatePath(mode, aiType);
+        if (!File.Exists(path))
+            return null;
+
+        try
+        {
+            string json = File.ReadAllText(path);
+            return JsonConvert.DeserializeObject<TrainingSaveData>(json);
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[DataManager] Failed to read training state for {mode}/{aiType}: {e.Message}");
+            return null;
+        }
+    }
+
+    // ── Protected (temporary) save slot ────────────────────────────────────────
+    // The reward-parameter commit round-trips Save→Load to apply staged changes
+    // while keeping the trained brains/policy. To avoid clobbering the user's real
+    // manual save, the caller backs it up before the round-trip and restores it
+    // after. A save slot is the JSON file plus, for RL, the checkpoint directory.
+
+    /// <summary>RL checkpoint directory for a slot — mirrors RLParadigm.SaveCheckpointDir.</summary>
+    private static string CheckpointDirPath(GameMode mode, AIType aiType) =>
+        Path.Combine(ModePath(mode), $"rl_checkpoint_{aiType}");
+
+    private static string BackupStatePath(GameMode mode, AIType aiType) =>
+        Path.Combine(ModePath(mode), $"save_{aiType}.bak.json");
+
+    private static string BackupCheckpointDirPath(GameMode mode, AIType aiType) =>
+        Path.Combine(ModePath(mode), $"rl_checkpoint_{aiType}.bak");
+
+    /// <summary>
+    /// Copies the current save slot (JSON + RL checkpoint dir) aside so a
+    /// subsequent overwrite can be undone with <see cref="RestoreTrainingStateBackup"/>.
+    /// Copies (not moves) so the original is always recoverable if interrupted.
+    /// </summary>
+    public static void BackupTrainingState(GameMode mode, AIType aiType)
+    {
+        try
+        {
+            string json = SaveStatePath(mode, aiType);
+            if (File.Exists(json))
+                File.Copy(json, BackupStatePath(mode, aiType), overwrite: true);
+
+            string checkpointDir = CheckpointDirPath(mode, aiType);
+            if (Directory.Exists(checkpointDir))
+            {
+                string backupDir = BackupCheckpointDirPath(mode, aiType);
+                if (Directory.Exists(backupDir)) Directory.Delete(backupDir, true);
+                CopyDirectory(checkpointDir, backupDir);
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[DataManager] Failed to back up training state for {mode}/{aiType}: {e.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Restores the backup made by <see cref="BackupTrainingState"/> over the real
+    /// slot, discarding whatever was written in between and removing the backup.
+    /// </summary>
+    public static void RestoreTrainingStateBackup(GameMode mode, AIType aiType)
+    {
+        try
+        {
+            string backupJson = BackupStatePath(mode, aiType);
+            if (File.Exists(backupJson))
+            {
+                string json = SaveStatePath(mode, aiType);
+                if (File.Exists(json)) File.Delete(json);
+                File.Move(backupJson, json);
+            }
+
+            string backupDir = BackupCheckpointDirPath(mode, aiType);
+            if (Directory.Exists(backupDir))
+            {
+                string checkpointDir = CheckpointDirPath(mode, aiType);
+                if (Directory.Exists(checkpointDir)) Directory.Delete(checkpointDir, true);
+                Directory.Move(backupDir, checkpointDir);
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[DataManager] Failed to restore training state backup for {mode}/{aiType}: {e.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Deletes the save slot (JSON + RL checkpoint dir) for a (mode, AI type).
+    /// Used to remove a temporary slot created only as a Save→Load vehicle when
+    /// the user had no real save to protect.
+    /// </summary>
+    public static void DeleteTrainingState(GameMode mode, AIType aiType)
+    {
+        try
+        {
+            string json = SaveStatePath(mode, aiType);
+            if (File.Exists(json)) File.Delete(json);
+
+            string checkpointDir = CheckpointDirPath(mode, aiType);
+            if (Directory.Exists(checkpointDir)) Directory.Delete(checkpointDir, true);
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[DataManager] Failed to delete training state for {mode}/{aiType}: {e.Message}");
+        }
+    }
+
+    private static void CopyDirectory(string sourceDir, string destDir)
+    {
+        Directory.CreateDirectory(destDir);
+
+        foreach (string file in Directory.GetFiles(sourceDir))
+            File.Copy(file, Path.Combine(destDir, Path.GetFileName(file)), overwrite: true);
+
+        foreach (string subDir in Directory.GetDirectories(sourceDir))
+            CopyDirectory(subDir, Path.Combine(destDir, Path.GetFileName(subDir)));
+    }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -353,9 +514,22 @@ public class NeuroEvoSettings : EvoSettings
 [Serializable]
 public class NeatSettings : EvoSettings
 {
-    // Future: complexity threshold, speciation params, etc.
     public int InputSize = 19;
     public int OutputSize = 4;
+
+    // SharpNEAT tunables. Defaults match the values NeatEngine.BuildScaffolding
+    // used to hard-code, so existing saves (which lack these fields) behave
+    // exactly as before. All are "hot": a save→load round-trip rebuilds the
+    // SharpNEAT scaffolding from these, and the restored population keeps
+    // evolving under the new values. (MutationRate, inherited from EvoSettings,
+    // is unused by NEAT — SharpNEAT drives mutation via the probabilities below.)
+    public int SpecieCount = 10;
+    public float ElitismProportion = 0.2f;
+    public float SelectionProportion = 0.4f;
+    public float AddNodeMutationProbability = 0.02f;
+    public float AddConnectionMutationProbability = 0.05f;
+    public float DeleteConnectionMutationProbability = 0.02f;
+    public float ConnectionWeightMutationProbability = 0.96f;
 
     public override EvoSettings Clone() =>
         new NeatSettings
@@ -364,6 +538,13 @@ public class NeatSettings : EvoSettings
             Lambda = Lambda,
             InputSize = InputSize,
             OutputSize = OutputSize,
+            SpecieCount = SpecieCount,
+            ElitismProportion = ElitismProportion,
+            SelectionProportion = SelectionProportion,
+            AddNodeMutationProbability = AddNodeMutationProbability,
+            AddConnectionMutationProbability = AddConnectionMutationProbability,
+            DeleteConnectionMutationProbability = DeleteConnectionMutationProbability,
+            ConnectionWeightMutationProbability = ConnectionWeightMutationProbability,
         };
 }
 
@@ -393,6 +574,14 @@ public class RLSettings
     public int MaxSteps = 5000000;
     public int TimeHorizon = 128;
     public int DecisionPeriod = 5;
+
+    // How often (in trainer steps) mlagents-learn writes a checkpoint to
+    // results/<run-id>/. This bounds save granularity: SaveState can only
+    // capture the latest checkpoint, so anything trained since it is not in
+    // the save. Keep this small enough that pressing save shortly after
+    // progress actually captures it; each checkpoint also exports an .onnx,
+    // so very small values add periodic hitches during training.
+    public int CheckpointInterval = 25000;
 
     // Engine settings. ML-Agents pushes this to Unity's Time.timeScale on connect.
     // Defaults to 1 so RL runs start at normal speed (like the evolutionary modes)
@@ -425,6 +614,7 @@ public class RLSettings
             MaxSteps = MaxSteps,
             TimeHorizon = TimeHorizon,
             DecisionPeriod = DecisionPeriod,
+            CheckpointInterval = CheckpointInterval,
             TrainingTimeScale = TrainingTimeScale,
             InitEntCoef = InitEntCoef,
             Tau = Tau,
@@ -464,7 +654,7 @@ public class RLSettings
     time_horizon: {TimeHorizon}
     summary_freq: 10000
     keep_checkpoints: 5
-    checkpoint_interval: 100000
+    checkpoint_interval: {CheckpointInterval}
 
 engine_settings:
   time_scale: {TrainingTimeScale}
@@ -499,7 +689,7 @@ engine_settings:
     time_horizon: {TimeHorizon}
     summary_freq: 10000
     keep_checkpoints: 5
-    checkpoint_interval: 100000
+    checkpoint_interval: {CheckpointInterval}
 
 engine_settings:
   time_scale: {TrainingTimeScale}

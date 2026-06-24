@@ -98,9 +98,12 @@ public class TimeScaleWidget : UIWidget
 
         if (value > 0f)
         {
-            // For slow-mo (< 1x), scale down fixedDeltaTime to keep it smooth.
-            // For fast-forward (> 1x), cap fixedDeltaTime at 0.02f to ensure accurate physics!
-            Time.fixedDeltaTime = Mathf.Min(0.02f, 0.02f * value);
+            // Keep the physics step fixed at 0.02s at every time scale. Slowing time
+            // down is purely to ease CPU load (fewer physics steps per real second);
+            // it must NOT shrink the integration step, or the same brain would fly a
+            // different trajectory at different speeds — breaking deterministic
+            // re-evaluation and, with it, elitism.
+            Time.fixedDeltaTime = 0.02f;
         }
     }
 }

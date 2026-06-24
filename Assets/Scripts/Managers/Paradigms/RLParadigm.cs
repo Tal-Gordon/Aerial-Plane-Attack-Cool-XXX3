@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using Unity.MLAgents;
@@ -12,17 +13,78 @@ public class RLParadigm : ITrainingParadigm
     private List<JetAgent> population;
     private List<JetMLAgent> mlAgents;
 
-    private float[] cumulativeScores;
+    // Per-episode reward tracking (NOT cumulative across the run): lastEpisodeScores[i]
+    // is agent i's most recent completed-episode reward — i.e. the points that jet
+    // earned over its last life (birth to death). hasReported[i] marks whether that
+    // jet has finished at least one life yet, so the live MAX/AVG only count jets
+    // that have actually scored (early zeros don't drag them down).
+    private float[] lastEpisodeScores;
+    private bool[] hasReported;
     private int totalEpisodes;
-    private float bestCumulativeScore;
+
+    // All-time best single life ever — kept only for the saved "champion score",
+    // NOT shown live (the live MAX is the current population's best last life, so it
+    // stays comparable to the AVG). Starts at -inf so the first episode registers.
+    private float bestEpisodeScore = float.NegativeInfinity;
     private float trainingStartTime;
+
+    // bestEpisodeScore before any episode completes is the -inf sentinel; report 0
+    // instead so the save metadata never shows "-Infinity".
+    private float ReportedBest => float.IsNegativeInfinity(bestEpisodeScore) ? 0f : bestEpisodeScore;
+
+    // Live MAX/AVG of jets' last-life scores, over jets that have finished a life.
+    // One shared definition feeding both the numbers widget and the history graph,
+    // so MAX is just the top of the same quantity AVG averages — directly comparable.
+    private void ComputeCurrentStats(out float max, out float avg)
+    {
+        float sum = 0f;
+        max = float.NegativeInfinity;
+        int n = 0;
+
+        for (int i = 0; i < lastEpisodeScores.Length; i++)
+        {
+            if (!hasReported[i]) continue;
+            float s = lastEpisodeScores[i];
+            if (s > max) max = s;
+            sum += s;
+            n++;
+        }
+
+        if (n == 0) { max = 0f; avg = 0f; }
+        else avg = sum / n;
+    }
 
     private SimulationSnapshot cachedSnapshot;
     private TrainerProcessLauncher trainerLauncher;
+    private DateTime trainerLaunchedUtc;
+
+    // ML-Agents binds the Unity<->trainer connection when the first agent (or
+    // DecisionRequester) touches Academy.Instance. Academy.Dispose() resets that
+    // lazy singleton, so the trainer CAN be swapped mid-session: shut the stack
+    // down (ShutdownTrainer), launch a new trainer, re-enable the agents, and the
+    // fresh Academy binds to it. That is how LoadState resumes a saved checkpoint
+    // without leaving Play mode.
+    private bool trainerStarted;
 
     private string AlgorithmName => settings.AIType == AIType.SAC_MLAgents ? "SAC" : "PPO";
     private string YamlFileName => settings.AIType == AIType.SAC_MLAgents ? "jet_sac.yaml" : "jet_ppo.yaml";
     private string YamlPath => Path.Combine(Application.dataPath, "..", "config", YamlFileName);
+
+    // Stable, per-(mode, AI type) run-id so each objective/algorithm combination
+    // owns its own results/<run-id>/ directory and can be resumed independently.
+    private string RunId => $"{objective.Mode}_{settings.AIType}";
+
+    private static string ProjectRoot => Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+
+    // Live directory the trainer writes checkpoints to (mlagents-learn writes a
+    // checkpoint every checkpoint_interval steps, see RLSettings.ToYaml).
+    private string ResultsDir => Path.Combine(ProjectRoot, "results", RunId);
+
+    // Persistent save slot: a snapshot copy of ResultsDir kept under the same
+    // GameData/<Mode>/ folder the rest of the save system uses. Decoupled from the
+    // live results dir so it survives a later --force and acts as a stable restore
+    // point, mirroring how the evolutionary save captures the population at save time.
+    private string SaveCheckpointDir => Path.Combine(DataManager.ModePath(objective.Mode), $"rl_checkpoint_{settings.AIType}");
 
     public void Initialize(List<JetAgent> population, SimulationSettings settings, IObjective objective)
     {
@@ -31,18 +93,10 @@ public class RLParadigm : ITrainingParadigm
         this.objective = objective;
 
         mlAgents = new List<JetMLAgent>(population.Count);
-        cumulativeScores = new float[population.Count];
+        lastEpisodeScores = new float[population.Count];
+        hasReported = new bool[population.Count];
 
         trainingStartTime = Time.time;
-
-        WriteYamlConfig();
-
-        trainerLauncher = new TrainerProcessLauncher();
-        string runId = settings.AIType == AIType.SAC_MLAgents ? "sac_training" : "training";
-        if (!trainerLauncher.Launch($"config/{YamlFileName}", runId))
-        {
-            Debug.LogError($"[RLParadigm] Python trainer failed to start ({AlgorithmName}). Agents will fall back to heuristic mode.");
-        }
 
         cachedSnapshot = new SimulationSnapshot
         {
@@ -51,6 +105,49 @@ public class RLParadigm : ITrainingParadigm
             RLData = new RLSnapshot()
         };
 
+        // The trainer is deliberately NOT started here. A plain Play starts it
+        // fresh on the first Tick; SimulationManager's load flow calls LoadState()
+        // right after Initialize, which starts it in resume mode instead. Deferring
+        // the start is what lets load avoid booting a fresh trainer just to kill it.
+    }
+
+    // Launches mlagents-learn (fresh, or resuming from a staged checkpoint) and
+    // only then wires up the agents: the first agent/DecisionRequester to touch
+    // Academy.Instance creates the Academy, which immediately tries to bind to
+    // the trainer — so the trainer must already be listening on the port.
+    private void StartTrainer(bool resume, bool inference = false)
+    {
+        trainerStarted = true;
+
+        WriteYamlConfig();
+
+        // --force does NOT clear old checkpoint files, so a fresh run would leave
+        // a previously staged checkpoint.pt lying around — and SaveState would
+        // silently snapshot that stale state instead of this run's. Wipe the live
+        // results so a fresh run's saves can only contain its own data. Inference
+        // always resumes, so this never runs for it.
+        if (!resume)
+            ClearLiveResults();
+
+        trainerLauncher = new TrainerProcessLauncher();
+        if (!trainerLauncher.Launch($"config/{YamlFileName}", RunId, resume, inference))
+        {
+            Debug.LogError($"[RLParadigm] Python trainer failed to start ({AlgorithmName}). Agents will fall back to heuristic mode.");
+        }
+        else if (inference)
+        {
+            Debug.Log($"[RLParadigm] Replaying saved {AlgorithmName} policy in inference mode (no learning, run-id {RunId}).");
+        }
+        else if (resume)
+        {
+            Debug.Log($"[RLParadigm] Resumed {AlgorithmName} training from saved checkpoint (run-id {RunId}).");
+        }
+
+        // Anything in results/ written after this moment was checkpointed by
+        // THIS trainer; anything older was staged from a previous save.
+        trainerLaunchedUtc = DateTime.UtcNow;
+
+        mlAgents.Clear();
         for (int i = 0; i < population.Count; i++)
         {
             var jetAgent = population[i];
@@ -93,27 +190,37 @@ public class RLParadigm : ITrainingParadigm
 
     private void ConfigureDecisionRequester(GameObject go)
     {
-        var dr = go.GetComponent<DecisionRequester>();
-        if (dr == null)
-            dr = go.AddComponent<DecisionRequester>();
+        // Always recreate: DecisionRequester subscribes to the Academy in Awake
+        // and only unsubscribes in OnDestroy, so an instance from before an
+        // Academy recycle stays wired to the dead Academy and never requests
+        // decisions again.
+        var stale = go.GetComponent<DecisionRequester>();
+        if (stale != null)
+            UnityEngine.Object.DestroyImmediate(stale);
+
+        var dr = go.AddComponent<DecisionRequester>();
         dr.DecisionPeriod = settings.RLSettings.DecisionPeriod;
         dr.TakeActionsBetweenDecisions = true;
-        dr.enabled = true;
     }
 
     public void Tick()
     {
+        if (!trainerStarted)
+            StartTrainer(resume: false);
+
         cachedSnapshot.AgentsAlive = population.Count;
     }
 
     public SimulationSnapshot GetSnapshot()
     {
+        ComputeCurrentStats(out float curMax, out float curAvg);
+
         cachedSnapshot.IterationNumber = totalEpisodes;
-        cachedSnapshot.ChampionScore = bestCumulativeScore;
+        cachedSnapshot.ChampionScore = ReportedBest; // all-time, used by inference/save
         cachedSnapshot.RLData.TotalEpisodes = totalEpisodes;
         cachedSnapshot.RLData.TrainingTime = Time.time - trainingStartTime;
-        cachedSnapshot.RLData.BestCumulativeScore = bestCumulativeScore;
-        cachedSnapshot.RLData.CumulativeScores = cumulativeScores;
+        cachedSnapshot.RLData.CurrentMax = curMax;
+        cachedSnapshot.RLData.CurrentAvg = curAvg;
 
         return cachedSnapshot;
     }
@@ -121,10 +228,14 @@ public class RLParadigm : ITrainingParadigm
     public void RecordEpisodeEnd(int agentIndex, float episodeReward)
     {
         totalEpisodes++;
-        cumulativeScores[agentIndex] += episodeReward;
 
-        if (cumulativeScores[agentIndex] > bestCumulativeScore)
-            bestCumulativeScore = cumulativeScores[agentIndex];
+        // Record THIS life's reward, replacing the agent's previous one — these are
+        // per-life figures, never a running sum (that grew without bound).
+        lastEpisodeScores[agentIndex] = episodeReward;
+        hasReported[agentIndex] = true;
+
+        if (episodeReward > bestEpisodeScore)
+            bestEpisodeScore = episodeReward;
     }
 
     public IBrain GetChampionBrain()
@@ -132,14 +243,235 @@ public class RLParadigm : ITrainingParadigm
         return null;
     }
 
+    public IBrain LoadChampionBrain()
+    {
+        // RL has no in-process IBrain — the policy lives in the trainer/checkpoint
+        // and is replayed by launching mlagents-learn with --inference (see
+        // StartInference). This hook is only meaningful for the in-memory
+        // evolutionary brains, so it stays null here.
+        return null;
+    }
+
+    // ── Inference replay ─────────────────────────────────────────────
+
+    public bool CanRunInference => true;
+
+    public bool StartInference()
+    {
+        // Replay the SAVED policy, not the live run: stage the saved checkpoint
+        // into the live results dir (same as a resume) so the trainer can load it.
+        if (!StageSavedCheckpoint())
+        {
+            Debug.LogWarning($"[RLParadigm] No usable checkpoint in the save for {objective.Mode}/{settings.AIType}; cannot run inference. Train, save, then retry.");
+            return false;
+        }
+
+        cachedSnapshot.ParadigmName = $"Inference ({AlgorithmName})";
+
+        // --resume loads the staged checkpoint; --inference runs it with no
+        // learning. The single jet the manager spawned binds to this trainer and
+        // its episodes auto-respawn, looping the course exactly like training but
+        // with a frozen policy.
+        StartTrainer(resume: true, inference: true);
+        return true;
+    }
+
+    public void TickInference()
+    {
+        // ML-Agents + the inference trainer drive the lone agent (observe → act →
+        // EndEpisode → OnEpisodeBegin respawns). Nothing to pump here; just keep
+        // the snapshot's alive count current.
+        cachedSnapshot.AgentsAlive = population.Count;
+    }
+
     public float GetChampionScore()
     {
-        return bestCumulativeScore;
+        return ReportedBest;
     }
 
     public void SaveChampion(string directoryPath)
     {
         Debug.Log("[RLParadigm] Champion saving not yet implemented. Train via mlagents-learn and export the .onnx model.");
+    }
+
+    public void SaveState()
+    {
+        // ML-Agents owns the weights: the trainer auto-writes checkpoints into
+        // results/<run-id>/ every checkpoint_interval steps. Saving snapshots that
+        // directory into a persistent slot (a stable restore point that survives
+        // later fresh runs) and writes a TrainingSaveData so settings, objective
+        // params and stats round-trip through the same generic save system the
+        // evolutionary modes use. LoadState stages the slot back and resumes it.
+        if (!Directory.Exists(ResultsDir))
+        {
+            Debug.LogWarning($"[RLParadigm] No results to snapshot at {ResultsDir}. The trainer writes its first checkpoint after checkpoint_interval steps (see RLSettings.ToYaml) — train longer, then save again.");
+            return;
+        }
+
+        try
+        {
+            CopyDirectory(ResultsDir, SaveCheckpointDir);
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[RLParadigm] Failed to snapshot checkpoints: {e.Message}");
+            return;
+        }
+
+        if (!HasCheckpointFile(SaveCheckpointDir))
+            Debug.LogWarning($"[RLParadigm] Snapshot contains no .pt checkpoint yet; a resume from this save will fall back to a fresh run until the trainer has checkpointed at least once.");
+        else if (TryGetLatestCheckpointStep(out int checkpointStep, out bool fromThisSession) && fromThisSession)
+            Debug.Log($"[RLParadigm] Save captured the trainer's checkpoint at step {checkpointStep}. Progress since that checkpoint (up to {settings.RLSettings.CheckpointInterval} steps) is not included.");
+        else
+            Debug.LogWarning($"[RLParadigm] Save taken, but the trainer hasn't written a NEW checkpoint this session (it checkpoints every {settings.RLSettings.CheckpointInterval} steps) — loading this save resumes from the previously saved step, not from current progress. Train past the next checkpoint and save again to capture it.");
+
+        ComputeCurrentStats(out float topScore, out float average);
+
+        var data = new TrainingSaveData
+        {
+            AIType = settings.AIType,
+            Mode = objective.Mode,
+            Settings = settings.Clone(),
+            ObjectiveParameters = objective.GetParameters(),
+            Generation = totalEpisodes,
+            PopulationSize = population.Count,
+            ChampionScore = ReportedBest,
+            TopScore = topScore,
+            AverageScore = average,
+            SavedAtUtc = DateTime.UtcNow.ToString("o"),
+            // Opaque marker for the RL path: the run-id whose checkpoint snapshot
+            // backs this save. Non-empty so HasTrainingState / load checks pass.
+            EngineState = RunId,
+        };
+
+        DataManager.SaveTrainingState(objective.Mode, settings.AIType, data);
+    }
+
+    public void LoadState()
+    {
+        // Runs after SimulationManager tore down the previous run (Dispose closed
+        // the old Academy and killed its trainer) and re-initialized this paradigm
+        // with the saved settings. The trainer hasn't started yet — Initialize
+        // defers that — so it can be started directly in resume mode: stage the
+        // saved checkpoint into results/<run-id>/ and launch with --resume. The
+        // agents enabled by StartTrainer then bind a fresh Academy to the new
+        // trainer, making this a true in-place, mid-simulation load.
+        if (trainerStarted)
+            ShutdownTrainer(); // direct call outside the manager flow — recycle first
+
+        TrainingSaveData data = DataManager.LoadTrainingState(objective.Mode, settings.AIType);
+        if (data != null)
+        {
+            // Carry the all-time best episode forward across the load. (Saves made
+            // before the per-episode fix stored a runaway accumulated value, so an
+            // old save will show an inflated BEST until you re-save with current code.)
+            bestEpisodeScore = data.ChampionScore;
+            totalEpisodes = data.Generation;
+        }
+
+        bool resume = StageSavedCheckpoint();
+        if (!resume)
+            Debug.LogWarning($"[RLParadigm] No usable checkpoint in the save for {objective.Mode}/{settings.AIType}; starting a fresh run instead.");
+
+        StartTrainer(resume);
+    }
+
+    // Stages the saved checkpoint into the live results dir so the trainer can
+    // --resume from it. False when the save has no usable checkpoint.
+    private bool StageSavedCheckpoint()
+    {
+        if (!Directory.Exists(SaveCheckpointDir) || !HasCheckpointFile(SaveCheckpointDir))
+            return false;
+
+        try
+        {
+            CopyDirectory(SaveCheckpointDir, ResultsDir);
+            return true;
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[RLParadigm] Failed to stage saved checkpoint for resume: {e.Message}. Starting fresh instead.");
+            return false;
+        }
+    }
+
+    private static bool HasCheckpointFile(string dir) =>
+        Directory.Exists(dir) && Directory.GetFiles(dir, "*.pt", SearchOption.AllDirectories).Length > 0;
+
+    // Finds the newest numbered checkpoint (JetBrain-<step>.pt) in the live
+    // results by write time, and whether the running trainer wrote it — files
+    // older than the launch were staged from a previous save, so a save that
+    // only contains those does not capture this session's progress. The step
+    // is only trustworthy when fromThisSession is true: staged files share one
+    // copy timestamp, so 'newest' among them is arbitrary.
+    private bool TryGetLatestCheckpointStep(out int step, out bool fromThisSession)
+    {
+        step = 0;
+        DateTime newest = DateTime.MinValue;
+
+        foreach (string file in Directory.GetFiles(ResultsDir, "*.pt", SearchOption.AllDirectories))
+        {
+            string name = Path.GetFileNameWithoutExtension(file);
+            int dash = name.LastIndexOf('-');
+            if (dash < 0 || !int.TryParse(name.Substring(dash + 1), out int fileStep))
+                continue;
+
+            DateTime written = File.GetLastWriteTimeUtc(file);
+            if (written > newest)
+            {
+                newest = written;
+                step = fileStep;
+            }
+        }
+
+        fromThisSession = newest > trainerLaunchedUtc;
+        return step > 0;
+    }
+
+    // A fresh (--force) launch does not clean results/<run-id>/ — stale staged
+    // checkpoints would survive and poison the next save. Locked files (e.g. a
+    // tensorboard tail) just downgrade to the trainer's own leftover handling.
+    private void ClearLiveResults()
+    {
+        if (!Directory.Exists(ResultsDir)) return;
+
+        try
+        {
+            Directory.Delete(ResultsDir, true);
+        }
+        catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
+        {
+            Debug.LogWarning($"[RLParadigm] Could not fully clear {ResultsDir} before a fresh run: {e.Message}");
+        }
+    }
+
+    // Mirrors a directory tree into dest (replacing it). Files are opened with a
+    // shared read so a running trainer holding handles (e.g. tensorboard event
+    // files) doesn't block the snapshot; an individually locked file is skipped
+    // with a warning rather than aborting the whole copy.
+    private static void CopyDirectory(string source, string dest)
+    {
+        if (Directory.Exists(dest))
+            Directory.Delete(dest, true);
+        Directory.CreateDirectory(dest);
+
+        foreach (string file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
+        {
+            string relative = file.Substring(source.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            string target = Path.Combine(dest, relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(target));
+
+            try
+            {
+                using var src = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                using var dst = new FileStream(target, FileMode.Create, FileAccess.Write, FileShare.None);
+                src.CopyTo(dst);
+            }
+            catch (IOException e)
+            {
+                Debug.LogWarning($"[RLParadigm] Skipped locked file during copy: {Path.GetFileName(file)} ({e.Message})");
+            }
+        }
     }
 
     private void WriteYamlConfig()
@@ -155,6 +487,34 @@ public class RLParadigm : ITrainingParadigm
 
     public void Dispose()
     {
+        ShutdownTrainer();
+    }
+
+    // Tears down the live ML-Agents stack so a new trainer can be bound later in
+    // the SAME Play session. Order matters: agents are disabled first so their
+    // unregistration runs against the still-live Academy; the trainer tree is
+    // killed before the Academy is disposed so the Python side never sees a
+    // disconnect (it would start respawning its env worker, racing the kill);
+    // disposing the Academy last resets its lazy singleton so the next agent
+    // enable can bind a fresh one (the package is built for this — see
+    // Agent.OnDisable).
+    private void ShutdownTrainer()
+    {
+        if (mlAgents != null)
+        {
+            foreach (var mlAgent in mlAgents)
+            {
+                if (mlAgent != null)
+                    mlAgent.enabled = false;
+            }
+        }
+
         trainerLauncher?.Dispose();
+        trainerLauncher = null;
+
+        if (Academy.IsInitialized)
+            Academy.Instance.Dispose();
+
+        trainerStarted = false;
     }
 }
