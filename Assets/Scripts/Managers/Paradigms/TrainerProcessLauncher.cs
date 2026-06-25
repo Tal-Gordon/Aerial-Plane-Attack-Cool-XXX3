@@ -228,21 +228,20 @@ public class TrainerProcessLauncher : IDisposable
         }
     }
 
-    // TODO (deferred until demo/packaging — intentionally NOT done during normal dev):
-    // Goal: a self-contained, "double-click and it runs" build that bundles the ENTIRE
-    // Python stack (Python + torch + mlagents) INSIDE the artifact, so the user installs
-    // nothing themselves. Bloated on purpose — it's a show-off dev tool, not a lean product.
-    // Plan:
-    //   1. conda-pack the working 'mlagents' env into a relocatable folder shipped next to
-    //      the build:  conda pack -n mlagents -o mlagents-env.tar.gz   (env is pinned in
-    //      environment.yml at the repo root). Keep the GPU torch for fast on-device training;
-    //      only swap to CPU-only torch if you need the demo to run on non-NVIDIA machines.
-    //   2. Make this method check that BUNDLED interpreter first (e.g. alongside the
-    //      executable / under StreamingAssets), then fall back to the conda / MLAGENTS_PYTHON
-    //      search below. Same code path then works in the editor (your conda env) and in a
-    //      built demo (the bundled env). This is a release-time artifact, not a dev dependency.
+    // Packaging: a self-contained build bundles the ENTIRE Python stack (Python + torch +
+    // mlagents) so the user installs nothing. The 'mlagents' env (pinned in environment.yml
+    // at the repo root) is conda-pack'd into StreamingAssets/mlagents-env/ by package.ps1;
+    // see that script for the release steps. We check that BUNDLED interpreter first, then
+    // fall back to the conda / MLAGENTS_PYTHON search — so the same code path works in the
+    // editor (your dev conda env) and in a built demo (the bundled env). Bloated on purpose.
     private static string FindCondaPython()
     {
+        // Bundled interpreter shipped with a packaged build. In a build,
+        // streamingAssetsPath is <Game>_Data/StreamingAssets; in the editor it's
+        // Assets/StreamingAssets (empty during dev, so this falls through harmlessly).
+        string bundled = Path.Combine(Application.streamingAssetsPath, "mlagents-env", "python.exe");
+        if (File.Exists(bundled)) return bundled;
+
         string envVar = Environment.GetEnvironmentVariable("MLAGENTS_PYTHON");
         if (!string.IsNullOrEmpty(envVar) && File.Exists(envVar))
             return envVar;
