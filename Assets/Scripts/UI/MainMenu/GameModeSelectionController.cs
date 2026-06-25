@@ -50,7 +50,7 @@ public class GameModeSelectionController : MonoBehaviour
         
         // Clear old listeners so we don't load multiple scenes or repeat actions!
         heroButton.onClick.RemoveAllListeners();
-        heroButton.onClick.AddListener(() => newlySelectedMode.LoadScene(newlySelectedMode.modeName));
+        heroButton.onClick.AddListener(() => newlySelectedMode.LoadScene());
 
         // Note: This is exactly where you would add your DOTween or LeanTween
         // code to fade the text in or briefly scale up the hero image!

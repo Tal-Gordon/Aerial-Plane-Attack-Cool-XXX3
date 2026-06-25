@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -65,4 +66,39 @@ public class UIManager : MonoBehaviour
     public void ClearSelection() => SelectAgent(null);
 
     public void SetTimeScale(float scale) => Time.timeScale = scale;
+
+    /// <summary>
+    /// Enters or leaves inference mode (replay the saved champion/policy, no
+    /// learning) for the currently loaded AI. Both calls are no-ops if already in
+    /// the requested state, and entering may be refused (e.g. no saved run) — the
+    /// UI should re-sync from the snapshot rather than assume the change took.
+    /// </summary>
+    public void SetInferenceMode(bool on)
+    {
+        if (on) simManager.EnterInferenceMode();
+        else simManager.ExitInferenceMode();
+    }
+
+    /// <summary>
+    /// Saves the full training state for the current mode + AI type, overwriting any
+    /// previous save. No-op while no run is active.
+    /// </summary>
+    public void SaveState() => simManager.SaveState();
+
+    /// <summary>
+    /// Rebuilds the run from the saved state for the current mode + AI type. No-op
+    /// (logs a warning) if there is no save to load.
+    /// </summary>
+    public void LoadState() => simManager.LoadState();
+
+    /// <summary>
+    /// Cold-path commit for the hyperparameter editor: bakes the staged values in,
+    /// persists them, optionally saves progress, then reloads the scene.
+    /// </summary>
+    public void ApplyHyperparametersAndReload(Dictionary<string, float> staged, bool saveProgress)
+        => simManager.ApplyHyperparametersAndReload(staged, saveProgress);
+
+    /// <summary>Baked-default hyperparameter values for the current run (reset-to-default).</summary>
+    public Dictionary<string, float> GetDefaultHyperparameters()
+        => simManager.GetDefaultHyperparameters();
 }

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// The single Unity-side manager. Instantiates the population once,
@@ -48,11 +49,22 @@ public class SimulationManager : MonoBehaviour
         }
 
         // TODO: Remove in production
-        DataManager.ResetToDefaults(objective.Mode);
+        // DataManager.ResetToDefaults(objective.Mode);
 
         // Load settings for this mode
         var mode = objective.Mode;
         settings = DataManager.LoadSettings(mode);
+
+        // Apply the AI type chosen in the main menu, if any. When it differs from
+        // the loaded settings we swap in a fresh default for the (mode, AIType)
+        // pair; when it matches we keep the loaded settings (preserving any saved
+        // tuning). A null selection (e.g. pressing Play directly here) keeps the
+        // mode's default.
+        if (GameSession.SelectedAIType is AIType chosen && chosen != settings.AIType)
+        {
+            settings = DataManager.GetDefaults(mode, chosen);
+            Debug.Log($"[SimulationManager] Using menu-selected AI type: {chosen} for {mode}.");
+        }
 
         // Instantiate the population (factory — done once)
         population = InstantiatePopulation(settings.PopulationSize);
@@ -303,6 +315,46 @@ public class SimulationManager : MonoBehaviour
         activeParadigm.Initialize(population, settings, objective);
     }
 
+    // ── Hyperparameter editor (cold path) ────────────────────────────
+    // The hyperparameter editor widget routes hot changes through the tuner's
+    // normal Commit (ApplyHotCommit). Cold changes can't be adopted in place, so
+    // the widget confirms with the user and calls this instead: it bakes the staged
+    // values into the live settings, persists them so the reloaded scene picks them
+    // up, optionally saves training progress, then reloads the scene.
+
+    /// <summary>
+    /// Applies <paramref name="staged"/> hyperparameter values to the live settings,
+    /// persists them, optionally saves the current training progress, then reloads
+    /// the active scene so the new (cold) values take effect from a clean start.
+    /// </summary>
+    public void ApplyHyperparametersAndReload(Dictionary<string, float> staged, bool saveProgress)
+    {
+        if (objective != null && settings != null && staged != null && staged.Count > 0)
+        {
+            hyperParams.SetParameters(staged);
+            DataManager.SaveSettings(objective.Mode, settings);
+        }
+
+        // Optionally preserve the trained brains/policy on disk before reloading.
+        if (saveProgress) SaveState();
+
+        Time.timeScale = 1f;
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+    }
+
+    /// <summary>
+    /// Returns the baked-default hyperparameter values for the current (mode, AI type)
+    /// as a flat key → value map, for the editor's "reset to default" action.
+    /// </summary>
+    public Dictionary<string, float> GetDefaultHyperparameters()
+    {
+        if (objective == null || settings == null)
+            return new Dictionary<string, float>();
+
+        SimulationSettings defaults = DataManager.GetDefaults(objective.Mode, settings.AIType);
+        return new ModelHyperparameters(() => defaults).GetParameters();
+    }
+
     // ── Public API ───────────────────────────────────────────────────
 
     /// <summary>
@@ -320,6 +372,7 @@ public class SimulationManager : MonoBehaviour
         snapshot.TimeScale = Time.timeScale;
         snapshot.SelectedAgent = selectedAgent;
         snapshot.TracksAttrition = objective != null && objective.TracksAttrition;
+        snapshot.InInferenceMode = inInferenceMode;
 
         return snapshot;
     }
@@ -520,6 +573,29 @@ public class SimulationManager : MonoBehaviour
             else
                 Debug.LogWarning($"[SimulationManager] No sensor of type {required} found on {jetAgent.name}. Add the matching sensor component to the jet prefab.");
         }
+
+        // The mode's active sensor is the source of truth for the input width, so
+        // any AI type works in any mode regardless of the baked default's nominal
+        // InputSize. Run after wiring so the active sensor is resolved.
+        ApplyObservationSizeFromSensors(population);
+    }
+
+    // Stamps the active sensor's observation count onto the settings' input width.
+    // Output size is fixed by the flight controls (see JetAgent) and left as-is.
+    private void ApplyObservationSizeFromSensors(List<JetAgent> population)
+    {
+        if (settings == null || population == null || population.Count == 0) return;
+
+        ISensor sensor = population[0].Sensor;
+        if (sensor == null) return;
+
+        int observationSize = sensor.GetSensorCount();
+
+        if (settings.NeatSettings != null) settings.NeatSettings.InputSize = observationSize;
+        if (settings.RLSettings != null) settings.RLSettings.InputSize = observationSize;
+
+        int[] shape = settings.NeuroEvoSettings?.NetworkShape;
+        if (shape != null && shape.Length > 0) shape[0] = observationSize;
     }
 
     private List<JetAgent> InstantiatePopulation(int count)
