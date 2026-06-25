@@ -117,3 +117,8 @@ NeatDebugLog*
 /ProfilerCaptures/
 /[Aa]ssets/ML-Agents/
 
+# Packaged Python env (multi-GB conda-pack output — regenerate with package.ps1)
+/[Aa]ssets/StreamingAssets/mlagents-env/
+/[Aa]ssets/StreamingAssets/mlagents-env.meta
+mlagents-env.tar.gz
+
