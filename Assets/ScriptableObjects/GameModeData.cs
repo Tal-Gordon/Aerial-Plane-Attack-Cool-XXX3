@@ -9,14 +9,31 @@ public class GameModeData : ScriptableObject
     [TextArea(3, 5)] // Makes the text box bigger in the inspector
     public string description;
     public Sprite heroArtwork;
-    public void LoadScene(string sceneName)
+
+    [Tooltip("Scene to load for this mode. Leave empty to fall back to Mode Name.")]
+    public string sceneName;
+
+    /// <summary>Scene this mode loads — the explicit sceneName, or modeName as a fallback.</summary>
+    public string SceneToLoad =>
+        string.IsNullOrWhiteSpace(sceneName) ? modeName : sceneName;
+
+    /// <summary>Loads this mode's scene, validating it first.</summary>
+    public void LoadScene()
     {
-        if (!Application.CanStreamedLevelBeLoaded(sceneName))
+        string scene = SceneToLoad;
+
+        if (string.IsNullOrWhiteSpace(scene))
         {
-            Debug.LogError($"[GameModeData] Scene '{sceneName}' cannot be loaded. Please ensure it is added to the Build Settings (File > Build Settings)!");
+            Debug.LogError($"[GameModeData] '{name}' has no scene to load. Set Scene Name (or Mode Name) on the asset.");
             return;
         }
 
-        SceneManager.LoadScene(sceneName);
+        if (!Application.CanStreamedLevelBeLoaded(scene))
+        {
+            Debug.LogError($"[GameModeData] Scene '{scene}' cannot be loaded. Ensure it is added to the Build Settings (File > Build Settings).");
+            return;
+        }
+
+        SceneManager.LoadScene(scene);
     }
 }

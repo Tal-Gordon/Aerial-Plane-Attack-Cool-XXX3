@@ -39,122 +39,106 @@ public static class DataManager
     public static string SaveStatePath(GameMode mode, AIType aiType) =>
         Path.Combine(ModePath(mode), $"save_{aiType}.json");
 
-    // ── Hard-coded defaults per mode ──────────────────────────────────────────
+    // ── Hard-coded defaults per (mode, AI type) ───────────────────────────────
+    // Every (mode, AI type) the menu can pick has an entry, so any AI type works
+    // in any mode. The InputSize / NetworkShape[0] values here are nominal:
+    // SimulationManager overrides the input width from the mode's active sensor at
+    // runtime (see SimulationManager.ApplyObservationSizeFromSensors), so these
+    // stay correct even if a sensor's observation count changes.
 
-    private static readonly Dictionary<GameMode, SimulationSettings> Defaults =
+    private static readonly Dictionary<(GameMode Mode, AIType AI), SimulationSettings> Defaults =
         new()
         {
-            // [GameMode.MaxAltitude] = new SimulationSettings
-            // {
-            //     PopulationSize = 1000,
-            //     AIType = AIType.FixedNeuroEvo,
-            //     SpawnRadius = 50f,
-            //     SpawnFormation = SpawnFormation.Random,
-            //     NeuroEvoSettings = new NeuroEvoSettings
-            //     {
-            //         MutationRate = 0.1f,
-            //         NetworkShape = new[] { 12, 24, 12, 4 },
-            //     },
-            // },
-            // [GameMode.MaxAltitude] = new SimulationSettings
-            // {
-            //     PopulationSize = 1000,
-            //     AIType = AIType.NEAT,
-            //     SpawnRadius = 0f,
-            //     SpawnFormation = SpawnFormation.Random,
-            //     NeatSettings = new NeatSettings
-            //     {
-            //         InputSize = 12,
-            //         OutputSize = 4,
-            //     },
-            //     RLSettings = new RLSettings
-            //     {
-            //         InputSize = 12,
-            //         OutputSize = 4,
-            //     },
-            // },
-            [GameMode.MaxAltitude] = new SimulationSettings
+            // ── MaxAltitude (BasicFlight sensor, 12 inputs) ───────────────────
+            [(GameMode.MaxAltitude, AIType.FixedNeuroEvo)] = new SimulationSettings
+            {
+                PopulationSize = 1000,
+                AIType = AIType.FixedNeuroEvo,
+                SpawnRadius = 50f,
+                SpawnFormation = SpawnFormation.Random,
+                NeuroEvoSettings = new NeuroEvoSettings
+                {
+                    MutationRate = 0.1f,
+                    NetworkShape = new[] { 12, 24, 12, 4 },
+                },
+            },
+            [(GameMode.MaxAltitude, AIType.NEAT)] = new SimulationSettings
+            {
+                PopulationSize = 1000,
+                AIType = AIType.NEAT,
+                SpawnRadius = 0f,
+                SpawnFormation = SpawnFormation.Random,
+                NeatSettings = new NeatSettings { InputSize = 12, OutputSize = 4 },
+            },
+            [(GameMode.MaxAltitude, AIType.PPO_MLAgents)] = new SimulationSettings
             {
                 PopulationSize = 100,
                 AIType = AIType.PPO_MLAgents,
+                SpawnRadius = 0f,
+                SpawnFormation = SpawnFormation.Random,
+                RLSettings = new RLSettings { InputSize = 12, OutputSize = 4 },
+            },
+            [(GameMode.MaxAltitude, AIType.SAC_MLAgents)] = new SimulationSettings
+            {
+                PopulationSize = 10,
+                AIType = AIType.SAC_MLAgents,
                 SpawnRadius = 0f,
                 SpawnFormation = SpawnFormation.Random,
                 RLSettings = new RLSettings
                 {
                     InputSize = 12,
                     OutputSize = 4,
+                    BatchSize = 128,
+                    BufferSize = 50000,
                 },
             },
-            // [GameMode.MaxAltitude] = new SimulationSettings
-            // {
-            //     PopulationSize = 10,
-            //     AIType = AIType.SAC_MLAgents,
-            //     SpawnRadius = 0f,
-            //     SpawnFormation = SpawnFormation.Random,
-            //     RLSettings = new RLSettings
-            //     {
-            //         InputSize = 12,
-            //         OutputSize = 4,
-            //         BatchSize = 128,
-            //         BufferSize = 50000,
-            //     },
-            // },
-            // [GameMode.FlightSchool] = new SimulationSettings
-            // {
-            //     PopulationSize = 1111,
-            //     AIType = AIType.FixedNeuroEvo,
-            //     SpawnRadius = 0f,
-            //     SpawnFormation = SpawnFormation.Random,
-            //     NeuroEvoSettings = new NeuroEvoSettings
-            //     {
-            //         MutationRate = 0.1f,
-            //         NetworkShape = new[] { 19, 16, 16, 4 },
-            //     },
-            // },
-            // [GameMode.FlightSchool] = new SimulationSettings
-            // {
-            //     PopulationSize = 1000,
-            //     AIType = AIType.NEAT,
-            //     SpawnRadius = 0f,
-            //     SpawnFormation = SpawnFormation.Random,
-            //     NeatSettings = new NeatSettings
-            //     {
-            //         InputSize = 19,
-            //         OutputSize = 4,
-            //     },
-            //     RLSettings = new RLSettings
-            //     {
-            //         InputSize = 19,
-            //         OutputSize = 4,
-            //     },
-            // },
-            [GameMode.FlightSchool] = new SimulationSettings
+
+            // ── FlightSchool (Waypoint sensor, 19 inputs) ─────────────────────
+            [(GameMode.FlightSchool, AIType.FixedNeuroEvo)] = new SimulationSettings
+            {
+                PopulationSize = 1111,
+                AIType = AIType.FixedNeuroEvo,
+                SpawnRadius = 0f,
+                SpawnFormation = SpawnFormation.Random,
+                NeuroEvoSettings = new NeuroEvoSettings
+                {
+                    MutationRate = 0.1f,
+                    NetworkShape = new[] { 19, 16, 16, 4 },
+                },
+            },
+            [(GameMode.FlightSchool, AIType.NEAT)] = new SimulationSettings
+            {
+                PopulationSize = 1000,
+                AIType = AIType.NEAT,
+                SpawnRadius = 0f,
+                SpawnFormation = SpawnFormation.Random,
+                NeatSettings = new NeatSettings { InputSize = 19, OutputSize = 4 },
+            },
+            [(GameMode.FlightSchool, AIType.PPO_MLAgents)] = new SimulationSettings
             {
                 PopulationSize = 100,
                 AIType = AIType.PPO_MLAgents,
+                SpawnRadius = 0f,
+                SpawnFormation = SpawnFormation.Random,
+                RLSettings = new RLSettings { InputSize = 19, OutputSize = 4 },
+            },
+            [(GameMode.FlightSchool, AIType.SAC_MLAgents)] = new SimulationSettings
+            {
+                PopulationSize = 10,
+                AIType = AIType.SAC_MLAgents,
                 SpawnRadius = 0f,
                 SpawnFormation = SpawnFormation.Random,
                 RLSettings = new RLSettings
                 {
                     InputSize = 19,
                     OutputSize = 4,
+                    BatchSize = 128,
+                    BufferSize = 50000,
                 },
             },
-            // [GameMode.FlightSchool] = new SimulationSettings
-            // {
-            //     PopulationSize = 10,
-            //     AIType = AIType.SAC_MLAgents,
-            //     SpawnRadius = 0f,
-            //     SpawnFormation = SpawnFormation.Random,
-            //     RLSettings = new RLSettings
-            //     {
-            //         InputSize = 19,
-            //         OutputSize = 4,
-            //         BatchSize = 128,
-            //         BufferSize = 50000,
-            //     },
-            // },
-            [GameMode.Dogfight] = new SimulationSettings
+
+            // ── Dogfight (BasicFlight sensor, 12 inputs) ──────────────────────
+            [(GameMode.Dogfight, AIType.FixedNeuroEvo)] = new SimulationSettings
             {
                 PopulationSize = 10,
                 AIType = AIType.FixedNeuroEvo,
@@ -163,9 +147,19 @@ public static class DataManager
                 NeuroEvoSettings = new NeuroEvoSettings
                 {
                     MutationRate = 0.08f,
-                    NetworkShape = new[] { 12, 16, 4 }, // TODO change the input based on the assigned sensors
+                    NetworkShape = new[] { 12, 16, 4 },
                 },
             },
+        };
+
+    // AI type used when only a mode is known (first run / LoadSettings, before the
+    // menu selection is applied). Pick the paradigm each mode is primarily tuned for.
+    private static readonly Dictionary<GameMode, AIType> PrimaryAIType =
+        new()
+        {
+            [GameMode.MaxAltitude] = AIType.PPO_MLAgents,
+            [GameMode.FlightSchool] = AIType.NEAT,
+            [GameMode.Dogfight] = AIType.FixedNeuroEvo,
         };
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -403,11 +397,52 @@ public static class DataManager
 
     private static SimulationSettings GetDefaults(GameMode mode)
     {
-        if (Defaults.TryGetValue(mode, out SimulationSettings settings))
-            return settings.Clone();
+        AIType primary = PrimaryAIType.TryGetValue(mode, out AIType ai) ? ai : AIType.NEAT;
+        return GetDefaults(mode, primary);
+    }
 
-        Debug.LogError($"[DataManager] No defaults registered for mode {mode}. Returning empty settings.");
-        return new SimulationSettings();
+    /// <summary>
+    /// Returns a deep clone of the baked defaults for a (mode, AI type) pair. If
+    /// the exact pair has no entry, synthesizes one from the mode's primary default
+    /// (keeping its universal fields) plus a fresh paradigm-specific block for the
+    /// requested AI type, so every AI type is selectable in every mode. InputSize is
+    /// nominal here — SimulationManager overrides it from the active sensor.
+    /// </summary>
+    public static SimulationSettings GetDefaults(GameMode mode, AIType aiType)
+    {
+        if (Defaults.TryGetValue((mode, aiType), out SimulationSettings exact))
+            return exact.Clone();
+
+        Debug.LogWarning($"[DataManager] No baked default for {mode}/{aiType}; synthesizing from the mode's primary default.");
+
+        SimulationSettings basis =
+            PrimaryAIType.TryGetValue(mode, out AIType primary) &&
+            Defaults.TryGetValue((mode, primary), out SimulationSettings p)
+                ? p.Clone()
+                : new SimulationSettings();
+
+        basis.AIType = aiType;
+        EnsureSubSettings(basis);
+        return basis;
+    }
+
+    // Ensures the paradigm-specific sub-settings object the AI type needs is
+    // non-null. Universal fields (population, spawn) are left untouched.
+    private static void EnsureSubSettings(SimulationSettings s)
+    {
+        switch (s.AIType)
+        {
+            case AIType.FixedNeuroEvo:
+                s.NeuroEvoSettings ??= new NeuroEvoSettings();
+                break;
+            case AIType.NEAT:
+                s.NeatSettings ??= new NeatSettings();
+                break;
+            case AIType.PPO_MLAgents:
+            case AIType.SAC_MLAgents:
+                s.RLSettings ??= new RLSettings();
+                break;
+        }
     }
 
     public static void EnsureDirectory(string path)
