@@ -45,6 +45,9 @@ public class ModelHyperparameters : ITunableParameters
     {
         PopulationSizeDesc,
         new("mutationRate", "Mutation Rate", 0f, 1f, 0.1f),
+        // Hot: cadence only — weights/topology are untouched, so brains carry over
+        // on the save→load round-trip. Same label/range as the RL dial.
+        new("decisionPeriod", "Decision Period", 1f, 20f, 1f),
         // NOTE: NetworkShape (hidden layer count + sizes) is also a cold knob but
         // is a variable-length int[] that doesn't fit this flat float contract.
         // It's intentionally deferred until its bespoke control is designed — see
@@ -55,6 +58,7 @@ public class ModelHyperparameters : ITunableParameters
     {
         PopulationSizeDesc,
         // All hot: BuildScaffolding re-reads these on the load round-trip.
+        new("decisionPeriod", "Decision Period", 1f, 20f, 1f),
         new("specieCount", "Species Count", 1f, 50f, 10f),
         new("elitismProportion", "Elitism Proportion", 0f, 1f, 0.2f),
         new("selectionProportion", "Selection Proportion", 0f, 1f, 0.4f),
@@ -71,7 +75,7 @@ public class ModelHyperparameters : ITunableParameters
         // different network, so changing these forces a fresh run.
         new("hiddenUnits", "Hidden Units", 8f, 1024f, 256f, requiresReset: true),
         new("numLayers", "Hidden Layers", 1f, 5f, 2f, requiresReset: true),
-        new("normalize", "Normalize Inputs (0/1)", 0f, 1f, 1f, requiresReset: true),
+        new("normalize", "Normalize Inputs", 0f, 1f, 1f, requiresReset: true, isToggle: true),
         // Hot: regenerated into the YAML every StartTrainer and adopted on --resume.
         new("learningRate", "Learning Rate", 1e-5f, 1e-2f, 3e-4f),
         new("batchSize", "Batch Size", 32f, 16384f, 4096f),
@@ -84,7 +88,9 @@ public class ModelHyperparameters : ITunableParameters
         new("timeHorizon", "Time Horizon", 16f, 2048f, 128f),
         new("maxSteps", "Max Steps", 10000f, 50000000f, 5000000f),
         new("decisionPeriod", "Decision Period", 1f, 20f, 5f),
-        new("trainingTimeScale", "Training Time Scale", 1f, 100f, 1f),
+        // NOTE: trainingTimeScale is intentionally NOT exposed as a dial — it's a
+        // headless-training speed knob, not a model hyperparameter. It still
+        // round-trips in saves via Read/WriteRL below.
     };
 
     private static readonly ParameterDescriptor[] SacDescriptors =
@@ -92,7 +98,7 @@ public class ModelHyperparameters : ITunableParameters
         PopulationSizeDesc,
         new("hiddenUnits", "Hidden Units", 8f, 1024f, 256f, requiresReset: true),
         new("numLayers", "Hidden Layers", 1f, 5f, 2f, requiresReset: true),
-        new("normalize", "Normalize Inputs (0/1)", 0f, 1f, 1f, requiresReset: true),
+        new("normalize", "Normalize Inputs", 0f, 1f, 1f, requiresReset: true, isToggle: true),
         new("learningRate", "Learning Rate", 1e-5f, 1e-2f, 3e-4f),
         new("batchSize", "Batch Size", 32f, 16384f, 4096f),
         new("bufferSize", "Buffer Size", 256f, 1048576f, 20480f),
@@ -104,7 +110,7 @@ public class ModelHyperparameters : ITunableParameters
         new("timeHorizon", "Time Horizon", 16f, 2048f, 128f),
         new("maxSteps", "Max Steps", 10000f, 50000000f, 5000000f),
         new("decisionPeriod", "Decision Period", 1f, 20f, 5f),
-        new("trainingTimeScale", "Training Time Scale", 1f, 100f, 1f),
+        // trainingTimeScale intentionally not exposed — see PpoDescriptors note.
     };
 
     private static readonly ParameterDescriptor[] Empty = new ParameterDescriptor[0];
@@ -135,13 +141,17 @@ public class ModelHyperparameters : ITunableParameters
         {
             case AIType.FixedNeuroEvo:
                 if (s.NeuroEvoSettings != null)
+                {
                     values["mutationRate"] = s.NeuroEvoSettings.MutationRate;
+                    values["decisionPeriod"] = s.NeuroEvoSettings.DecisionPeriod;
+                }
                 break;
 
             case AIType.NEAT:
                 var n = s.NeatSettings;
                 if (n != null)
                 {
+                    values["decisionPeriod"] = n.DecisionPeriod;
                     values["specieCount"] = n.SpecieCount;
                     values["elitismProportion"] = n.ElitismProportion;
                     values["selectionProportion"] = n.SelectionProportion;
@@ -207,15 +217,18 @@ public class ModelHyperparameters : ITunableParameters
         switch (s.AIType)
         {
             case AIType.FixedNeuroEvo:
-                if (s.NeuroEvoSettings != null &&
-                    parameters.TryGetValue("mutationRate", out float mr))
-                    s.NeuroEvoSettings.MutationRate = mr;
+                if (s.NeuroEvoSettings != null)
+                {
+                    if (parameters.TryGetValue("mutationRate", out float mr)) s.NeuroEvoSettings.MutationRate = mr;
+                    if (parameters.TryGetValue("decisionPeriod", out float dp)) s.NeuroEvoSettings.DecisionPeriod = Mathf.Max(1, Mathf.RoundToInt(dp));
+                }
                 break;
 
             case AIType.NEAT:
                 var n = s.NeatSettings;
                 if (n != null)
                 {
+                    if (parameters.TryGetValue("decisionPeriod", out float dp)) n.DecisionPeriod = Mathf.Max(1, Mathf.RoundToInt(dp));
                     if (parameters.TryGetValue("specieCount", out float sc)) n.SpecieCount = Mathf.Max(1, Mathf.RoundToInt(sc));
                     if (parameters.TryGetValue("elitismProportion", out float ep)) n.ElitismProportion = ep;
                     if (parameters.TryGetValue("selectionProportion", out float sp)) n.SelectionProportion = sp;

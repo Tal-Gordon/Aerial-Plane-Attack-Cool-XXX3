@@ -25,6 +25,16 @@ public class JetAgent : MonoBehaviour
     public float CurrentFitness { get => currentFitness; set => currentFitness = value; }
     public float TotalControlEffort { get => totalControlEffort; set => totalControlEffort = value; }
 
+    // Frame-skip / action-repeat cadence (the evolutionary mirror of ML-Agents'
+    // DecisionRequester with TakeActionsBetweenDecisions = true). The brain is
+    // queried once every DecisionPeriod FixedUpdate ticks and the resulting action
+    // is re-applied on the frames in between. AgentIndex is the spawn-slot index; it
+    // phase-staggers decisions across the population so the per-frame brain-eval cost
+    // is spread out. Both are set by the spawner; DecisionPeriod == 1 reproduces the
+    // original decide-every-frame behavior.
+    public int DecisionPeriod = 1;
+    public int AgentIndex = 0;
+
     private bool hasCrashed;
     private IBrain currentBrain;
     private ISensor currentSensor;
@@ -34,6 +44,10 @@ public class JetAgent : MonoBehaviour
     private Vector3 startingPosition;
     private float currentFitness;
     private float totalControlEffort = 0f;
+
+    // Decision-cadence state (see DecisionPeriod / AgentIndex above).
+    private int decisionTick = 0;
+    private float[] lastActions;
 
     // Used to prevent the AI from rapidly toggling weapons every physics frame
     // Technically, this avoids weapon cooldown
@@ -57,11 +71,28 @@ public class JetAgent : MonoBehaviour
 
         if (currentBrain != null && currentSensor != null && physics != null)
         {
-            // Gather observation data from the environment
-            float[] observations = currentSensor.GetObservationData();
+            int period = DecisionPeriod < 1 ? 1 : DecisionPeriod;
 
-            // Ask the brain to process the observations and return control outputs
-            float[] actions = currentBrain.GetControlOutputs(observations);
+            // Re-query the brain only on this agent's decision frame and cache the
+            // result; on the frames in between we re-apply the cached action (the jet
+            // integrates physics every frame, so it must always be driven). The
+            // AgentIndex phase staggers decisions across the population so the
+            // per-frame brain-eval cost is spread out instead of spiking when every
+            // agent decides on the same frame. period == 1 decides every frame —
+            // identical to the original behavior. The null check forces a decision on
+            // the first frame after a (re)spawn.
+            if (lastActions == null || (decisionTick + AgentIndex) % period == 0)
+            {
+                // Gather observation data from the environment
+                float[] observations = currentSensor.GetObservationData();
+
+                // Ask the brain to process the observations and return control outputs
+                lastActions = currentBrain.GetControlOutputs(observations);
+            }
+
+            decisionTick++;
+
+            float[] actions = lastActions;
 
             // Apply the outputs to the physics component
             // Checking array length to prevent IndexOutOfRangeException 
@@ -113,5 +144,11 @@ public class JetAgent : MonoBehaviour
         timeAlive = 0f;
         currentFitness = 0f;
         totalControlEffort = 0f;
+
+        // Clear the decision cadence so every (re)evaluation starts on the same
+        // phase: the first frame always decides, then the staggered schedule resumes
+        // deterministically. Keeps re-evaluated brains (elitism) reproducible.
+        decisionTick = 0;
+        lastActions = null;
     }
 }

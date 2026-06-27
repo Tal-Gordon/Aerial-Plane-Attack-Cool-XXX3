@@ -26,7 +26,15 @@ public struct ParameterDescriptor
     /// </summary>
     public bool RequiresReset;
 
-    public ParameterDescriptor(string key, string displayName, float min, float max, float defaultValue, bool requiresReset = false)
+    /// <summary>
+    /// Whether this parameter is a boolean flag rather than a continuous value.
+    /// When true a UI should render it as a 0/1 toggle and accept only those two
+    /// values (Min/Max are expected to be 0/1). Backed by the same flat float map
+    /// as every other parameter — 0 = off, 1 = on.
+    /// </summary>
+    public bool IsToggle;
+
+    public ParameterDescriptor(string key, string displayName, float min, float max, float defaultValue, bool requiresReset = false, bool isToggle = false)
     {
         Key = key;
         DisplayName = displayName;
@@ -34,6 +42,7 @@ public struct ParameterDescriptor
         Max = max;
         DefaultValue = defaultValue;
         RequiresReset = requiresReset;
+        IsToggle = isToggle;
     }
 }
 

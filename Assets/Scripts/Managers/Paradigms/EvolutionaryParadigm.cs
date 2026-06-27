@@ -59,10 +59,21 @@ public class EvolutionaryParadigm : ITrainingParadigm
         for (int i = 0; i < population.Count; i++)
         {
             population[i].Brain = initialBrains[i];
+            ConfigureDecisionCadence(population[i], i);
             population[i].ResetAgent();
             objective.SetStartingState(population[i], i, population.Count);
             population[i].gameObject.SetActive(true);
         }
+    }
+
+    // Mirror the active decision cadence onto a spawned agent so evolutionary jets
+    // query their brain every N ticks and hold the action in between (see
+    // JetAgent.DecisionPeriod). The slot index phase-staggers decisions across the
+    // population. Clamped to >= 1; defaults to 1 (decide every frame) when unset.
+    private void ConfigureDecisionCadence(JetAgent agent, int index)
+    {
+        agent.DecisionPeriod = Mathf.Max(1, settings.ActiveEvoSettings?.DecisionPeriod ?? 1);
+        agent.AgentIndex = index;
     }
 
     public void Tick()
@@ -140,6 +151,8 @@ public class EvolutionaryParadigm : ITrainingParadigm
             for (int i = 0; i < population.Count; i++)
             {
                 population[i].Brain = evolvedBrains[i];
+
+                ConfigureDecisionCadence(population[i], i);
 
                 population[i].ResetAgent();
 
@@ -259,6 +272,7 @@ public class EvolutionaryParadigm : ITrainingParadigm
         for (int i = 0; i < n; i++)
         {
             population[i].Brain = restoredBrains[i];
+            ConfigureDecisionCadence(population[i], i);
             population[i].ResetAgent();
             objective.SetStartingState(population[i], i, population.Count);
             population[i].gameObject.SetActive(true);
@@ -304,6 +318,7 @@ public class EvolutionaryParadigm : ITrainingParadigm
         // The manager has spawned exactly one sensor-wired jet for us.
         inferenceJet = population[0];
         inferenceJet.Brain = champion;
+        ConfigureDecisionCadence(inferenceJet, 0);
         inferenceJet.ResetAgent();
         objective.SetStartingState(inferenceJet, 0, 1);
         inferenceJet.gameObject.SetActive(true);
