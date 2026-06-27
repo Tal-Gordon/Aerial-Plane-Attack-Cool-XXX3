@@ -13,13 +13,23 @@ public class MaxAltitudeObjective : MonoBehaviour, IObjective
     // thin out gradually — an "alive" count would be full then snap to zero.
     public bool TracksAttrition => false;
     
-    [SerializeField] private float maxTimeAllowed = 15f;
+    // Default values are baked in DataManager.GetDefaultRewardParameters and applied
+    // in Awake; runtime tuning flows through SetParameters / saves.
+    [SerializeField] private float maxTimeAllowed;
     private int spawnRadius = 0;
-    [SerializeField] private float lambda = 10f;
+    [SerializeField] private float lambda;
 
     // Previous state trackers
     private Dictionary<JetAgent, float> lastYPosition = new Dictionary<JetAgent, float>();
     private Dictionary<JetAgent, float> lastEffortSums = new Dictionary<JetAgent, float>();
+
+    private void Awake()
+    {
+        // Seed reward parameters from the baked defaults (single source of truth in
+        // DataManager). SimulationManager overrides these via SetParameters when a
+        // saved run is loaded.
+        SetParameters(DataManager.GetDefaultRewardParameters(Mode));
+    }
 
     public void SetStartingState(JetAgent agent, int index, int totalPopulation)
     {

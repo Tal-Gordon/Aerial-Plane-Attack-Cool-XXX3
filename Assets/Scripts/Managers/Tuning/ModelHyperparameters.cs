@@ -71,7 +71,7 @@ public class ModelHyperparameters : ITunableParameters
         // different network, so changing these forces a fresh run.
         new("hiddenUnits", "Hidden Units", 8f, 1024f, 256f, requiresReset: true),
         new("numLayers", "Hidden Layers", 1f, 5f, 2f, requiresReset: true),
-        new("normalize", "Normalize Inputs (0/1)", 0f, 1f, 1f, requiresReset: true),
+        new("normalize", "Normalize Inputs", 0f, 1f, 1f, requiresReset: true, isToggle: true),
         // Hot: regenerated into the YAML every StartTrainer and adopted on --resume.
         new("learningRate", "Learning Rate", 1e-5f, 1e-2f, 3e-4f),
         new("batchSize", "Batch Size", 32f, 16384f, 4096f),
@@ -84,7 +84,9 @@ public class ModelHyperparameters : ITunableParameters
         new("timeHorizon", "Time Horizon", 16f, 2048f, 128f),
         new("maxSteps", "Max Steps", 10000f, 50000000f, 5000000f),
         new("decisionPeriod", "Decision Period", 1f, 20f, 5f),
-        new("trainingTimeScale", "Training Time Scale", 1f, 100f, 1f),
+        // NOTE: trainingTimeScale is intentionally NOT exposed as a dial — it's a
+        // headless-training speed knob, not a model hyperparameter. It still
+        // round-trips in saves via Read/WriteRL below.
     };
 
     private static readonly ParameterDescriptor[] SacDescriptors =
@@ -92,7 +94,7 @@ public class ModelHyperparameters : ITunableParameters
         PopulationSizeDesc,
         new("hiddenUnits", "Hidden Units", 8f, 1024f, 256f, requiresReset: true),
         new("numLayers", "Hidden Layers", 1f, 5f, 2f, requiresReset: true),
-        new("normalize", "Normalize Inputs (0/1)", 0f, 1f, 1f, requiresReset: true),
+        new("normalize", "Normalize Inputs", 0f, 1f, 1f, requiresReset: true, isToggle: true),
         new("learningRate", "Learning Rate", 1e-5f, 1e-2f, 3e-4f),
         new("batchSize", "Batch Size", 32f, 16384f, 4096f),
         new("bufferSize", "Buffer Size", 256f, 1048576f, 20480f),
@@ -104,7 +106,7 @@ public class ModelHyperparameters : ITunableParameters
         new("timeHorizon", "Time Horizon", 16f, 2048f, 128f),
         new("maxSteps", "Max Steps", 10000f, 50000000f, 5000000f),
         new("decisionPeriod", "Decision Period", 1f, 20f, 5f),
-        new("trainingTimeScale", "Training Time Scale", 1f, 100f, 1f),
+        // trainingTimeScale intentionally not exposed — see PpoDescriptors note.
     };
 
     private static readonly ParameterDescriptor[] Empty = new ParameterDescriptor[0];

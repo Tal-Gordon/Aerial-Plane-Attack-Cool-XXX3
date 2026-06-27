@@ -355,6 +355,18 @@ public class SimulationManager : MonoBehaviour
         return new ModelHyperparameters(() => defaults).GetParameters();
     }
 
+    /// <summary>
+    /// Returns the baked-default reward parameters for the current mode as a flat
+    /// key → value map, for the editor's "reset to default" action.
+    /// </summary>
+    public Dictionary<string, float> GetDefaultRewardParameters()
+    {
+        if (objective == null)
+            return new Dictionary<string, float>();
+
+        return DataManager.GetDefaultRewardParameters(objective.Mode);
+    }
+
     // ── Public API ───────────────────────────────────────────────────
 
     /// <summary>
