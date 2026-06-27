@@ -624,6 +624,18 @@ public class RLSettings
     // still scale time up afterward. Raise this for faster headless training.
     public float TrainingTimeScale = 1f;
 
+    // Window the trainer asks Unity to adopt on connect. ML-Agents applies these via
+    // Screen.SetResolution in a STANDALONE build (the editor ignores them, which is why
+    // this only bites in a build). Without them the trainer's 84x84 default shrinks the
+    // build window to a tiny, unmaximizable square.
+    public int WindowWidth = 1280;
+    public int WindowHeight = 720;
+
+    // Render frame cap the trainer pushes on connect. ML-Agents defaults to -1 (uncapped),
+    // which pegs the GPU rendering as fast as possible. This caps RENDERING only; raise
+    // TrainingTimeScale for faster simulation. Set to -1 to restore uncapped behaviour.
+    public int TargetFrameRate = 60;
+
     // SAC hyperparameters
     public float InitEntCoef = 1.0f;
     public float Tau = 0.005f;
@@ -651,6 +663,9 @@ public class RLSettings
             DecisionPeriod = DecisionPeriod,
             CheckpointInterval = CheckpointInterval,
             TrainingTimeScale = TrainingTimeScale,
+            WindowWidth = WindowWidth,
+            WindowHeight = WindowHeight,
+            TargetFrameRate = TargetFrameRate,
             InitEntCoef = InitEntCoef,
             Tau = Tau,
             StepsPerUpdate = StepsPerUpdate,
@@ -692,7 +707,10 @@ public class RLSettings
     checkpoint_interval: {CheckpointInterval}
 
 engine_settings:
+  width: {WindowWidth}
+  height: {WindowHeight}
   time_scale: {TrainingTimeScale}
+  target_frame_rate: {TargetFrameRate}
 ";
         }
 
@@ -727,7 +745,10 @@ engine_settings:
     checkpoint_interval: {CheckpointInterval}
 
 engine_settings:
+  width: {WindowWidth}
+  height: {WindowHeight}
   time_scale: {TrainingTimeScale}
+  target_frame_rate: {TargetFrameRate}
 ";
     }
 }
