@@ -152,6 +152,35 @@ public static class DataManager
             },
         };
 
+    // ── Baked reward-parameter defaults per mode ──────────────────────────────
+    // The canonical default reward-shaping values for each objective, as a flat
+    // key → value map matching that objective's GetParameters keys. These used to
+    // live as field initializers on the objective MonoBehaviours; centralizing them
+    // here makes DataManager the single source of truth (mirroring the hyperparameter
+    // Defaults above). Objectives seed their fields from here on Awake, and the
+    // hyperparameter editor's "reset to default" restores them.
+    private static readonly Dictionary<GameMode, Dictionary<string, float>> RewardDefaults =
+        new()
+        {
+            [GameMode.MaxAltitude] = new()
+            {
+                ["lambda"] = 10f,
+                ["maxTimeAllowed"] = 15f,
+            },
+            [GameMode.FlightSchool] = new()
+            {
+                ["hoopRadius"] = 170f,
+                ["lambda"] = 1f,
+                ["distanceRewardMultiplier"] = 0.4f,
+                ["hoopPassReward"] = 2000f,
+                ["backwardsDriftPenalty"] = 2f,
+                ["lookAtRewardWeight"] = 10f,
+                ["maxTimeAllowed"] = 180f,
+                ["timeBonusMultiplier"] = 10f,
+                ["timeBetweenHoopsAllowed"] = 10f,
+            },
+        };
+
     // AI type used when only a mode is known (first run / LoadSettings, before the
     // menu selection is applied). Pick the paradigm each mode is primarily tuned for.
     private static readonly Dictionary<GameMode, AIType> PrimaryAIType =
@@ -226,6 +255,16 @@ public static class DataManager
             Debug.LogError($"[DataManager] Failed to save settings for {mode}: {e.Message}");
         }
     }
+
+    /// <summary>
+    /// Returns a fresh copy of the baked default reward parameters for
+    /// <paramref name="mode"/>, as a flat key → value map matching the objective's
+    /// GetParameters keys. Empty if the mode has no registered objective defaults.
+    /// </summary>
+    public static Dictionary<string, float> GetDefaultRewardParameters(GameMode mode) =>
+        RewardDefaults.TryGetValue(mode, out Dictionary<string, float> defaults)
+            ? new Dictionary<string, float>(defaults)
+            : new Dictionary<string, float>();
 
     /// <summary>
     /// Resets settings for <paramref name="mode"/> back to hard-coded defaults.
@@ -524,11 +563,17 @@ public class EvoSettings
     public float MutationRate = 0.1f;
     public float Lambda = 1.0f;
 
+    // Frame-skip / action-repeat cadence for evolutionary agents (the mirror of
+    // RLSettings.DecisionPeriod, which RL keeps separately). 1 = decide every frame,
+    // i.e. the original behavior; existing saves lacking this field deserialize to 1.
+    public int DecisionPeriod = 1;
+
     public virtual EvoSettings Clone() =>
         new()
         {
             MutationRate = MutationRate,
             Lambda = Lambda,
+            DecisionPeriod = DecisionPeriod,
         };
 }
 
@@ -542,6 +587,7 @@ public class NeuroEvoSettings : EvoSettings
         {
             MutationRate = MutationRate,
             Lambda = Lambda,
+            DecisionPeriod = DecisionPeriod,
             NetworkShape = (int[])NetworkShape.Clone(),
         };
 }
@@ -571,6 +617,7 @@ public class NeatSettings : EvoSettings
         {
             MutationRate = MutationRate,
             Lambda = Lambda,
+            DecisionPeriod = DecisionPeriod,
             InputSize = InputSize,
             OutputSize = OutputSize,
             SpecieCount = SpecieCount,

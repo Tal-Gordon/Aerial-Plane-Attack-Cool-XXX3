@@ -101,4 +101,8 @@ public class UIManager : MonoBehaviour
     /// <summary>Baked-default hyperparameter values for the current run (reset-to-default).</summary>
     public Dictionary<string, float> GetDefaultHyperparameters()
         => simManager.GetDefaultHyperparameters();
+
+    /// <summary>Baked-default reward parameters for the current mode (reset-to-default).</summary>
+    public Dictionary<string, float> GetDefaultRewardParameters()
+        => simManager.GetDefaultRewardParameters();
 }
