@@ -13,6 +13,14 @@ public class ParameterRow : MonoBehaviour
     [SerializeField] private TextMeshProUGUI label;
     [SerializeField] private TMP_InputField input;
 
+    // Muted, readable-over-white tints signalling how a committed change is applied
+    // (see ParameterDescriptor.RequiresReset). Kept as constants rather than
+    // SerializeFields to dodge the prefab-default trap noted in CLAUDE.md.
+    //   hot  (RequiresReset == false) → soft red   (kept in place, trained state survives)
+    //   cold (RequiresReset == true)  → soft blue  (forces a rebuild / reload)
+    private static readonly Color HotColor = new Color(0.72f, 0.25f, 0.22f);
+    private static readonly Color ColdColor = new Color(0.20f, 0.38f, 0.66f);
+
     private ParameterDescriptor descriptor;
     private Action<string, float> onCommitted;
 
@@ -27,11 +35,21 @@ public class ParameterRow : MonoBehaviour
         descriptor = desc;
         onCommitted = committedCallback;
 
-        if (label) label.text = desc.DisplayName;
+        if (label)
+        {
+            label.text = desc.DisplayName;
+            // Paint the label by commit type so the user can see at a glance which
+            // edits keep trained state (hot/red) and which force a rebuild (cold/blue).
+            label.color = desc.RequiresReset ? ColdColor : HotColor;
+        }
 
         if (input)
         {
-            input.contentType = TMP_InputField.ContentType.DecimalNumber;
+            // Toggle params are 0/1 flags — restrict to whole numbers so the field
+            // can't take a fractional value; everything else allows decimals.
+            input.contentType = desc.IsToggle
+                ? TMP_InputField.ContentType.IntegerNumber
+                : TMP_InputField.ContentType.DecimalNumber;
             input.onEndEdit.RemoveListener(OnEndEdit);
             input.onEndEdit.AddListener(OnEndEdit);
             SetDisplayedValue(value);
@@ -53,6 +71,8 @@ public class ParameterRow : MonoBehaviour
         if (float.TryParse(raw, out float parsed))
         {
             float clamped = Mathf.Clamp(parsed, descriptor.Min, descriptor.Max);
+            // A toggle only accepts 0/1: snap to the nearest after clamping.
+            if (descriptor.IsToggle) clamped = Mathf.Round(clamped);
             input.SetTextWithoutNotify(clamped.ToString());
             onCommitted?.Invoke(descriptor.Key, clamped);
         }

@@ -14,21 +14,17 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
     // The Track
     [SerializeField] private Transform[] waypoints;
 
-    // Settings
-    [SerializeField] private float hoopRadius = 170f;
-    // [SerializeField] private float lambda = 0.1f;
-    // [SerializeField] private float distanceRewardMultiplier = 2f;
-    // [SerializeField] private float hoopPassReward = 500f;
-    // [SerializeField] private float backwardsDriftPenalty = 0.5f;
-    // [SerializeField] private float lookAtRewardWeight = 1f;
-    [SerializeField] private float lambda = 1f;
-    [SerializeField] private float distanceRewardMultiplier = 0.4f;
-    [SerializeField] private float hoopPassReward = 2000f;
-    [SerializeField] private float backwardsDriftPenalty = 2f;
-    [SerializeField] private float lookAtRewardWeight = 10f;
-    [SerializeField] private float maxTimeAllowed = 180f;
-    [SerializeField] private float timeBonusMultiplier = 10f; // Points per second remaining if they win
-    [SerializeField] private float timeBetweenHoopsAllowed = 10f;
+    // Settings — default values are baked in DataManager.GetDefaultRewardParameters
+    // and applied in Awake; runtime tuning flows through SetParameters / saves.
+    [SerializeField] private float hoopRadius;
+    [SerializeField] private float lambda;
+    [SerializeField] private float distanceRewardMultiplier;
+    [SerializeField] private float hoopPassReward;
+    [SerializeField] private float backwardsDriftPenalty;
+    [SerializeField] private float lookAtRewardWeight;
+    [SerializeField] private float maxTimeAllowed;
+    [SerializeField] private float timeBonusMultiplier; // Points per second remaining if they win
+    [SerializeField] private float timeBetweenHoopsAllowed;
 
     // State Trackers
     private Dictionary<JetAgent, int> agentTargetIndices = new Dictionary<JetAgent, int>();
@@ -43,6 +39,11 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
 
     private void Awake()
     {
+        // Seed reward parameters from the baked defaults (single source of truth in
+        // DataManager). SimulationManager overrides these via SetParameters when a
+        // saved run is loaded.
+        SetParameters(DataManager.GetDefaultRewardParameters(Mode));
+
         // Fallback: If waypoints are not assigned in the Inspector, try to find them from children
         if (waypoints == null || waypoints.Length == 0)
         {
