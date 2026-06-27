@@ -66,6 +66,19 @@ public class RLParadigm : ITrainingParadigm
     // without leaving Play mode.
     private bool trainerStarted;
 
+    // ML-Agents forces windowed mode via Screen.SetResolution(w, h, false) when the
+    // trainer connects, kicking the player out of fullscreen the moment an RL scene
+    // starts. Capture the user's chosen mode/resolution before the connect and re-assert
+    // it for a short window of ticks afterwards — the engine-config side channel that
+    // does the windowing arrives a few frames after StartTrainer returns, so a one-shot
+    // restore would race it. Cosmetic only: observations are vector-based, not visual,
+    // so the render resolution never affects training.
+    private FullScreenMode desiredFullScreenMode;
+    private bool restoreFullScreen;
+    private int restoreFullScreenTicks;
+    private int desiredScreenWidth;
+    private int desiredScreenHeight;
+
     private string AlgorithmName => settings.AIType == AIType.SAC_MLAgents ? "SAC" : "PPO";
     private string YamlFileName => settings.AIType == AIType.SAC_MLAgents ? "jet_sac.yaml" : "jet_ppo.yaml";
     private string YamlPath => Path.Combine(Application.dataPath, "..", "config", YamlFileName);
@@ -118,6 +131,15 @@ public class RLParadigm : ITrainingParadigm
     private void StartTrainer(bool resume, bool inference = false)
     {
         trainerStarted = true;
+
+        // Snapshot the player's current fullscreen state BEFORE the connect windows it.
+        // Tick() re-asserts this for restoreFullScreenTicks frames once the engine-config
+        // message has done its (unwanted) windowing.
+        desiredFullScreenMode = Screen.fullScreenMode;
+        restoreFullScreen = Screen.fullScreen;
+        desiredScreenWidth = Display.main.systemWidth;
+        desiredScreenHeight = Display.main.systemHeight;
+        restoreFullScreenTicks = restoreFullScreen ? 90 : 0;
 
         WriteYamlConfig();
 
@@ -207,6 +229,17 @@ public class RLParadigm : ITrainingParadigm
     {
         if (!trainerStarted)
             StartTrainer(resume: false);
+
+        // Undo ML-Agents' connect-time switch to windowed: if the user was fullscreen
+        // and the engine-config message has since dropped us to windowed, put them back.
+        // Stops re-checking once the window expires (or once it sticks, since the guard
+        // below is false when already in the desired mode).
+        if (restoreFullScreenTicks > 0)
+        {
+            restoreFullScreenTicks--;
+            if (restoreFullScreen && !Screen.fullScreen)
+                Screen.SetResolution(desiredScreenWidth, desiredScreenHeight, desiredFullScreenMode);
+        }
 
         cachedSnapshot.AgentsAlive = population.Count;
     }
