@@ -563,11 +563,17 @@ public class EvoSettings
     public float MutationRate = 0.1f;
     public float Lambda = 1.0f;
 
+    // Frame-skip / action-repeat cadence for evolutionary agents (the mirror of
+    // RLSettings.DecisionPeriod, which RL keeps separately). 1 = decide every frame,
+    // i.e. the original behavior; existing saves lacking this field deserialize to 1.
+    public int DecisionPeriod = 1;
+
     public virtual EvoSettings Clone() =>
         new()
         {
             MutationRate = MutationRate,
             Lambda = Lambda,
+            DecisionPeriod = DecisionPeriod,
         };
 }
 
@@ -581,6 +587,7 @@ public class NeuroEvoSettings : EvoSettings
         {
             MutationRate = MutationRate,
             Lambda = Lambda,
+            DecisionPeriod = DecisionPeriod,
             NetworkShape = (int[])NetworkShape.Clone(),
         };
 }
@@ -610,6 +617,7 @@ public class NeatSettings : EvoSettings
         {
             MutationRate = MutationRate,
             Lambda = Lambda,
+            DecisionPeriod = DecisionPeriod,
             InputSize = InputSize,
             OutputSize = OutputSize,
             SpecieCount = SpecieCount,
