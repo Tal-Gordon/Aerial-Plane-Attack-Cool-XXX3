@@ -34,6 +34,11 @@ public class GameModeData : ScriptableObject
             return;
         }
 
-        SceneManager.LoadScene(scene);
+        // Route through the loading overlay (animated, async). It always exists by
+        // play time (auto-bootstrapped); fall back to a direct load just in case.
+        if (LoadingOverlay.Instance != null)
+            LoadingOverlay.Instance.LoadScene(scene);
+        else
+            SceneManager.LoadScene(scene);
     }
 }
