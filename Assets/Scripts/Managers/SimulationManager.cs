@@ -38,6 +38,12 @@ public class SimulationManager : MonoBehaviour
     // toggle key rebuilds the training run from the same save (LoadState).
     private bool inInferenceMode = false;
 
+    // Save-slot key for this run: the active scene (track). Each scene saves
+    // independently, so two tracks sharing an objective type (e.g. the FlightSchool
+    // tracks) never clobber each other. The objective's Mode is still used for
+    // baked defaults; the track is only the on-disk slot identity.
+    private static string Track => DataManager.CurrentTrack;
+
     private void Start()
     {
         // Resolve the objective
@@ -49,11 +55,12 @@ public class SimulationManager : MonoBehaviour
         }
 
         // TODO: Remove in production
-        // DataManager.ResetToDefaults(objective.Mode);
+        // DataManager.ResetToDefaults(Track, objective.Mode);
 
-        // Load settings for this mode
+        // Load settings for this track (per-scene), seeded from the mode's defaults
+        // on first run so each track keeps its own tuning.
         var mode = objective.Mode;
-        settings = DataManager.LoadSettings(mode);
+        settings = DataManager.LoadSettings(Track, mode);
 
         // Apply the AI type chosen in the main menu, if any. When it differs from
         // the loaded settings we swap in a fresh default for the (mode, AIType)
@@ -228,7 +235,7 @@ public class SimulationManager : MonoBehaviour
         // Reward changes are always "hot" — keep the trained state.
         ApplyHotCommit();
 
-        Debug.Log($"<color=cyan>[SimulationManager]</color> Committed {staged.Count} reward parameter change(s) for {objective.Mode}/{settings.AIType}; real save left untouched.");
+        Debug.Log($"<color=cyan>[SimulationManager]</color> Committed {staged.Count} reward parameter change(s) for {Track}/{settings.AIType}; real save left untouched.");
     }
 
     // ── Hyperparameter tuning ────────────────────────────────────────
@@ -255,12 +262,12 @@ public class SimulationManager : MonoBehaviour
         if (requiresReset)
         {
             RebuildFromScratch();
-            Debug.Log($"<color=cyan>[SimulationManager]</color> Committed {staged.Count} hyperparameter change(s) for {objective.Mode}/{settings.AIType}; a cold change forced a rebuild — trained state was discarded.");
+            Debug.Log($"<color=cyan>[SimulationManager]</color> Committed {staged.Count} hyperparameter change(s) for {Track}/{settings.AIType}; a cold change forced a rebuild — trained state was discarded.");
         }
         else
         {
             ApplyHotCommit();
-            Debug.Log($"<color=cyan>[SimulationManager]</color> Committed {staged.Count} hyperparameter change(s) for {objective.Mode}/{settings.AIType}; trained state kept, real save left untouched.");
+            Debug.Log($"<color=cyan>[SimulationManager]</color> Committed {staged.Count} hyperparameter change(s) for {Track}/{settings.AIType}; trained state kept, real save left untouched.");
         }
     }
 
@@ -280,17 +287,17 @@ public class SimulationManager : MonoBehaviour
     // hot-hyperparameter commits.
     private void ApplyHotCommit()
     {
-        var mode = objective.Mode;
+        var track = Track;
         var aiType = settings.AIType;
 
-        bool realExisted = DataManager.HasTrainingState(mode, aiType);
-        if (realExisted) DataManager.BackupTrainingState(mode, aiType);
+        bool realExisted = DataManager.HasTrainingState(track, aiType);
+        if (realExisted) DataManager.BackupTrainingState(track, aiType);
 
         SaveState();   // current brains/policy + new params → slot
         LoadState();   // rebuild the run from it, re-applying the params
 
-        if (realExisted) DataManager.RestoreTrainingStateBackup(mode, aiType);
-        else             DataManager.DeleteTrainingState(mode, aiType);
+        if (realExisted) DataManager.RestoreTrainingStateBackup(track, aiType);
+        else             DataManager.DeleteTrainingState(track, aiType);
     }
 
     // Tears the run down and rebuilds it fresh from the current (already updated)
@@ -304,7 +311,7 @@ public class SimulationManager : MonoBehaviour
         activeParadigm = null;
         DestroyPopulation();
 
-        DataManager.SaveSettings(objective.Mode, settings);
+        DataManager.SaveSettings(Track, settings);
 
         population = InstantiatePopulation(settings.PopulationSize);
         ConfigureSensors(population, objective);
@@ -332,7 +339,7 @@ public class SimulationManager : MonoBehaviour
         if (objective != null && settings != null && staged != null && staged.Count > 0)
         {
             hyperParams.SetParameters(staged);
-            DataManager.SaveSettings(objective.Mode, settings);
+            DataManager.SaveSettings(Track, settings);
         }
 
         // Optionally preserve the trained brains/policy on disk before reloading.
@@ -408,7 +415,7 @@ public class SimulationManager : MonoBehaviour
     {
         if (activeParadigm == null) return;
 
-        string dir = DataManager.ModePath(objective.Mode);
+        string dir = DataManager.TrackPath(Track);
         DataManager.EnsureDirectory(dir);
         activeParadigm.SaveChampion(dir);
     }
@@ -433,10 +440,10 @@ public class SimulationManager : MonoBehaviour
     {
         if (objective == null) return;
 
-        TrainingSaveData data = DataManager.LoadTrainingState(objective.Mode, settings.AIType);
+        TrainingSaveData data = DataManager.LoadTrainingState(Track, settings.AIType);
         if (data == null)
         {
-            Debug.LogWarning($"[SimulationManager] No saved state found for {objective.Mode}/{settings.AIType}.");
+            Debug.LogWarning($"[SimulationManager] No saved state found for {Track}/{settings.AIType}.");
             return;
         }
 
@@ -450,7 +457,7 @@ public class SimulationManager : MonoBehaviour
         if (data.Settings != null)
         {
             settings = data.Settings;
-            DataManager.SaveSettings(objective.Mode, settings);
+            DataManager.SaveSettings(Track, settings);
         }
 
         // Re-apply saved objective parameters
@@ -467,7 +474,7 @@ public class SimulationManager : MonoBehaviour
         activeParadigm.Initialize(population, settings, objective);
         activeParadigm.LoadState();
 
-        Debug.Log($"[SimulationManager] Loaded saved {settings.AIType} run for {objective.Mode}.");
+        Debug.Log($"[SimulationManager] Loaded saved {settings.AIType} run for track {Track} ({objective.Mode}).");
     }
 
     private void DestroyPopulation()
@@ -502,9 +509,9 @@ public class SimulationManager : MonoBehaviour
         }
 
         // Inference replays a saved run, so one must exist first.
-        if (!DataManager.HasTrainingState(objective.Mode, settings.AIType))
+        if (!DataManager.HasTrainingState(Track, settings.AIType))
         {
-            Debug.LogWarning($"[SimulationManager] No saved run for {objective.Mode}/{settings.AIType}. Train and save (S) before entering inference.");
+            Debug.LogWarning($"[SimulationManager] No saved run for {Track}/{settings.AIType}. Train and save (S) before entering inference.");
             return;
         }
 
@@ -530,7 +537,7 @@ public class SimulationManager : MonoBehaviour
         }
 
         inInferenceMode = true;
-        Debug.Log($"<color=yellow>[SimulationManager]</color> Inference ON for {objective.Mode}/{settings.AIType}. Press 'T' to resume training from the save.");
+        Debug.Log($"<color=yellow>[SimulationManager]</color> Inference ON for {Track}/{settings.AIType}. Press 'T' to resume training from the save.");
     }
 
     /// <summary>
