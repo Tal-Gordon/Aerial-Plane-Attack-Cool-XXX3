@@ -30,9 +30,24 @@ public class SaveLoadWidget : UIWidget
         // Plain action buttons — nothing to poll from the snapshot.
     }
 
-    private void OnSave() => Manager.SaveState();
+    // Save is light and frequent — a non-blocking corner toast, not a screen takeover.
+    private void OnSave()
+    {
+        if (LoadingOverlay.Instance != null)
+            LoadingOverlay.Instance.RunToast(() => Manager.SaveState(), "Saving…", "Saved ✓");
+        else
+            Manager.SaveState();
+    }
 
-    private void OnLoad() => Manager.LoadState();
+    // Load tears down and rebuilds the whole run — dim-modal so input is blocked
+    // and the overlay is painted before the (synchronous) rebuild hitches the frame.
+    private void OnLoad()
+    {
+        if (LoadingOverlay.Instance != null)
+            LoadingOverlay.Instance.RunModal(() => Manager.LoadState(), "Loading run…");
+        else
+            Manager.LoadState();
+    }
 
     private void OnDestroy()
     {
