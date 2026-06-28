@@ -1,13 +1,17 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using Newtonsoft.Json;
 
 /// <summary>
-/// Manages loading and saving of simulation settings and brain weights,
-/// keyed by game mode. Each mode has baked-in defaults that are written
-/// to disk on first access, then overridable by the user.
+/// Manages loading and saving of simulation settings and brain weights.
+/// Settings + baked-in defaults are keyed by game mode (the objective family),
+/// but on-disk SAVE SLOTS are keyed by TRACK (the active scene) so that two
+/// scenes sharing an objective type — e.g. three FlightSchool tracks — each keep
+/// an independent save and never overwrite one another.
 /// </summary>
 public static class DataManager
 {
@@ -26,18 +30,45 @@ public static class DataManager
     private static readonly string RootPath =
         Path.Combine(Application.persistentDataPath, "GameData");
 
-    public static string ModePath(GameMode mode) =>
-        Path.Combine(RootPath, mode.ToString());
-
-    private static string SettingsPath(GameMode mode) =>
-        Path.Combine(ModePath(mode), "settings.json");
+    /// <summary>
+    /// Stable storage key for the active scene (track). Each scene owns its own
+    /// save slot under GameData/&lt;track&gt;/, so two tracks that share an objective
+    /// type (e.g. three FlightSchool tracks) never overwrite each other's saves.
+    /// Sanitized so it is safe both as a folder name and as an mlagents --run-id
+    /// token (no spaces or path separators).
+    /// </summary>
+    public static string CurrentTrack => ResolveTrackId(SceneManager.GetActiveScene().name);
 
     /// <summary>
-    /// One save slot per (mode, AI type) so each AI/objective combination is
-    /// stored separately and overwrites only its own previous save.
+    /// Sanitizes a scene name into a filesystem- and CLI-safe track id (letters,
+    /// digits and '-' kept; everything else, including spaces, becomes '_').
+    /// "Track 1" → "Track_1", "Max Altitude" → "Max_Altitude".
     /// </summary>
-    public static string SaveStatePath(GameMode mode, AIType aiType) =>
-        Path.Combine(ModePath(mode), $"save_{aiType}.json");
+    public static string ResolveTrackId(string sceneName)
+    {
+        if (string.IsNullOrWhiteSpace(sceneName)) return "UnknownTrack";
+
+        var sb = new StringBuilder(sceneName.Length);
+        foreach (char c in sceneName)
+            sb.Append(char.IsLetterOrDigit(c) || c == '-' ? c : '_');
+        return sb.ToString();
+    }
+
+    /// <summary>Root folder for one track's save slot: GameData/&lt;track&gt;/.</summary>
+    public static string TrackPath(string track) =>
+        Path.Combine(RootPath, track);
+
+    private static string SettingsPath(string track) =>
+        Path.Combine(TrackPath(track), "settings.json");
+
+    /// <summary>
+    /// One save slot per (track, AI type) so each scene/AI combination is stored
+    /// separately and overwrites only its own previous save. Tracks that share an
+    /// objective type still get independent slots because the key is the scene,
+    /// not the objective/mode.
+    /// </summary>
+    public static string SaveStatePath(string track, AIType aiType) =>
+        Path.Combine(TrackPath(track), $"save_{aiType}.json");
 
     // ── Hard-coded defaults per (mode, AI type) ───────────────────────────────
     // Every (mode, AI type) the menu can pick has an entry, so any AI type works
@@ -194,12 +225,14 @@ public static class DataManager
     // ── Public API ────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Returns settings for <paramref name="mode"/>. If no saved settings exist
-    /// on disk the hard-coded defaults are written and returned.
+    /// Returns settings for <paramref name="track"/>. Settings are stored per track
+    /// (so each scene keeps its own tuning), but the baked defaults used on first
+    /// access come from <paramref name="mode"/> (the objective family). If no saved
+    /// settings exist on disk the hard-coded defaults are written and returned.
     /// </summary>
-    public static SimulationSettings LoadSettings(GameMode mode)
+    public static SimulationSettings LoadSettings(string track, GameMode mode)
     {
-        string path = SettingsPath(mode);
+        string path = SettingsPath(track);
 
         if (File.Exists(path))
         {
@@ -235,24 +268,24 @@ public static class DataManager
 
         // First run (or corrupt file) — persist defaults and return them
         SimulationSettings defaults = GetDefaults(mode);
-        SaveSettings(mode, defaults);
+        SaveSettings(track, defaults);
         return defaults;
     }
 
     /// <summary>
-    /// Persists <paramref name="settings"/> for <paramref name="mode"/> to disk.
+    /// Persists <paramref name="settings"/> for <paramref name="track"/> to disk.
     /// </summary>
-    public static void SaveSettings(GameMode mode, SimulationSettings settings)
+    public static void SaveSettings(string track, SimulationSettings settings)
     {
         try
         {
-            EnsureDirectory(ModePath(mode));
+            EnsureDirectory(TrackPath(track));
             string json = JsonConvert.SerializeObject(settings, Formatting.Indented);
-            File.WriteAllText(SettingsPath(mode), json);
+            File.WriteAllText(SettingsPath(track), json);
         }
         catch (Exception e)
         {
-            Debug.LogError($"[DataManager] Failed to save settings for {mode}: {e.Message}");
+            Debug.LogError($"[DataManager] Failed to save settings for {track}: {e.Message}");
         }
     }
 
@@ -267,12 +300,13 @@ public static class DataManager
             : new Dictionary<string, float>();
 
     /// <summary>
-    /// Resets settings for <paramref name="mode"/> back to hard-coded defaults.
+    /// Resets the settings stored for <paramref name="track"/> back to the
+    /// hard-coded defaults for <paramref name="mode"/>.
     /// </summary>
-    public static SimulationSettings ResetToDefaults(GameMode mode)
+    public static SimulationSettings ResetToDefaults(string track, GameMode mode)
     {
         SimulationSettings defaults = GetDefaults(mode);
-        SaveSettings(mode, defaults);
+        SaveSettings(track, defaults);
         return defaults;
     }
 
@@ -281,37 +315,37 @@ public static class DataManager
     // ── Training state (full save/load) ────────────────────────────────────────
 
     /// <summary>
-    /// True if a saved training run exists for this (mode, AI type) pair.
+    /// True if a saved training run exists for this (track, AI type) pair.
     /// </summary>
-    public static bool HasTrainingState(GameMode mode, AIType aiType) =>
-        File.Exists(SaveStatePath(mode, aiType));
+    public static bool HasTrainingState(string track, AIType aiType) =>
+        File.Exists(SaveStatePath(track, aiType));
 
     /// <summary>
-    /// Persists a full training snapshot for <paramref name="mode"/> /
+    /// Persists a full training snapshot for <paramref name="track"/> /
     /// <paramref name="aiType"/>, overwriting any previous save for that pair.
     /// </summary>
-    public static void SaveTrainingState(GameMode mode, AIType aiType, TrainingSaveData data)
+    public static void SaveTrainingState(string track, AIType aiType, TrainingSaveData data)
     {
         try
         {
-            EnsureDirectory(ModePath(mode));
+            EnsureDirectory(TrackPath(track));
             string json = JsonConvert.SerializeObject(data, Formatting.Indented);
-            File.WriteAllText(SaveStatePath(mode, aiType), json);
-            Debug.Log($"[DataManager] Saved training state for {mode}/{aiType}.");
+            File.WriteAllText(SaveStatePath(track, aiType), json);
+            Debug.Log($"[DataManager] Saved training state for {track}/{aiType}.");
         }
         catch (Exception e)
         {
-            Debug.LogError($"[DataManager] Failed to save training state for {mode}/{aiType}: {e.Message}");
+            Debug.LogError($"[DataManager] Failed to save training state for {track}/{aiType}: {e.Message}");
         }
     }
 
     /// <summary>
-    /// Loads the saved training snapshot for <paramref name="mode"/> /
+    /// Loads the saved training snapshot for <paramref name="track"/> /
     /// <paramref name="aiType"/>, or null if none exists / it is corrupt.
     /// </summary>
-    public static TrainingSaveData LoadTrainingState(GameMode mode, AIType aiType)
+    public static TrainingSaveData LoadTrainingState(string track, AIType aiType)
     {
-        string path = SaveStatePath(mode, aiType);
+        string path = SaveStatePath(track, aiType);
         if (!File.Exists(path))
             return null;
 
@@ -322,7 +356,7 @@ public static class DataManager
         }
         catch (Exception e)
         {
-            Debug.LogError($"[DataManager] Failed to read training state for {mode}/{aiType}: {e.Message}");
+            Debug.LogError($"[DataManager] Failed to read training state for {track}/{aiType}: {e.Message}");
             return null;
         }
     }
@@ -334,39 +368,39 @@ public static class DataManager
     // after. A save slot is the JSON file plus, for RL, the checkpoint directory.
 
     /// <summary>RL checkpoint directory for a slot — mirrors RLParadigm.SaveCheckpointDir.</summary>
-    private static string CheckpointDirPath(GameMode mode, AIType aiType) =>
-        Path.Combine(ModePath(mode), $"rl_checkpoint_{aiType}");
+    private static string CheckpointDirPath(string track, AIType aiType) =>
+        Path.Combine(TrackPath(track), $"rl_checkpoint_{aiType}");
 
-    private static string BackupStatePath(GameMode mode, AIType aiType) =>
-        Path.Combine(ModePath(mode), $"save_{aiType}.bak.json");
+    private static string BackupStatePath(string track, AIType aiType) =>
+        Path.Combine(TrackPath(track), $"save_{aiType}.bak.json");
 
-    private static string BackupCheckpointDirPath(GameMode mode, AIType aiType) =>
-        Path.Combine(ModePath(mode), $"rl_checkpoint_{aiType}.bak");
+    private static string BackupCheckpointDirPath(string track, AIType aiType) =>
+        Path.Combine(TrackPath(track), $"rl_checkpoint_{aiType}.bak");
 
     /// <summary>
     /// Copies the current save slot (JSON + RL checkpoint dir) aside so a
     /// subsequent overwrite can be undone with <see cref="RestoreTrainingStateBackup"/>.
     /// Copies (not moves) so the original is always recoverable if interrupted.
     /// </summary>
-    public static void BackupTrainingState(GameMode mode, AIType aiType)
+    public static void BackupTrainingState(string track, AIType aiType)
     {
         try
         {
-            string json = SaveStatePath(mode, aiType);
+            string json = SaveStatePath(track, aiType);
             if (File.Exists(json))
-                File.Copy(json, BackupStatePath(mode, aiType), overwrite: true);
+                File.Copy(json, BackupStatePath(track, aiType), overwrite: true);
 
-            string checkpointDir = CheckpointDirPath(mode, aiType);
+            string checkpointDir = CheckpointDirPath(track, aiType);
             if (Directory.Exists(checkpointDir))
             {
-                string backupDir = BackupCheckpointDirPath(mode, aiType);
+                string backupDir = BackupCheckpointDirPath(track, aiType);
                 if (Directory.Exists(backupDir)) Directory.Delete(backupDir, true);
                 CopyDirectory(checkpointDir, backupDir);
             }
         }
         catch (Exception e)
         {
-            Debug.LogError($"[DataManager] Failed to back up training state for {mode}/{aiType}: {e.Message}");
+            Debug.LogError($"[DataManager] Failed to back up training state for {track}/{aiType}: {e.Message}");
         }
     }
 
@@ -374,50 +408,50 @@ public static class DataManager
     /// Restores the backup made by <see cref="BackupTrainingState"/> over the real
     /// slot, discarding whatever was written in between and removing the backup.
     /// </summary>
-    public static void RestoreTrainingStateBackup(GameMode mode, AIType aiType)
+    public static void RestoreTrainingStateBackup(string track, AIType aiType)
     {
         try
         {
-            string backupJson = BackupStatePath(mode, aiType);
+            string backupJson = BackupStatePath(track, aiType);
             if (File.Exists(backupJson))
             {
-                string json = SaveStatePath(mode, aiType);
+                string json = SaveStatePath(track, aiType);
                 if (File.Exists(json)) File.Delete(json);
                 File.Move(backupJson, json);
             }
 
-            string backupDir = BackupCheckpointDirPath(mode, aiType);
+            string backupDir = BackupCheckpointDirPath(track, aiType);
             if (Directory.Exists(backupDir))
             {
-                string checkpointDir = CheckpointDirPath(mode, aiType);
+                string checkpointDir = CheckpointDirPath(track, aiType);
                 if (Directory.Exists(checkpointDir)) Directory.Delete(checkpointDir, true);
                 Directory.Move(backupDir, checkpointDir);
             }
         }
         catch (Exception e)
         {
-            Debug.LogError($"[DataManager] Failed to restore training state backup for {mode}/{aiType}: {e.Message}");
+            Debug.LogError($"[DataManager] Failed to restore training state backup for {track}/{aiType}: {e.Message}");
         }
     }
 
     /// <summary>
-    /// Deletes the save slot (JSON + RL checkpoint dir) for a (mode, AI type).
+    /// Deletes the save slot (JSON + RL checkpoint dir) for a (track, AI type).
     /// Used to remove a temporary slot created only as a Save→Load vehicle when
     /// the user had no real save to protect.
     /// </summary>
-    public static void DeleteTrainingState(GameMode mode, AIType aiType)
+    public static void DeleteTrainingState(string track, AIType aiType)
     {
         try
         {
-            string json = SaveStatePath(mode, aiType);
+            string json = SaveStatePath(track, aiType);
             if (File.Exists(json)) File.Delete(json);
 
-            string checkpointDir = CheckpointDirPath(mode, aiType);
+            string checkpointDir = CheckpointDirPath(track, aiType);
             if (Directory.Exists(checkpointDir)) Directory.Delete(checkpointDir, true);
         }
         catch (Exception e)
         {
-            Debug.LogError($"[DataManager] Failed to delete training state for {mode}/{aiType}: {e.Message}");
+            Debug.LogError($"[DataManager] Failed to delete training state for {track}/{aiType}: {e.Message}");
         }
     }
 

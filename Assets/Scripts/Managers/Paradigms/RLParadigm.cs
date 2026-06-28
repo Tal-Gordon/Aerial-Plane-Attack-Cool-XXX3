@@ -83,9 +83,12 @@ public class RLParadigm : ITrainingParadigm
     private string YamlFileName => settings.AIType == AIType.SAC_MLAgents ? "jet_sac.yaml" : "jet_ppo.yaml";
     private string YamlPath => Path.Combine(Application.dataPath, "..", "config", YamlFileName);
 
-    // Stable, per-(mode, AI type) run-id so each objective/algorithm combination
-    // owns its own results/<run-id>/ directory and can be resumed independently.
-    private string RunId => $"{objective.Mode}_{settings.AIType}";
+    // Stable, per-(track, AI type) run-id so each scene/algorithm combination owns
+    // its own results/<run-id>/ directory and can be resumed independently — two
+    // tracks sharing an objective type get separate run-ids. DataManager.CurrentTrack
+    // is already sanitized (no spaces / path separators), so it is safe to drop
+    // straight into the mlagents --run-id argument.
+    private string RunId => $"{DataManager.CurrentTrack}_{settings.AIType}";
 
     private static string ProjectRoot => Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
 
@@ -94,10 +97,10 @@ public class RLParadigm : ITrainingParadigm
     private string ResultsDir => Path.Combine(ProjectRoot, "results", RunId);
 
     // Persistent save slot: a snapshot copy of ResultsDir kept under the same
-    // GameData/<Mode>/ folder the rest of the save system uses. Decoupled from the
+    // GameData/<track>/ folder the rest of the save system uses. Decoupled from the
     // live results dir so it survives a later --force and acts as a stable restore
     // point, mirroring how the evolutionary save captures the population at save time.
-    private string SaveCheckpointDir => Path.Combine(DataManager.ModePath(objective.Mode), $"rl_checkpoint_{settings.AIType}");
+    private string SaveCheckpointDir => Path.Combine(DataManager.TrackPath(DataManager.CurrentTrack), $"rl_checkpoint_{settings.AIType}");
 
     public void Initialize(List<JetAgent> population, SimulationSettings settings, IObjective objective)
     {
@@ -295,7 +298,7 @@ public class RLParadigm : ITrainingParadigm
         // into the live results dir (same as a resume) so the trainer can load it.
         if (!StageSavedCheckpoint())
         {
-            Debug.LogWarning($"[RLParadigm] No usable checkpoint in the save for {objective.Mode}/{settings.AIType}; cannot run inference. Train, save, then retry.");
+            Debug.LogWarning($"[RLParadigm] No usable checkpoint in the save for {DataManager.CurrentTrack}/{settings.AIType}; cannot run inference. Train, save, then retry.");
             return false;
         }
 
@@ -364,6 +367,7 @@ public class RLParadigm : ITrainingParadigm
         {
             AIType = settings.AIType,
             Mode = objective.Mode,
+            Track = DataManager.CurrentTrack,
             Settings = settings.Clone(),
             ObjectiveParameters = objective.GetParameters(),
             Generation = totalEpisodes,
@@ -377,7 +381,7 @@ public class RLParadigm : ITrainingParadigm
             EngineState = RunId,
         };
 
-        DataManager.SaveTrainingState(objective.Mode, settings.AIType, data);
+        DataManager.SaveTrainingState(DataManager.CurrentTrack, settings.AIType, data);
     }
 
     public void LoadState()
@@ -392,7 +396,7 @@ public class RLParadigm : ITrainingParadigm
         if (trainerStarted)
             ShutdownTrainer(); // direct call outside the manager flow — recycle first
 
-        TrainingSaveData data = DataManager.LoadTrainingState(objective.Mode, settings.AIType);
+        TrainingSaveData data = DataManager.LoadTrainingState(DataManager.CurrentTrack, settings.AIType);
         if (data != null)
         {
             // Carry the all-time best episode forward across the load. (Saves made
@@ -404,7 +408,7 @@ public class RLParadigm : ITrainingParadigm
 
         bool resume = StageSavedCheckpoint();
         if (!resume)
-            Debug.LogWarning($"[RLParadigm] No usable checkpoint in the save for {objective.Mode}/{settings.AIType}; starting a fresh run instead.");
+            Debug.LogWarning($"[RLParadigm] No usable checkpoint in the save for {DataManager.CurrentTrack}/{settings.AIType}; starting a fresh run instead.");
 
         StartTrainer(resume);
     }
