@@ -10,15 +10,16 @@ using UnityEngine.UI;
 /// and builds its own UGUI canvas in code, so there is nothing to wire in the
 /// Inspector and no art to import — swap in real sprites/colours later if desired.
 ///
-/// <para>Three tiers, matched to the weight of the operation:</para>
+/// <para>Deliberately low-fi: solid panels, blocky cycling dots, instant show/hide
+/// (no fades). Three tiers, matched to the weight of the operation:</para>
 /// <list type="bullet">
 /// <item><b>Fullscreen</b> (<see cref="LoadScene"/>, <see cref="ReloadActiveScene"/>) —
-/// opaque animated screen for context switches (menu → scene, scene reset). Uses
-/// async scene loading so the spinner/progress actually animate.</item>
+/// opaque screen for context switches (menu → scene, scene reset, cold reload). Uses
+/// async scene loading so the dots/progress actually animate.</item>
 /// <item><b>Modal</b> (<see cref="RunModal"/>) — dims the current scene and blocks input
-/// for in-scene rebuilds (Load, enter/exit Inference). Not a scene change, so it sits
-/// over the existing scene. Paints a frame before running the (synchronous) work so the
-/// overlay is visible during the unavoidable hitch.</item>
+/// for in-scene rebuilds (Load, enter/exit Inference, hot param commits). Not a scene
+/// change, so it sits over the existing scene. Paints a frame before running the
+/// (synchronous) work so the overlay is visible during the unavoidable hitch.</item>
 /// <item><b>Toast</b> (<see cref="RunToast"/>, <see cref="Toast"/>) — small, non-blocking
 /// corner pill for light/frequent actions (Save). Never takes the screen.</item>
 /// </list>
@@ -31,18 +32,22 @@ public class LoadingOverlay : MonoBehaviour
     public static LoadingOverlay Instance { get; private set; }
 
     // ── Tunables (edit here, or tweak the generated objects at runtime) ──
-    private static readonly Color BackgroundColor = new Color(0.05f, 0.06f, 0.09f, 1f);
-    private static readonly Color AccentColor = new Color(0.30f, 0.80f, 1f, 1f);
-    private static readonly Color TextColor = new Color(0.90f, 0.93f, 0.97f, 1f);
-    private const float ModalDimAlpha = 0.78f;   // background opacity in modal mode
-    private const float FadeSeconds = 0.20f;
-    private const float SpinDegPerSec = 220f;
+    private static readonly Color BackgroundColor = new Color(0.06f, 0.07f, 0.09f, 1f);
+    private static readonly Color AccentColor = new Color(0.85f, 0.87f, 0.90f, 1f); // active dot / fill
+    private static readonly Color DotIdleColor = new Color(0.85f, 0.87f, 0.90f, 0.22f);
+    private static readonly Color TextColor = new Color(0.85f, 0.87f, 0.90f, 1f);
+    private const float ModalDimAlpha = 0.80f; // background opacity in modal mode
+    private const int DotCount = 3;
+    private const float DotStepSeconds = 0.22f; // how fast the active dot advances
     private const float ToastSeconds = 1.8f;
 
     // ── Main overlay (fullscreen + modal share one canvas group) ──
     private CanvasGroup overlayGroup;
     private Image backgroundImage;
-    private RectTransform spinnerRect;
+    private GameObject spinnerRoot;
+    private Image[] dots;
+    private int dotIndex;
+    private float dotTimer;
     private Text statusText;
     private RectTransform progressFill;
     private GameObject progressBar;
@@ -75,16 +80,21 @@ public class LoadingOverlay : MonoBehaviour
 
     private void Update()
     {
-        if (spinnerActive && spinnerRect != null)
-            spinnerRect.Rotate(0f, 0f, -SpinDegPerSec * Time.unscaledDeltaTime);
+        if (!spinnerActive || dots == null) return;
+        dotTimer += Time.unscaledDeltaTime;
+        if (dotTimer < DotStepSeconds) return;
+        dotTimer -= DotStepSeconds;
+        dotIndex = (dotIndex + 1) % dots.Length;
+        for (int i = 0; i < dots.Length; i++)
+            dots[i].color = i == dotIndex ? AccentColor : DotIdleColor;
     }
 
     // ===================================================================
     //  PUBLIC API
     // ===================================================================
 
-    /// <summary>Tier A — fade up the opaque screen, async-load <paramref name="sceneName"/>
-    /// with a live progress bar, then fade out. Safe to call from a button.</summary>
+    /// <summary>Tier A — show the opaque screen, async-load <paramref name="sceneName"/>
+    /// with a live progress bar, then hide. Safe to call from a button.</summary>
     public void LoadScene(string sceneName)
     {
         if (busy) return;
@@ -97,7 +107,7 @@ public class LoadingOverlay : MonoBehaviour
         StartCoroutine(LoadSceneRoutine(sceneName, -1));
     }
 
-    /// <summary>Tier A — reload the active scene (used by the reset button).</summary>
+    /// <summary>Tier A — reload the active scene (used by reset / cold param reload).</summary>
     public void ReloadActiveScene()
     {
         if (busy) return;
@@ -106,7 +116,8 @@ public class LoadingOverlay : MonoBehaviour
 
     /// <summary>Tier C — dim the scene, block input, paint a frame, then run the
     /// (synchronous) <paramref name="work"/> and hide. Use for in-scene rebuilds
-    /// (Load, enter/exit Inference) where the work hitches the main thread.</summary>
+    /// (Load, enter/exit Inference, hot param commits) where the work hitches the
+    /// main thread.</summary>
     public void RunModal(Action work, string status)
     {
         if (busy) { work?.Invoke(); return; } // never drop the action
@@ -140,7 +151,7 @@ public class LoadingOverlay : MonoBehaviour
         ShowProgress(true);
         SetProgress(0f);
         backgroundImage.color = BackgroundColor; // fully opaque for a context switch
-        yield return Fade(overlayGroup, 1f, true);
+        SetVisible(overlayGroup, true, true);
 
         AsyncOperation op = sceneName != null
             ? SceneManager.LoadSceneAsync(sceneName)
@@ -161,10 +172,10 @@ public class LoadingOverlay : MonoBehaviour
         op.allowSceneActivation = true;
         while (!op.isDone) yield return null;
 
-        // New scene is live. Hold one frame so its first render replaces ours, then fade.
+        // New scene is live. Hold one frame so its first render replaces ours, then hide.
         yield return null;
         ShowProgress(false);
-        yield return Fade(overlayGroup, 0f, false);
+        SetVisible(overlayGroup, false, false);
         SetSpinner(false);
         busy = false;
     }
@@ -177,7 +188,7 @@ public class LoadingOverlay : MonoBehaviour
         ShowProgress(false);
         // Dimmed, not opaque — the scene shows through.
         backgroundImage.color = new Color(BackgroundColor.r, BackgroundColor.g, BackgroundColor.b, ModalDimAlpha);
-        yield return Fade(overlayGroup, 1f, true);
+        SetVisible(overlayGroup, true, true);
 
         // Paint at least one full frame so the overlay is on screen *before* the
         // synchronous work freezes the main thread.
@@ -188,10 +199,10 @@ public class LoadingOverlay : MonoBehaviour
         try { work?.Invoke(); }
         catch (Exception e) { captured = e; }
 
-        // Let the rebuilt scene settle for a frame, then fade out — even if the work
-        // threw, so a failure never leaves the screen stuck behind the overlay.
+        // Let the rebuilt scene settle for a frame, then hide — even if the work threw,
+        // so a failure never leaves the screen stuck behind the overlay.
         yield return null;
-        yield return Fade(overlayGroup, 0f, false);
+        SetVisible(overlayGroup, false, false);
         SetSpinner(false);
         busy = false;
 
@@ -202,7 +213,7 @@ public class LoadingOverlay : MonoBehaviour
     {
         if (toastRoutine != null) StopCoroutine(toastRoutine);
         SetToast(busyMessage);
-        yield return Fade(toastGroup, 1f, false);
+        SetVisible(toastGroup, true, false);
 
         // Paint a frame, then run the light work (Save is short but still on the main thread).
         yield return null;
@@ -220,7 +231,7 @@ public class LoadingOverlay : MonoBehaviour
     private IEnumerator ToastShowRoutine(string message, float seconds)
     {
         SetToast(message);
-        yield return Fade(toastGroup, 1f, false);
+        SetVisible(toastGroup, true, false);
         yield return StartCoroutine(ToastHoldThenHide(seconds));
     }
 
@@ -228,34 +239,32 @@ public class LoadingOverlay : MonoBehaviour
     {
         float t = 0f;
         while (t < seconds) { t += Time.unscaledDeltaTime; yield return null; }
-        yield return Fade(toastGroup, 0f, false);
+        SetVisible(toastGroup, false, false);
         toastRoutine = null;
-    }
-
-    private IEnumerator Fade(CanvasGroup group, float target, bool blockRaycasts)
-    {
-        group.blocksRaycasts = blockRaycasts;
-        group.interactable = blockRaycasts;
-        float start = group.alpha;
-        float t = 0f;
-        while (t < FadeSeconds)
-        {
-            t += Time.unscaledDeltaTime;
-            group.alpha = Mathf.Lerp(start, target, t / FadeSeconds);
-            yield return null;
-        }
-        group.alpha = target;
-        if (target <= 0f) { group.blocksRaycasts = false; group.interactable = false; }
     }
 
     // ===================================================================
     //  SMALL SETTERS
     // ===================================================================
+    private static void SetVisible(CanvasGroup group, bool show, bool block)
+    {
+        group.alpha = show ? 1f : 0f;
+        group.blocksRaycasts = show && block;
+        group.interactable = show && block;
+    }
+
     private void SetSpinner(bool on)
     {
         spinnerActive = on;
-        if (spinnerRect != null) spinnerRect.gameObject.SetActive(on);
+        if (spinnerRoot != null) spinnerRoot.SetActive(on);
+        if (!on || dots == null) return;
+        // Reset to a known frame so it doesn't resume mid-cycle.
+        dotIndex = 0;
+        dotTimer = 0f;
+        for (int i = 0; i < dots.Length; i++)
+            dots[i].color = i == 0 ? AccentColor : DotIdleColor;
     }
+
     private void SetStatus(string s) { if (statusText != null) statusText.text = s; }
     private void SetToast(string s) { if (toastText != null) toastText.text = s; }
     private void ShowProgress(bool on) { if (progressBar != null) progressBar.SetActive(on); }
@@ -292,22 +301,31 @@ public class LoadingOverlay : MonoBehaviour
         backgroundImage = AddImage(overlayGO.transform, "Background", BackgroundColor);
         Stretch(backgroundImage.rectTransform);
 
-        // Spinner — generated "comet" ring sprite, rotated in Update.
-        var spinnerImg = AddImage(overlayGO.transform, "Spinner", AccentColor);
-        spinnerImg.sprite = CreateCometSprite(128, 10);
-        spinnerImg.type = Image.Type.Simple;
-        spinnerRect = spinnerImg.rectTransform;
-        Center(spinnerRect, new Vector2(96, 96), new Vector2(0, 40));
+        // Spinner — a row of blocky square dots; the bright one advances on a timer.
+        spinnerRoot = NewUIChild("Spinner", overlayGO.transform);
+        const float dotSize = 18f, gap = 14f;
+        float totalW = DotCount * dotSize + (DotCount - 1) * gap;
+        Center(spinnerRoot.GetComponent<RectTransform>(), new Vector2(totalW, dotSize), new Vector2(0, 36));
+        dots = new Image[DotCount];
+        for (int i = 0; i < DotCount; i++)
+        {
+            var dot = AddImage(spinnerRoot.transform, $"Dot{i}", DotIdleColor);
+            var rt = dot.rectTransform;
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(dotSize, dotSize);
+            rt.anchoredPosition = new Vector2(-totalW / 2f + dotSize / 2f + i * (dotSize + gap), 0f);
+            dots[i] = dot;
+        }
 
         // Status text under the spinner.
-        statusText = AddText(overlayGO.transform, "Status", font, 30, TextColor);
-        Center(statusText.rectTransform, new Vector2(900, 50), new Vector2(0, -48));
+        statusText = AddText(overlayGO.transform, "Status", font, 28, TextColor);
+        Center(statusText.rectTransform, new Vector2(900, 44), new Vector2(0, -48));
 
         // Progress bar (shown for scene loads only).
         progressBar = NewUIChild("Progress", overlayGO.transform);
         var barBg = progressBar.AddComponent<Image>();
-        barBg.color = new Color(1f, 1f, 1f, 0.12f);
-        Center(barBg.rectTransform, new Vector2(520, 8), new Vector2(0, -100));
+        barBg.color = new Color(0.85f, 0.87f, 0.90f, 0.15f);
+        Center(barBg.rectTransform, new Vector2(480, 6), new Vector2(0, -96));
         var fillGO = NewUIChild("Fill", progressBar.transform);
         var fill = fillGO.AddComponent<Image>();
         fill.color = AccentColor;
@@ -327,10 +345,10 @@ public class LoadingOverlay : MonoBehaviour
         toastRect.anchorMin = toastRect.anchorMax = new Vector2(0.5f, 0f);
         toastRect.pivot = new Vector2(0.5f, 0f);
         toastRect.anchoredPosition = new Vector2(0, 40);
-        toastRect.sizeDelta = new Vector2(360, 56);
+        toastRect.sizeDelta = new Vector2(340, 52);
         var toastBg = toastGO.AddComponent<Image>();
-        toastBg.color = new Color(0.05f, 0.06f, 0.09f, 0.92f);
-        toastText = AddText(toastGO.transform, "ToastText", font, 24, TextColor);
+        toastBg.color = new Color(0.06f, 0.07f, 0.09f, 0.94f);
+        toastText = AddText(toastGO.transform, "ToastText", font, 22, TextColor);
         Stretch(toastText.rectTransform);
 
         SetSpinner(false);
@@ -348,7 +366,7 @@ public class LoadingOverlay : MonoBehaviour
     {
         var go = NewUIChild(name, parent);
         var img = go.AddComponent<Image>();
-        img.color = color;
+        img.color = color; // no sprite → a plain solid quad
         return img;
     }
 
@@ -378,36 +396,5 @@ public class LoadingOverlay : MonoBehaviour
         rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
         rt.sizeDelta = size;
         rt.anchoredPosition = offset;
-    }
-
-    /// <summary>Generates a circular "comet" spinner sprite: a ring whose alpha sweeps
-    /// from solid to transparent around the circle, so rotating it reads as a spinner.</summary>
-    private static Sprite CreateCometSprite(int size, int ringThickness)
-    {
-        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear };
-        float center = (size - 1) / 2f;
-        float outer = size / 2f - 1f;
-        float inner = outer - ringThickness;
-        var pixels = new Color[size * size];
-
-        for (int y = 0; y < size; y++)
-        {
-            for (int x = 0; x < size; x++)
-            {
-                float dx = x - center, dy = y - center;
-                float dist = Mathf.Sqrt(dx * dx + dy * dy);
-
-                // Radial band with 1px soft edges for anti-aliasing.
-                float band = Mathf.Clamp01(Mathf.Min(dist - inner, outer - dist));
-                // Angular sweep 0..1 around the circle for the comet tail.
-                float angle = (Mathf.Atan2(dy, dx) + Mathf.PI) / (2f * Mathf.PI);
-                float tail = Mathf.Pow(angle, 1.4f);
-
-                pixels[y * size + x] = new Color(1f, 1f, 1f, band * tail);
-            }
-        }
-        tex.SetPixels(pixels);
-        tex.Apply();
-        return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
     }
 }
