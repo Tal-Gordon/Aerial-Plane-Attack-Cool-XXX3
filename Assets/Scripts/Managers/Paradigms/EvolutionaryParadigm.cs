@@ -70,6 +70,12 @@ public class EvolutionaryParadigm : ITrainingParadigm
             objective.SetStartingState(population[i], i, population.Count);
             population[i].gameObject.SetActive(true);
         }
+
+        // Generation 1 is now fully spawned and alive. Without this, aliveCount
+        // stays at 0 and the very first Tick() takes the "generation complete"
+        // branch immediately — evolving a phantom gen 1 from all-zero fitness and
+        // jumping the run straight to generation 2.
+        aliveCount = population.Count;
     }
 
     // Mirror the active decision cadence onto a spawned agent so evolutionary jets
