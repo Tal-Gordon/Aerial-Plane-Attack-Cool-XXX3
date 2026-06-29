@@ -252,6 +252,7 @@ public class RLParadigm : ITrainingParadigm
         cachedSnapshot.ChampionScore = ReportedBest; // all-time, used by inference/save
         cachedSnapshot.RLData.TotalEpisodes = totalEpisodes;
         cachedSnapshot.RLData.TrainingTime = Time.time - trainingStartTime;
+        cachedSnapshot.ElapsedTime = cachedSnapshot.RLData.TrainingTime;
         cachedSnapshot.RLData.CurrentMax = curMax;
         cachedSnapshot.RLData.CurrentAvg = curAvg;
 
