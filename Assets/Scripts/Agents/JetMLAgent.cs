@@ -16,6 +16,13 @@ public class JetMLAgent : Agent
 
     private bool wasSwitching = false;
 
+    // The continuous actions from the most recent decision, copied out for the brain
+    // visualizer. The PPO/SAC policy itself lives in the external Python trainer and
+    // is unreachable in-process, so the RL visualizer can only show the network's
+    // inputs (observations) and these outputs. Null until the first action arrives.
+    private float[] lastActions;
+    public float[] LastActions => lastActions;
+
     public void Inject(IObjective objective, RLParadigm paradigm, int agentIndex, int totalPopulation)
     {
         this.objective = objective;
@@ -63,6 +70,13 @@ public class JetMLAgent : Agent
         if (jetAgent.HasCrashed) return;
 
         var cont = actions.ContinuousActions;
+
+        // Snapshot the actions for the brain visualizer (the policy is a black box
+        // running in the trainer; these outputs are all we can show).
+        if (lastActions == null || lastActions.Length != cont.Length)
+            lastActions = new float[cont.Length];
+        for (int i = 0; i < cont.Length; i++)
+            lastActions[i] = cont[i];
 
         float pitch = cont[0];
         float roll = cont[1];

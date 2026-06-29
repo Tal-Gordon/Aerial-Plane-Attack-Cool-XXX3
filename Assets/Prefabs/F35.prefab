@@ -10,7 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3997064487657324484}
   - component: {fileID: 5794287836254497837}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: MainBodyCollider
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -64,7 +64,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2676450714861981557}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: MissilesHardpoints
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -106,7 +106,7 @@ GameObject:
   - component: {fileID: 7857637353285484887}
   - component: {fileID: 5739497274694273398}
   - component: {fileID: 413301666170439925}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: F35
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -541,6 +541,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a31fe42ef41fa0e42a7d24e8533dbb75, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::JetAgent
+  DecisionPeriod: 1
+  AgentIndex: 0
 --- !u!114 &5739497274694273398
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -598,7 +600,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5171589114232668599}
   - component: {fileID: 7940796415483417480}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: WingsCollider
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -650,13 +652,13 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 944116083120448783}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Colliders
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &944116083120448783
 Transform:
   m_ObjectHideFlags: 0
@@ -683,7 +685,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8467582480057991895}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Right
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -714,7 +716,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 9176838902411234597}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Left
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -745,7 +747,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1029387239299196186}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: MachineGunMuzzle
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -776,7 +778,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6039182997538778322}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Weapons
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -811,7 +813,7 @@ GameObject:
   - component: {fileID: 8475899070149956302}
   - component: {fileID: 4760211181385620843}
   - component: {fileID: 7344066493103335841}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Mesh
   m_TagString: Untagged
   m_Icon: {fileID: 0}

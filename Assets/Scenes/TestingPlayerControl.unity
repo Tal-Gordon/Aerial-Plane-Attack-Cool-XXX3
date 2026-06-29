@@ -6916,6 +6916,101 @@ Mesh:
       - serializedVersion: 1
         m_IndexStart: 0
         m_IndexCount: 0
+--- !u!1 &1119046196
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1119046198}
+  - component: {fileID: 1119046197}
+  - component: {fileID: 1119046199}
+  m_Layer: 0
+  m_Name: SelectionInputManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1119046197
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1119046196}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 89943fe7b3702784f8ea80c1d4ded820, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SelectionInputManager
+  selectableLayer:
+    serializedVersion: 2
+    m_Bits: 128
+  mainCamera: {fileID: 330585545}
+  selectAction:
+    m_Name: Select
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: d2687e97-8fc3-44ee-9b6c-a2147fe6d129
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: 2c383322-54f6-4c06-bea4-8eb524c67a67
+      m_Path: <Mouse>/leftButton
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Select
+      m_Flags: 0
+    m_Flags: 0
+  deselectAction:
+    m_Name: Deselect
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: b7e20fed-65d9-42e2-a682-397167cd3ac9
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: f0586e2b-fb3d-4be7-9a28-5762a7c928d3
+      m_Path: <Mouse>/rightButton
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Deselect
+      m_Flags: 0
+    m_Flags: 0
+--- !u!4 &1119046198
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1119046196}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1119046199
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1119046196}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e7964d2207247a54c9f6fe1aae1c648c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::JetSelectionController
 --- !u!4 &1167254335 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 7843983946256705530, guid: 2f2cf1784cb4e4248ada9ad09123e7cf, type: 3}
@@ -11462,7 +11557,7 @@ MonoBehaviour:
   m_HandleRect: {fileID: 5686959652136916190}
   m_Direction: 2
   m_Value: 1
-  m_Size: 0.75224125
+  m_Size: 0.6468115
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
@@ -11512,7 +11607,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 231.5, y: -140}
+  m_AnchoredPosition: {x: 231.5, y: -240}
   m_SizeDelta: {x: 463, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &1395542553300463315
@@ -12025,7 +12120,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 241.5, y: -1107}
+  m_AnchoredPosition: {x: 241.5, y: -1207}
   m_SizeDelta: {x: 463, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &2007999389056345111
@@ -12755,9 +12850,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.LayoutElement
   m_IgnoreLayout: 0
   m_MinWidth: -1
-  m_MinHeight: 200
+  m_MinHeight: 400
   m_PreferredWidth: -1
-  m_PreferredHeight: 200
+  m_PreferredHeight: 400
   m_FlexibleWidth: -1
   m_FlexibleHeight: 1
   m_LayoutPriority: 1
@@ -13494,7 +13589,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 200}
+  m_SizeDelta: {x: 0, y: 400}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &4325086206483843515
 GameObject:
@@ -14302,7 +14397,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 463, y: 200}
+  m_SizeDelta: {x: 463, y: 400}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &6332358242172500048
 GameObject:
@@ -14626,26 +14721,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BrainVisualizerWidget
   rawImage: {fileID: 2620080590857761805}
   noSelectionOverlay: {fileID: 2394989016033156909}
-  inputLabels:
-  - SALT
-  - SSPEED
-  - SHDG
-  outputLabels:
-  - APITCH
-  - AROLL
-  - AYAW
-  - ATHROTTLE
-  texWidth: 340
-  texHeight: 200
-  nodeRadius: 10
+  dynamicSize: 1
+  fallbackWidth: 340
+  fallbackHeight: 400
+  maxTextureDimension: 2048
+  padding: 24
+  maxNodeRadius: 9
+  minNodeRadius: 2
+  nodeSpacingFraction: 0.4
   updateEveryNFrames: 2
-  bgColor: {r: 0.05, g: 0.07, b: 0.12, a: 1}
-  nodePositive: {r: 0.2, g: 0.9, b: 1, a: 1}
-  nodeNeutral: {r: 0.15, g: 0.2, b: 0.3, a: 1}
-  nodeNegative: {r: 0.9, g: 0.2, b: 0.3, a: 1}
-  connectionPos: {r: 0.2, g: 0.8, b: 0.4, a: 0.5}
-  connectionNeg: {r: 0.9, g: 0.3, b: 0.2, a: 0.5}
-  connectionWeak: {r: 0.3, g: 0.3, b: 0.35, a: 0.2}
+  paletteBackground: {r: 0.33, g: 0.33, b: 0.35, a: 1}
+  paletteNodeInactive: {r: 0.6, g: 0.6, b: 0.6, a: 1}
+  paletteNodePositive: {r: 0.3, g: 0.68, b: 0.95, a: 1}
+  paletteNodeNegative: {r: 0.96, g: 0.55, b: 0.22, a: 1}
+  paletteConnection: {r: 0.18, g: 0.21, b: 0.28, a: 1}
 --- !u!222 &6795527174367069355
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -15689,7 +15778,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: -0.000061035}
-  m_SizeDelta: {x: 463, y: 200}
+  m_SizeDelta: {x: 463, y: 400}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &8941582498006623829
 GameObject:
@@ -15790,3 +15879,4 @@ SceneRoots:
   - {fileID: 2041577512}
   - {fileID: 1388875909}
   - {fileID: 1943075243}
+  - {fileID: 1119046198}
