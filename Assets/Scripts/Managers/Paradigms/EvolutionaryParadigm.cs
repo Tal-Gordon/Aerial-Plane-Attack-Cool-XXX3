@@ -21,6 +21,10 @@ public class EvolutionaryParadigm : ITrainingParadigm
     private int aliveCount = 0;
     private int currentGeneration = 1;
 
+    // Marks when this run started (scaled time), so the snapshot can report a TIME
+    // the same way RLParadigm does. Reset on every Initialize (i.e. on rebuild).
+    private float startTime;
+
     private JetAgent inferenceJet;
 
     private SimulationSnapshot cachedSnapshot;
@@ -35,6 +39,8 @@ public class EvolutionaryParadigm : ITrainingParadigm
         this.population = population;
         this.settings = settings;
         this.objective = objective;
+
+        startTime = Time.time;
 
         // Subscribe to UI Events
         EvoControlsWidget.OnMutationRateChanged += OnMutationRateChanged;
@@ -185,6 +191,7 @@ public class EvolutionaryParadigm : ITrainingParadigm
         // Update the cached snapshot values
         cachedSnapshot.IterationNumber = currentGeneration;
         cachedSnapshot.AgentsAlive = aliveCount;
+        cachedSnapshot.ElapsedTime = Time.time - startTime;
         cachedSnapshot.ChampionScore = engine.GetChampionScore();
         cachedSnapshot.EvoData.ChampionBrain = engine.GetChampionBrain();
         cachedSnapshot.EvoData.MutationRate = settings.ActiveEvoSettings.MutationRate;

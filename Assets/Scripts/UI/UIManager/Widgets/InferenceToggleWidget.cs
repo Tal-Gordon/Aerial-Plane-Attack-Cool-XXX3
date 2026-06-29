@@ -36,7 +36,14 @@ public class InferenceToggleWidget : UIWidget
     {
         // SimulationManager decides whether the change is allowed; the next Tick
         // re-syncs the toggle from the snapshot if it wasn't.
-        Manager.SetInferenceMode(on);
+        // Entering/leaving inference rebuilds the run (and for RL relaunches the
+        // Python trainer), so run it behind a dim-modal overlay.
+        if (LoadingOverlay.Instance != null)
+            LoadingOverlay.Instance.RunModal(
+                () => Manager.SetInferenceMode(on),
+                on ? "Starting inference…" : "Resuming training…");
+        else
+            Manager.SetInferenceMode(on);
     }
 
     private void OnDestroy()
