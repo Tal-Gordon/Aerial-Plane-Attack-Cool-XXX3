@@ -10,6 +10,12 @@ public class SimulationSnapshot
     public string ParadigmName;
     public List<JetAgent> Population;
 
+    // Seconds of (scaled) wall-clock since the current run started. Every paradigm
+    // stamps it from its own start marker, so the UI has one uniform TIME source
+    // regardless of whether it's a generation- or episode-based run. (RL also keeps
+    // RLData.TrainingTime, which is the same value, for its other consumers.)
+    public float ElapsedTime;
+
     // ── Filled by SimulationManager, not paradigm ────────────────────
     public float TimeScale;
     public JetAgent SelectedAgent;
