@@ -180,7 +180,13 @@ public class HyperparameterEditorWidget : UIWidget
         List<string> coldNames = StagedColdHyperparameterNames();
         if (coldNames.Count == 0)
         {
-            CommitAllHot();
+            // Hot commit rebuilds the run in place (Save→Load round-trip) — no scene
+            // change — so cover it with the dim-modal overlay. The cold path below
+            // reloads the scene, which already shows the fullscreen overlay itself.
+            if (LoadingOverlay.Instance != null)
+                LoadingOverlay.Instance.RunModal(CommitAllHot, "Applying changes…");
+            else
+                CommitAllHot();
         }
         else
         {

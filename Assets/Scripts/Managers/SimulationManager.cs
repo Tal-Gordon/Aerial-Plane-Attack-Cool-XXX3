@@ -339,7 +339,10 @@ public class SimulationManager : MonoBehaviour
         if (saveProgress) SaveState();
 
         Time.timeScale = 1f;
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        if (LoadingOverlay.Instance != null)
+            LoadingOverlay.Instance.ReloadActiveScene();
+        else
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
     /// <summary>

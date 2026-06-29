@@ -122,3 +122,5 @@ NeatDebugLog*
 /[Aa]ssets/StreamingAssets/mlagents-env.meta
 mlagents-env.tar.gz
 
+# Ignore local ProBuilder preferences
+ProjectSettings/Packages/com.unity.probuilder/Settings.json

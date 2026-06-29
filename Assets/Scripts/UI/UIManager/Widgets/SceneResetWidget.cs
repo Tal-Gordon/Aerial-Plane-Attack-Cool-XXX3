@@ -31,9 +31,16 @@ public class SceneResetWidget : UIWidget
             Time.timeScale = 1f;
         }
 
-        // Get the currently active scene and reload it by its build index
-        int currentSceneIndex = SceneManager.GetActiveScene().buildIndex;
-        SceneManager.LoadScene(currentSceneIndex);
+        // Reload the active scene through the animated loading overlay (async).
+        if (LoadingOverlay.Instance != null)
+        {
+            LoadingOverlay.Instance.ReloadActiveScene();
+        }
+        else
+        {
+            int currentSceneIndex = SceneManager.GetActiveScene().buildIndex;
+            SceneManager.LoadScene(currentSceneIndex);
+        }
     }
 
     private void OnDestroy()
