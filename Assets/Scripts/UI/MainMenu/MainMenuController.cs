@@ -31,7 +31,10 @@ public class MainMenuController : MonoBehaviour
 
     public void OpenSettings()
     {
-        // TODO
+        if (SettingsMenu.Instance != null)
+            SettingsMenu.Instance.Open();
+        else
+            Debug.LogWarning("[MainMenuController] SettingsMenu not available.");
     }
 
     public void QuitGame()

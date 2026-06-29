@@ -70,7 +70,18 @@ public class PauseMenuController : MonoBehaviour
         IsGamePaused = false;
 
         Debug.Log("Loading menu...");
-        SceneManager.LoadScene(mainMenuSceneName);
+        if (LoadingOverlay.Instance != null)
+            LoadingOverlay.Instance.LoadScene(mainMenuSceneName);
+        else
+            SceneManager.LoadScene(mainMenuSceneName);
+    }
+
+    public void OpenSettings()
+    {
+        if (SettingsMenu.Instance != null)
+            SettingsMenu.Instance.Open();
+        else
+            Debug.LogWarning("[PauseMenuController] SettingsMenu not available.");
     }
 
     public void QuitGame()
