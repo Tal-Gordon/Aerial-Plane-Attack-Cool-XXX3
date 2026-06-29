@@ -1021,7 +1021,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 241.5, y: -1167}
+  m_AnchoredPosition: {x: 241.5, y: -963}
   m_SizeDelta: {x: 463, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &3691186420760482571
@@ -3560,7 +3560,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 231.5, y: -566.5}
+  m_AnchoredPosition: {x: 231.5, y: -362.5}
   m_SizeDelta: {x: 463, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &2519408648050134173
@@ -3845,7 +3845,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 231.5, y: -348.5}
+  m_AnchoredPosition: {x: 231.5, y: -246.5}
   m_SizeDelta: {x: 463, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &71867068865043927
@@ -4652,7 +4652,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &3535207599881504278
 RectTransform:
   m_ObjectHideFlags: 0
@@ -4673,10 +4673,10 @@ RectTransform:
   - {fileID: 1385581938672651645}
   m_Father: {fileID: 356834494945183900}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 200}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 231.5, y: -204}
+  m_SizeDelta: {x: 463, y: 200}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &4362845796726723271
 MonoBehaviour:
@@ -4690,11 +4690,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6ea5cd006bd373f42845edfeb4be5544, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GenerationStatsWidget
-  generationLabel: {fileID: 7761537787743698298}
-  avgFitnessLabel: {fileID: 1275238552292787637}
-  topFitnessLabel: {fileID: 6275766642792923785}
-  aliveLabel: {fileID: 5076584872601145671}
-  deadLabel: {fileID: 1506095309788145611}
+  cellPrefab: {fileID: 7254416833952838033, guid: 41d7fe2bbca586f4d8a25f4a4abe4a02, type: 3}
+  cellRow: {fileID: 0}
   populationFillBar: {fileID: 3218269479389628943}
 --- !u!114 &5644502444297629883
 MonoBehaviour:
@@ -5539,7 +5536,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 241.5, y: -857}
+  m_AnchoredPosition: {x: 241.5, y: -653}
   m_SizeDelta: {x: 463, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &897241612406806778
@@ -5977,7 +5974,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 241.5, y: -338.5}
+  m_AnchoredPosition: {x: 241.5, y: -236.5}
   m_SizeDelta: {x: 463, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2205738223277638622
