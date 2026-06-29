@@ -38,7 +38,8 @@ public class LoadingOverlay : MonoBehaviour
     private static readonly Color TextColor = new Color(0.85f, 0.87f, 0.90f, 1f);
     private const float ModalDimAlpha = 0.80f; // background opacity in modal mode
     private const int DotCount = 3;
-    private const float DotStepSeconds = 0.22f; // how fast the active dot advances
+    private const float DotStepSeconds = 0.12f; // how fast the active dot advances
+    private const float MinVisibleSeconds = 0.8f; // keep a fast scene-load up long enough to animate
     private const float ToastSeconds = 1.8f;
 
     // ── Main overlay (fullscreen + modal share one canvas group) ──
@@ -146,6 +147,7 @@ public class LoadingOverlay : MonoBehaviour
     private IEnumerator LoadSceneRoutine(string sceneName, int buildIndex)
     {
         busy = true;
+        float startTime = Time.unscaledTime;
         SetSpinner(true);
         SetStatus(string.IsNullOrEmpty(sceneName) ? "Loading…" : $"Loading {sceneName}…");
         ShowProgress(true);
@@ -166,6 +168,13 @@ public class LoadingOverlay : MonoBehaviour
         }
         SetProgress(1f);
 
+        // Keep the loader up until a minimum time has passed so the dots actually cycle —
+        // a small/cached scene otherwise finishes in a frame or two, before one dot-step
+        // elapses, and the overlay just flashes a single lit square. These are real
+        // rendered frames (the load is async), so the dots animate during the wait.
+        while (Time.unscaledTime - startTime < MinVisibleSeconds)
+            yield return null;
+
         // One painted frame at 100% so the bar visibly fills before the activation
         // hitch (all the new scene's Awake/Start fire on the activation frame).
         yield return null;
@@ -183,7 +192,12 @@ public class LoadingOverlay : MonoBehaviour
     private IEnumerator ModalRoutine(Action work, string status)
     {
         busy = true;
-        SetSpinner(true);
+        // No animated spinner here on purpose: the work below runs synchronously and
+        // freezes the main thread, so Update() can't fire and any spinner would just
+        // freeze mid-cycle and look broken. A static dim + status line reads as "busy"
+        // honestly. (Animating *through* the freeze would require chunking the rebuild
+        // across frames — see notes.)
+        SetSpinner(false);
         SetStatus(status);
         ShowProgress(false);
         // Dimmed, not opaque — the scene shows through.
