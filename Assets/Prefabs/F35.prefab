@@ -106,6 +106,7 @@ GameObject:
   - component: {fileID: 7857637353285484887}
   - component: {fileID: 5739497274694273398}
   - component: {fileID: 413301666170439925}
+  - component: {fileID: 5402848230371202803}
   m_Layer: 0
   m_Name: F35
   m_TagString: Untagged
@@ -890,3 +891,19 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &5402848230371202803
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 835737604007996434}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c0e5ad54c8047588a02825b437cc6f6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  createHoops: 0
+  hoopSpacing: 1250
+  hoopPrefab: {fileID: 3963078238349875913, guid: 794c09d6738189741af4be859aa39d66, type: 3}
+  trackParent: {fileID: 0}
