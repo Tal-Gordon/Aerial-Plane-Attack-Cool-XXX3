@@ -14,7 +14,7 @@ using TMPro;
 /// Note the graph's MAX line is the per-sample top performer (it fluctuates),
 /// which is distinct from the headline BEST stat (the all-time record).
 /// </summary>
-public class GraphWidget : UIWidget
+public class RunGraphWidget : UIWidget
 {
     [Header("Renderer")]
     [SerializeField] private TelemetryGraph graph;
