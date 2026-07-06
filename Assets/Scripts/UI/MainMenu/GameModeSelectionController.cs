@@ -20,6 +20,9 @@ public class GameModeSelectionController : MonoBehaviour
     {
         PopulateList();
 
+        // The Play call-to-action pops in accent against the themed panel.
+        UITheme.StylePrimary(heroButton);
+
         // Auto-select the first mode so the screen isn't empty when it loads
         if (availableModes.Count > 0)
         {
@@ -33,6 +36,7 @@ public class GameModeSelectionController : MonoBehaviour
         foreach (GameModeData mode in availableModes)
         {
             GameObject newBtnObj = Instantiate(buttonPrefab, buttonContainer);
+            UITheme.Skin(newBtnObj); // spawned after the canvas-wide skin — theme each clone
             GameModeButton btnScript = newBtnObj.GetComponent<GameModeButton>();
 
             // Pass the data and a reference to 'this' controller

@@ -65,6 +65,15 @@ public class HyperparameterEditorWidget : UIWidget
         if (confirmNoSaveButton) confirmNoSaveButton.onClick.AddListener(OnConfirmNoSave);
         if (declineButton) declineButton.onClick.AddListener(HideDialog);
 
+        // The dialog is a scene object wired per scene (not a child of this widget),
+        // so the widget/window skin passes never reach it — theme it here.
+        if (confirmDialog != null)
+        {
+            UITheme.Skin(confirmDialog);
+            UITheme.StylePrimary(confirmSaveButton); // safe path: save progress + reload
+            UITheme.StyleDestructive(confirmNoSaveButton); // discards training progress
+        }
+
         HideDialog();
     }
 
@@ -149,6 +158,7 @@ public class HyperparameterEditorWidget : UIWidget
             }
 
             GameObject obj = Instantiate(rowPrefab, container);
+            UITheme.Skin(obj); // rows spawn per descriptor at runtime — theme each clone
             ParameterRow row = obj.GetComponent<ParameterRow>();
             if (row == null)
             {

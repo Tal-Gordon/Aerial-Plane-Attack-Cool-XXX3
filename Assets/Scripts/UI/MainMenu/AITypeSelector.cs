@@ -17,6 +17,10 @@ public class AITypeSelector : MonoBehaviour
             // for the lambda expression to work correctly.
             int index = i;
             optionButtons[i].onClick.AddListener(() => SelectOption(index));
+
+            // Selection is shown via the disabled state — make it read as "chosen"
+            // (muted accent fill) rather than greyed-out.
+            UITheme.StyleSelectedWhenDisabled(optionButtons[i]);
         }
 
         // Select Option A (index 0) by default
