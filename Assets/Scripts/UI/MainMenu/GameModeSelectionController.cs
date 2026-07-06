@@ -16,12 +16,17 @@ public class GameModeSelectionController : MonoBehaviour
     public GameObject buttonPrefab;   // A prefab of a single UI button
     public List<GameModeData> availableModes; // Drag your ScriptableObjects here
 
+    private AITypeSelector aiTypeSelector; // found lazily — lives on the selection window
+
     void Start()
     {
         PopulateList();
 
-        // The Play call-to-action pops in accent against the themed panel.
+        // The Play call-to-action pops in accent against the themed panel, and the
+        // hero title carries the accent (set explicitly — the generic skin keeps
+        // all text neutral).
         UITheme.StylePrimary(heroButton);
+        if (heroTitleText != null) heroTitleText.color = UITheme.Accent;
 
         // Auto-select the first mode so the screen isn't empty when it loads
         if (availableModes.Count > 0)
@@ -55,6 +60,13 @@ public class GameModeSelectionController : MonoBehaviour
         // Clear old listeners so we don't load multiple scenes or repeat actions!
         heroButton.onClick.RemoveAllListeners();
         heroButton.onClick.AddListener(() => newlySelectedMode.LoadScene());
+
+        // Switching mode resets the AI choice to its default so a previous pick
+        // doesn't silently carry over to the new mode.
+        if (aiTypeSelector == null)
+            aiTypeSelector = FindFirstObjectByType<AITypeSelector>(FindObjectsInactive.Include);
+        if (aiTypeSelector != null)
+            aiTypeSelector.ResetToDefault();
 
         // Note: This is exactly where you would add your DOTween or LeanTween
         // code to fade the text in or briefly scale up the hero image!

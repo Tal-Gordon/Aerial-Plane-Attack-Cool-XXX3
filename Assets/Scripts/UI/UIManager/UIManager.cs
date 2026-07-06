@@ -44,7 +44,25 @@ public class UIManager : MonoBehaviour
         if (layoutConfig != null)
             BuildFromConfig();
         else if (telemetryWindow != null)
-            UITheme.Skin(telemetryWindow); // scene-authored windows keep default visuals; theme in place
+        {
+            // Scene-authored windows keep default visuals; theme in place. Their root
+            // backdrop is usually ghostly semi-transparent white — over a bright sky it
+            // washes out to light grey, so pin it to the solid window colour explicitly.
+            UITheme.Skin(telemetryWindow);
+            Image windowBackground = telemetryWindow.GetComponent<Image>();
+            if (windowBackground != null)
+                windowBackground.color = new Color(0.13f, 0.14f, 0.17f, 0.94f);
+
+            // The drag strip isn't reliably named "TitleBar" in scene-authored windows,
+            // so the skin's name hint can miss it and leave grey glass — find it by its
+            // WindowDragHandle component and pin the solid title-bar colour.
+            var dragHandle = telemetryWindow.GetComponentInChildren<WindowDragHandle>(includeInactive: true);
+            if (dragHandle != null)
+            {
+                Image dragBar = dragHandle.GetComponent<Image>();
+                if (dragBar != null) dragBar.color = new Color(0.08f, 0.11f, 0.16f, 1f);
+            }
+        }
 
         if (sections == null || sections.Length == 0)
             sections = GetComponentsInChildren<UISection>(includeInactive: true);

@@ -58,11 +58,14 @@ public static class UITheme
         {
             if (!IsPlain(img)) continue;
             Color panel = PanelColorFor(img.gameObject.name);
-            img.color = new Color(panel.r, panel.g, panel.b, img.color.a);
+            // Chrome hints (title bars, headers, separators) carry their own alpha —
+            // scene-authored strips are often ghostly semi-transparent white and should
+            // become solid. Everything else keeps its weight (dims, overlays).
+            img.color = panel != Panel ? panel : new Color(panel.r, panel.g, panel.b, img.color.a);
         }
 
         foreach (TMP_Text label in root.GetComponentsInChildren<TMP_Text>(includeInactive: true))
-            label.color = TextColorFor(label.gameObject.name);
+            label.color = IsIconGlyph(label) ? Accent : TextColorFor(label.gameObject.name);
         foreach (Text label in root.GetComponentsInChildren<Text>(includeInactive: true))
             label.color = TextColorFor(label.gameObject.name);
 
@@ -79,6 +82,33 @@ public static class UITheme
 
         switch (selectable)
         {
+            case Button button:
+                // Fold/minimise arrows read best as a bare accent glyph, not a boxed one.
+                if (IsIconGlyph(button.GetComponentInChildren<TMP_Text>(includeInactive: true)))
+                {
+                    if (button.targetGraphic is Image)
+                    {
+                        // Scene-authored: box image behind the glyph — ghost it (invisible
+                        // at rest, subtle box on hover).
+                        ApplyBlock(button,
+                            new Color(1f, 1f, 1f, 0f),
+                            new Color(Field.r, Field.g, Field.b, 0.9f),
+                            FieldPressed,
+                            new Color(1f, 1f, 1f, 0f));
+                    }
+                    else
+                    {
+                        // Label-as-button: white multipliers so the glyph keeps its accent,
+                        // dimming slightly on hover/press.
+                        ApplyBlock(button,
+                            Color.white,
+                            new Color(1f, 1f, 1f, 0.75f),
+                            new Color(1f, 1f, 1f, 0.5f),
+                            new Color(1f, 1f, 1f, 0.3f));
+                    }
+                }
+                break;
+
             case Slider slider:
                 // Handle is usually the target graphic — keep it light on the dark track.
                 ApplyBlock(slider, HandleColor, Color.white, Accent, new Color(HandleColor.r, HandleColor.g, HandleColor.b, 0.4f));
@@ -151,6 +181,20 @@ public static class UITheme
         button.colors = colors;
     }
 
+    /// <summary>1×N vertical gradient sprite for large background fills (menus).
+    /// Generated once per call — cache the result, don't call per frame.</summary>
+    public static Sprite CreateVerticalGradientSprite(Color bottom, Color top, int steps = 128)
+    {
+        var tex = new Texture2D(1, steps, TextureFormat.RGBA32, false)
+        {
+            wrapMode = TextureWrapMode.Clamp,
+        };
+        for (int y = 0; y < steps; y++)
+            tex.SetPixel(0, y, Color.Lerp(bottom, top, (float)y / (steps - 1)));
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0f, 0f, 1f, steps), new Vector2(0.5f, 0.5f));
+    }
+
     // ── internals ──
 
     private static void ApplyBlock(Selectable selectable, Color normal, Color hover, Color pressed, Color disabled)
@@ -166,7 +210,8 @@ public static class UITheme
 
         // The block multiplies the target graphic's own colour — neutralise it so the
         // state colours land exactly as specified (also keeps custom art sprites intact).
-        if (selectable.transition == Selectable.Transition.ColorTint && selectable.targetGraphic != null)
+        // Images only: a text target (label-as-button) must keep its own colour.
+        if (selectable.transition == Selectable.Transition.ColorTint && selectable.targetGraphic is Image)
             selectable.targetGraphic.color = Color.white;
     }
 
@@ -183,7 +228,10 @@ public static class UITheme
 
     private static Color TextColorFor(string objectName)
     {
-        if (objectName == "Title") return Accent;      // screen titles pop in accent
+        // No accent-by-name here: scene section headers are also named "Title" and
+        // accent text on the blue-tinted header strips reads badly. Screens that
+        // want an accent title set it explicitly (SettingsMenu, MainMenuController,
+        // GameModeSelectionController).
         if (objectName == "Caption") return TextDimmed; // stat-cell captions recede
         return TextColor;
     }
@@ -198,5 +246,13 @@ public static class UITheme
     private static bool IsPlain(Image img)
     {
         return img.sprite == null || BuiltinSprites.Contains(img.sprite.name);
+    }
+
+    // A label that is just a directional glyph — a fold/minimise arrow.
+    private static bool IsIconGlyph(TMP_Text label)
+    {
+        if (label == null || label.text == null) return false;
+        string glyph = label.text.Trim();
+        return glyph == "↓" || glyph == "→" || glyph == "▼" || glyph == "▶" || glyph == "↑" || glyph == "←";
     }
 }
