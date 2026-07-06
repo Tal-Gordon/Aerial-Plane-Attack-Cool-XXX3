@@ -30,6 +30,11 @@ public class AITypeSelector : MonoBehaviour
         }
     }
 
+    /// <summary>Reverts to the first option (the default) — re-enables the previously
+    /// chosen button and broadcasts the change so the recorded AI type follows the
+    /// visuals. No-op when the default is already selected.</summary>
+    public void ResetToDefault() => SelectOption(0);
+
     public void SelectOption(int index)
     {
         // Ignore if clicking the already selected button

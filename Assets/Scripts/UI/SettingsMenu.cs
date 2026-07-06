@@ -214,7 +214,6 @@ public class SettingsMenu : MonoBehaviour
         ddRT.anchorMin = ddRT.anchorMax = ddRT.pivot = new Vector2(0.5f, 0.5f);
         ddRT.sizeDelta = size;
         var dd = ddImg.gameObject.AddComponent<Dropdown>();
-        UITheme.StyleSelectable(dd); // themed hover/pressed states
 
         // Caption (currently selected value).
         var caption = AddText(ddImg.transform, "Label", font, 22, TextColor);
@@ -279,6 +278,9 @@ public class SettingsMenu : MonoBehaviour
         dd.template = tmplRT;
         dd.captionText = caption;
         dd.itemText = itemLabel;
+        // Style only after targetGraphic is wired — styling first leaves the image's
+        // own colour in place and the state tint multiplies it to near-black.
+        UITheme.StyleSelectable(dd);
 
         template.gameObject.SetActive(false);
         return dd;

@@ -38,13 +38,21 @@ public class ParameterRow : MonoBehaviour
         if (label)
         {
             label.text = desc.DisplayName;
+            // Left-aligned reads as a settings list; the prefab centres it.
+            label.alignment = TextAlignmentOptions.MidlineLeft;
             // Paint the label by commit type so the user can see at a glance which
-            // edits keep trained state (hot/red) and which force a rebuild (cold/blue).
+            // edits keep trained state (hot/amber) and which force a rebuild (cold/blue).
             label.color = desc.RequiresReset ? ColdColor : HotColor;
         }
 
         if (input)
         {
+            // The prefab's field text is auto-sized tiny — pin a readable size.
+            if (input.textComponent != null)
+            {
+                input.textComponent.enableAutoSizing = false;
+                input.textComponent.fontSize = 14f;
+            }
             // Toggle params are 0/1 flags — restrict to whole numbers so the field
             // can't take a fractional value; everything else allows decimals.
             input.contentType = desc.IsToggle
