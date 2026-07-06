@@ -11,6 +11,11 @@ public class MainMenuController : MonoBehaviour
     private void Awake()
     {
         selectionController = GetComponent<GameModeSelectionController>();
+
+        // Theme the whole menu canvas (title, buttons, selection window) in place —
+        // the scene keeps its default visuals in the editor, UITheme restyles at runtime.
+        Transform themeRoot = buttons != null ? buttons.transform.root : transform.root;
+        UITheme.Skin(themeRoot.gameObject);
     }
 
     public void ToggleSelectionMenu()

@@ -43,6 +43,8 @@ public class UIManager : MonoBehaviour
 
         if (layoutConfig != null)
             BuildFromConfig();
+        else if (telemetryWindow != null)
+            UITheme.Skin(telemetryWindow); // scene-authored windows keep default visuals; theme in place
 
         if (sections == null || sections.Length == 0)
             sections = GetComponentsInChildren<UISection>(includeInactive: true);

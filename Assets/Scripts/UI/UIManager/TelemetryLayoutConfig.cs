@@ -53,9 +53,9 @@ public class TelemetryLayoutConfig : ScriptableObject
 
     [Header("Code-built chrome style")]
     public Color windowBackground = new Color(0.13f, 0.14f, 0.17f, 0.94f);
-    public Color titleBarColor = new Color(0.09f, 0.10f, 0.12f, 1f);
-    public Color sectionHeaderColor = new Color(0.19f, 0.20f, 0.24f, 1f);
-    public Color textColor = new Color(0.85f, 0.86f, 0.92f, 1f);
+    public Color titleBarColor = new Color(0.08f, 0.11f, 0.16f, 1f);
+    public Color sectionHeaderColor = new Color(0.16f, 0.22f, 0.32f, 1f);
+    public Color textColor = new Color(0.85f, 0.87f, 0.92f, 1f);
     public float titleBarHeight = 28f;
     public float sectionHeaderHeight = 24f;
     public float scrollbarWidth = 10f;

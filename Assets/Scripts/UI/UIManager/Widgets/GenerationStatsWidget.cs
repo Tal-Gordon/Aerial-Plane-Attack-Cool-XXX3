@@ -159,7 +159,11 @@ public class GenerationStatsWidget : UIWidget
     private StatCell GetCell(int index)
     {
         while (cells.Count <= index)
-            cells.Add(Instantiate(cellPrefab, cellRow));
+        {
+            StatCell newCell = Instantiate(cellPrefab, cellRow);
+            UITheme.Skin(newCell.gameObject); // pool grows at runtime — theme each clone
+            cells.Add(newCell);
+        }
 
         StatCell cell = cells[index];
         SetActive(cell.gameObject, true);

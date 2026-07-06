@@ -13,13 +13,13 @@ public class ParameterRow : MonoBehaviour
     [SerializeField] private TextMeshProUGUI label;
     [SerializeField] private TMP_InputField input;
 
-    // Muted, readable-over-white tints signalling how a committed change is applied
-    // (see ParameterDescriptor.RequiresReset). Kept as constants rather than
+    // Readable-over-dark tints (UITheme palette) signalling how a committed change is
+    // applied (see ParameterDescriptor.RequiresReset). Kept as constants rather than
     // SerializeFields to dodge the prefab-default trap noted in CLAUDE.md.
-    //   hot  (RequiresReset == false) → soft red   (kept in place, trained state survives)
+    //   hot  (RequiresReset == false) → soft amber (kept in place, trained state survives)
     //   cold (RequiresReset == true)  → soft blue  (forces a rebuild / reload)
-    private static readonly Color HotColor = new Color(0.72f, 0.25f, 0.22f);
-    private static readonly Color ColdColor = new Color(0.20f, 0.38f, 0.66f);
+    private static readonly Color HotColor = new Color(0.96f, 0.62f, 0.32f);
+    private static readonly Color ColdColor = new Color(0.47f, 0.72f, 0.98f);
 
     private ParameterDescriptor descriptor;
     private Action<string, float> onCommitted;
