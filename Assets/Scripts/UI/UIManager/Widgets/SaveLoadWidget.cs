@@ -3,9 +3,8 @@ using UnityEngine.UI;
 
 /// <summary>
 /// One widget holding a Save and a Load button for the current run's full training
-/// state (the same operations as the S / L hotkeys). Both route through the
-/// UIManager to the SimulationManager, which saves/loads per the mode + AI type
-/// currently loaded.
+/// state. Both route through the UIManager to the SimulationManager, which
+/// saves/loads per the mode + AI type currently loaded.
 /// </summary>
 public class SaveLoadWidget : UIWidget
 {

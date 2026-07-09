@@ -9,6 +9,11 @@ public class AITypeSelector : MonoBehaviour
 
     private int currentIndex = -1;
 
+    /// <summary>Currently selected button index, or -1 before any selection. Lets a
+    /// late subscriber (e.g. a listener whose OnEnable runs after a selection was
+    /// already broadcast) sync to the selection it missed.</summary>
+    public int CurrentIndex => currentIndex;
+
     void Start()
     {
         for (int i = 0; i < optionButtons.Length; i++)
