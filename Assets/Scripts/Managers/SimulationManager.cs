@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
 /// <summary>
@@ -54,9 +53,6 @@ public class SimulationManager : MonoBehaviour
             return;
         }
 
-        // TODO: Remove in production
-        // DataManager.ResetToDefaults(Track, objective.Mode);
-
         // Load settings for this track (per-scene), seeded from the mode's defaults
         // on first run so each track keeps its own tuning.
         var mode = objective.Mode;
@@ -91,10 +87,6 @@ public class SimulationManager : MonoBehaviour
         hyperParams = new ModelHyperparameters(() => settings);
         ParameterTuners.Hyperparameters = new ParameterTuner(hyperParams, CommitHyperparameters);
 
-        // TEMP: prove the observers fire. Remove with the rest of the smoke test.
-        ParameterTuners.Reward.OnStateChanged += LogRewardTunerState;
-        ParameterTuners.Hyperparameters.OnStateChanged += LogHyperTunerState;
-
         // Create the correct paradigm for the chosen AI type
         activeParadigm = CreateParadigm(settings.AIType);
         if (activeParadigm == null) return;
@@ -116,99 +108,6 @@ public class SimulationManager : MonoBehaviour
         // The paradigm owns the entire lifecycle: step rewards,
         // terminal checks, generation/episode boundaries, resets.
         activeParadigm?.Tick();
-    }
-
-    private void Update()
-    {
-        // Temporary hotkeys for testing save/load until UI buttons are wired up.
-        var keyboard = Keyboard.current;
-        if (keyboard == null) return;
-
-        // Save/load only apply to a live training run, not during inference replay.
-        if (!inInferenceMode)
-        {
-            if (keyboard.sKey.wasPressedThisFrame)
-                SaveState();
-
-            if (keyboard.lKey.wasPressedThisFrame)
-                LoadState();
-        }
-
-        // Inference toggle: 'i' replays the saved champion, 't' resumes training.
-        if (keyboard.iKey.wasPressedThisFrame)
-            EnterInferenceMode();
-
-        if (keyboard.tKey.wasPressedThisFrame)
-            ExitInferenceMode();
-
-        // ── TEMP: reward-tuning smoke test (remove once the UI is wired) ──
-        // K = stage a bump on the first reward param, C = commit, V = discard.
-        if (keyboard.kKey.wasPressedThisFrame) TempStageRewardParam();
-        if (keyboard.cKey.wasPressedThisFrame) ParameterTuners.Reward?.Commit();
-        if (keyboard.vKey.wasPressedThisFrame) ParameterTuners.Reward?.Discard();
-
-        // ── TEMP: hyperparameter-tuning smoke test (remove once the UI is wired) ──
-        // H = stage a HOT knob (round-trip keeps trained state),
-        // B = stage a COLD knob (commit rebuilds from scratch),
-        // N = commit, M = discard.
-        if (keyboard.hKey.wasPressedThisFrame) TempStageHyperParam(wantReset: false);
-        if (keyboard.bKey.wasPressedThisFrame) TempStageHyperParam(wantReset: true);
-        if (keyboard.nKey.wasPressedThisFrame) ParameterTuners.Hyperparameters?.Commit();
-        if (keyboard.mKey.wasPressedThisFrame) ParameterTuners.Hyperparameters?.Discard();
-    }
-
-    // ── TEMP: reward-tuning smoke test helpers (remove once the UI is wired) ──
-    private void TempStageRewardParam()
-    {
-        ParameterTuner tuner = ParameterTuners.Reward;
-        if (tuner == null || tuner.Descriptors.Count == 0) return;
-
-        ParameterDescriptor d = tuner.Descriptors[0];
-        float current = tuner.GetEffectiveValue(d.Key);
-        // Bump by 10% of the range, wrapping back to Min once we hit Max.
-        float step = (d.Max - d.Min) * 0.1f;
-        float next = current + step > d.Max ? d.Min : current + step;
-
-        tuner.Stage(d.Key, next);
-        Debug.Log($"[RewardTuneTest] Staged '{d.Key}' -> {next:F2} | live={tuner.GetLiveValue(d.Key):F2} effective={tuner.GetEffectiveValue(d.Key):F2}");
-    }
-
-    private void LogRewardTunerState()
-    {
-        ParameterTuner tuner = ParameterTuners.Reward;
-        if (tuner == null) return;
-        Debug.Log($"[RewardTuneTest] OnStateChanged — pending changes: {tuner.HasPendingChanges} ({tuner.Pending.Count})");
-    }
-
-    // Stages a bump on the first hyperparameter whose RequiresReset matches
-    // wantReset, so the smoke test can exercise both the hot (round-trip) and
-    // cold (rebuild) commit paths.
-    private void TempStageHyperParam(bool wantReset)
-    {
-        ParameterTuner tuner = ParameterTuners.Hyperparameters;
-        if (tuner == null) return;
-
-        foreach (ParameterDescriptor d in tuner.Descriptors)
-        {
-            if (d.RequiresReset != wantReset) continue;
-
-            float current = tuner.GetEffectiveValue(d.Key);
-            float step = (d.Max - d.Min) * 0.1f;
-            float next = current + step > d.Max ? d.Min : current + step;
-
-            tuner.Stage(d.Key, next);
-            Debug.Log($"[HyperTuneTest] Staged '{d.Key}' ({(d.RequiresReset ? "COLD" : "HOT")}) -> {next:F3} | live={tuner.GetLiveValue(d.Key):F3} effective={tuner.GetEffectiveValue(d.Key):F3}");
-            return;
-        }
-
-        Debug.Log($"[HyperTuneTest] No {(wantReset ? "COLD" : "HOT")} hyperparameter to stage for {settings.AIType}.");
-    }
-
-    private void LogHyperTunerState()
-    {
-        ParameterTuner tuner = ParameterTuners.Hyperparameters;
-        if (tuner == null) return;
-        Debug.Log($"[HyperTuneTest] OnStateChanged — pending changes: {tuner.HasPendingChanges} ({tuner.Pending.Count})");
     }
 
     private void OnDestroy()
@@ -395,6 +294,8 @@ public class SimulationManager : MonoBehaviour
         snapshot.SelectedAgent = selectedAgent;
         snapshot.TracksAttrition = objective != null && objective.TracksAttrition;
         snapshot.InInferenceMode = inInferenceMode;
+        snapshot.AIName = settings != null ? settings.AIType.DisplayName() : "—";
+        snapshot.ObjectiveName = objective != null ? objective.Mode.DisplayName() : "—";
 
         return snapshot;
     }

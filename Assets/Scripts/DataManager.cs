@@ -244,17 +244,9 @@ public static class DataManager
 
                 if (loaded != null)
                 {
-                    /// TODO: this block patches older JSON files
-                    /// that are missing the new subsettings for the current AI.
-                    /// might not be needed in production.
-                    SimulationSettings defaultSettings = GetDefaults(mode);
-                    if (loaded.AIType == AIType.FixedNeuroEvo && loaded.NeuroEvoSettings == null)
-                        loaded.NeuroEvoSettings = defaultSettings.NeuroEvoSettings ?? new NeuroEvoSettings();
-                    if (loaded.AIType == AIType.NEAT && loaded.NeatSettings == null)
-                        loaded.NeatSettings = defaultSettings.NeatSettings ?? new NeatSettings();
-                    if ((loaded.AIType == AIType.PPO_MLAgents || loaded.AIType == AIType.SAC_MLAgents) && loaded.RLSettings == null)
-                        loaded.RLSettings = defaultSettings.RLSettings ?? new RLSettings();
-                    
+                    // Guard against a hand-edited/truncated file: the paradigm
+                    // sub-settings block for the loaded AI type must be non-null.
+                    EnsureSubSettings(loaded);
                     return loaded;
                 }
 
@@ -544,6 +536,28 @@ public enum SpawnFormation
     Grid,
     Circle,
     Opposing,
+}
+
+/// <summary>Human-readable labels for the enums, matching the main-menu wording, so
+/// the UI can name the active AI / objective without hard-coding strings per widget.</summary>
+public static class DisplayNames
+{
+    public static string DisplayName(this AIType type) => type switch
+    {
+        AIType.FixedNeuroEvo => "Neural Evolution",
+        AIType.NEAT => "NEAT",
+        AIType.PPO_MLAgents => "PPO",
+        AIType.SAC_MLAgents => "SAC",
+        _ => type.ToString(),
+    };
+
+    public static string DisplayName(this DataManager.GameMode mode) => mode switch
+    {
+        DataManager.GameMode.MaxAltitude => "Max Altitude",
+        DataManager.GameMode.FlightSchool => "Flight School",
+        DataManager.GameMode.Dogfight => "Dogfight",
+        _ => mode.ToString(),
+    };
 }
 
 [Serializable]
