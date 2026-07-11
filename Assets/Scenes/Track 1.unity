@@ -3677,6 +3677,19 @@ MonoBehaviour:
       m_Action: Previous Waypoint
       m_Flags: 0
     m_Flags: 0
+  flightSchoolObjective: {fileID: 1153027930}
+  toggleAutoFollowAction:
+    m_Name: Toggle Auto Follow
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: abe607f2-9a8a-4f83-b510-880daeebb2a9
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings: []
+    m_Flags: 0
+  autoFollowOnStart: 1
+  advanceAfterHoopNumbers: 0400000007000000
+  firstSectionWaypoint: {fileID: 1458741326}
   startingWaypoint: {fileID: 1920081361}
 --- !u!43 &2059057845
 Mesh:
