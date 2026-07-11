@@ -1021,7 +1021,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 241.5, y: -963}
+  m_AnchoredPosition: {x: 241.5, y: -1063}
   m_SizeDelta: {x: 463, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &3691186420760482571
@@ -3423,7 +3423,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 231.5, y: -140}
+  m_AnchoredPosition: {x: 231.5, y: -240}
   m_SizeDelta: {x: 463, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &3104195318047651454
@@ -4943,7 +4943,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 200}
+  m_SizeDelta: {x: 0, y: 400}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &5605945557988419461
 MonoBehaviour:
@@ -4959,26 +4959,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BrainVisualizerWidget
   rawImage: {fileID: 8386541574341402766}
   noSelectionOverlay: {fileID: 3061883916282158582}
-  inputLabels:
-  - SALT
-  - SSPEED
-  - SHDG
-  outputLabels:
-  - APITCH
-  - AROLL
-  - AYAW
-  - ATHROTTLE
-  texWidth: 340
-  texHeight: 200
-  nodeRadius: 10
+  dynamicSize: 1
+  fallbackWidth: 340
+  fallbackHeight: 400
+  maxTextureDimension: 2048
+  padding: 24
+  maxNodeRadius: 9
+  minNodeRadius: 2
+  nodeSpacingFraction: 0.4
   updateEveryNFrames: 2
-  bgColor: {r: 0.05, g: 0.07, b: 0.12, a: 1}
-  nodePositive: {r: 0.2, g: 0.9, b: 1, a: 1}
-  nodeNeutral: {r: 0.15, g: 0.2, b: 0.3, a: 1}
-  nodeNegative: {r: 0.9, g: 0.2, b: 0.3, a: 1}
-  connectionPos: {r: 0.2, g: 0.8, b: 0.4, a: 0.5}
-  connectionNeg: {r: 0.9, g: 0.3, b: 0.2, a: 0.5}
-  connectionWeak: {r: 0.3, g: 0.3, b: 0.35, a: 0.2}
+  paletteBackground: {r: 0.33, g: 0.33, b: 0.35, a: 1}
+  paletteNodeInactive: {r: 0.6, g: 0.6, b: 0.6, a: 1}
+  paletteNodePositive: {r: 0.3, g: 0.68, b: 0.95, a: 1}
+  paletteNodeNegative: {r: 0.96, g: 0.55, b: 0.22, a: 1}
+  paletteConnection: {r: 0.18, g: 0.21, b: 0.28, a: 1}
 --- !u!114 &1068924545816112200
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4993,9 +4987,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.LayoutElement
   m_IgnoreLayout: 0
   m_MinWidth: -1
-  m_MinHeight: 200
+  m_MinHeight: 400
   m_PreferredWidth: -1
-  m_PreferredHeight: 200
+  m_PreferredHeight: 400
   m_FlexibleWidth: -1
   m_FlexibleHeight: 1
   m_LayoutPriority: 1
@@ -8701,7 +8695,7 @@ MonoBehaviour:
   m_HandleRect: {fileID: 165529996137400378}
   m_Direction: 2
   m_Value: 1
-  m_Size: 0.7171717
+  m_Size: 0.7194076
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
@@ -9474,6 +9468,8 @@ MonoBehaviour:
   simManager: {fileID: 0}
   telemetryWindow: {fileID: 8256625256983917088}
   sections: []
+  layoutConfig: {fileID: 0}
+  targetCanvas: {fileID: 0}
 --- !u!114 &4877442193354237443
 MonoBehaviour:
   m_ObjectHideFlags: 0
