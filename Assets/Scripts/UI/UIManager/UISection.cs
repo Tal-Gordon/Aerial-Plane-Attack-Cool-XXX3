@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.UI;
 using TMPro;
 
 public class UISection : FoldablePanel
@@ -53,9 +52,6 @@ public class UISection : FoldablePanel
                     GameObject seperator = Instantiate(widgetSeperatorPrefab, currentWidget.transform.parent);
                     seperator.name = "WidgetSeperator";
                     seperator.transform.SetSiblingIndex(currentWidget.transform.GetSiblingIndex() + 1);
-                    // The prefab's solid-black line vanishes on the dark theme — hairline it.
-                    Image line = seperator.GetComponentInChildren<Image>(includeInactive: true);
-                    if (line != null) line.color = UITheme.Hairline;
                 }
             }
         }

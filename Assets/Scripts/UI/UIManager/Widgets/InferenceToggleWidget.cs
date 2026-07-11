@@ -8,8 +8,8 @@ using UnityEngine.UI;
 /// which the SimulationManager handles per the active AI.
 ///
 /// <para>The toggle reflects the live state from the snapshot every Tick, so it
-/// reverts itself if a transition is refused (e.g. entering inference with no
-/// saved run yet).</para>
+/// stays in sync with the inference hotkeys and reverts itself if a transition is
+/// refused (e.g. entering inference with no saved run yet).</para>
 /// </summary>
 public class InferenceToggleWidget : UIWidget
 {
@@ -27,8 +27,8 @@ public class InferenceToggleWidget : UIWidget
     {
         if (toggle == null) return;
 
-        // Sync to the actual mode without firing OnToggleChanged, so refused
-        // transitions are reflected here.
+        // Sync to the actual mode without firing OnToggleChanged, so external
+        // toggles (the I/T hotkeys) and refused transitions are reflected here.
         toggle.SetIsOnWithoutNotify(snapshot.InInferenceMode);
     }
 

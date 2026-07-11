@@ -44,73 +44,18 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
         // saved run is loaded.
         SetParameters(DataManager.GetDefaultRewardParameters(Mode));
 
-        // Fallback: if the list wasn't captured in the editor (e.g. a build, or a
-        // freshly-reset component), collect the hoops from children so the track
-        // still works. In the editor it's kept in sync live (see the region below).
+        // Fallback: If waypoints are not assigned in the Inspector, try to find them from children
         if (waypoints == null || waypoints.Length == 0)
         {
-            RebuildWaypointsFromChildren();
-        }
-    }
+            int hoopCount = transform.childCount;
+            waypoints = new Transform[hoopCount];
 
-    // Collects every direct child as a waypoint in Hierarchy (sibling) order, so
-    // the flight order is whatever order the hoops sit in under this object —
-    // reorder them by dragging in the Hierarchy. (Name/position sorting is no good
-    // here: the hoops carry ProBuilder auto-names like "pb_Mesh-13544" whose
-    // numbers are meaningless, and position can't be ordered once a track loops.)
-    // Returns true if the resulting list actually changed.
-    private bool RebuildWaypointsFromChildren()
-    {
-        int count = transform.childCount;
-        Transform[] children = new Transform[count];
-        for (int i = 0; i < count; i++) children[i] = transform.GetChild(i);
-
-        if (waypoints != null && waypoints.Length == count)
-        {
-            bool same = true;
-            for (int i = 0; i < count; i++)
+            for (int i = 0; i < hoopCount; i++)
             {
-                if (waypoints[i] != children[i]) { same = false; break; }
+                waypoints[i] = transform.GetChild(i);
             }
-            if (same) return false;
-        }
-
-        waypoints = children;
-        return true;
-    }
-
-#if UNITY_EDITOR
-    // --- Editor-only: keep the waypoints list mirroring the hoop children ---
-
-    [ContextMenu("Rebuild Waypoints From Children")]
-    private void EditorRebuildWaypoints()
-    {
-        if (RebuildWaypointsFromChildren())
-        {
-            UnityEditor.EditorUtility.SetDirty(this);
         }
     }
-
-    // Fires on load, recompile, and Inspector edits.
-    private void OnValidate()
-    {
-        if (!Application.isPlaying) EditorRebuildWaypoints();
-    }
-
-    // Adding/removing/reordering a hoop in the Hierarchy doesn't call OnValidate,
-    // so listen to the editor's hierarchy-changed event and resync every objective.
-    [UnityEditor.InitializeOnLoadMethod]
-    private static void HookHierarchyChanges()
-    {
-        UnityEditor.EditorApplication.hierarchyChanged += () =>
-        {
-            if (Application.isPlaying) return;
-            var objectives = FindObjectsByType<FlightSchoolObjective>(
-                FindObjectsInactive.Include, FindObjectsSortMode.None);
-            foreach (var objective in objectives) objective.EditorRebuildWaypoints();
-        };
-    }
-#endif
 
     public void SetStartingState(JetAgent agent, int index, int totalPopulation)
     {

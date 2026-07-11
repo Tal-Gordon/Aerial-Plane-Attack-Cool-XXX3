@@ -40,17 +40,8 @@ public class AITypeSelectionWriter : MonoBehaviour
     {
         // Subscribe in OnEnable so we catch the selector's default selection, which
         // it broadcasts from its own Start (OnEnable runs before Start).
-        if (selector == null) return;
-        selector.onOptionSelected.AddListener(OnOptionSelected);
-
-        // Sync to any selection made while we weren't listening. Without this the
-        // default choice can be lost forever: if something drives the selector while
-        // this GameObject is inactive (e.g. the mode list resetting it at scene load),
-        // the selector's own Start broadcast then early-returns as "already selected"
-        // and GameSession keeps its stale value — the AI choice silently falls back
-        // to the track's persisted settings.
-        if (selector.CurrentIndex >= 0)
-            OnOptionSelected(selector.CurrentIndex);
+        if (selector != null)
+            selector.onOptionSelected.AddListener(OnOptionSelected);
     }
 
     private void OnDisable()

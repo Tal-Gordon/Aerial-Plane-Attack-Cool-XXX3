@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
 /// <summary>
@@ -37,12 +38,6 @@ public class SimulationManager : MonoBehaviour
     // toggle key rebuilds the training run from the same save (LoadState).
     private bool inInferenceMode = false;
 
-    // Save-slot key for this run: the active scene (track). Each scene saves
-    // independently, so two tracks sharing an objective type (e.g. the FlightSchool
-    // tracks) never clobber each other. The objective's Mode is still used for
-    // baked defaults; the track is only the on-disk slot identity.
-    private static string Track => DataManager.CurrentTrack;
-
     private void Start()
     {
         // Resolve the objective
@@ -53,10 +48,12 @@ public class SimulationManager : MonoBehaviour
             return;
         }
 
-        // Load settings for this track (per-scene), seeded from the mode's defaults
-        // on first run so each track keeps its own tuning.
+        // TODO: Remove in production
+        // DataManager.ResetToDefaults(objective.Mode);
+
+        // Load settings for this mode
         var mode = objective.Mode;
-        settings = DataManager.LoadSettings(Track, mode);
+        settings = DataManager.LoadSettings(mode);
 
         // Apply the AI type chosen in the main menu, if any. When it differs from
         // the loaded settings we swap in a fresh default for the (mode, AIType)
@@ -87,6 +84,10 @@ public class SimulationManager : MonoBehaviour
         hyperParams = new ModelHyperparameters(() => settings);
         ParameterTuners.Hyperparameters = new ParameterTuner(hyperParams, CommitHyperparameters);
 
+        // TEMP: prove the observers fire. Remove with the rest of the smoke test.
+        ParameterTuners.Reward.OnStateChanged += LogRewardTunerState;
+        ParameterTuners.Hyperparameters.OnStateChanged += LogHyperTunerState;
+
         // Create the correct paradigm for the chosen AI type
         activeParadigm = CreateParadigm(settings.AIType);
         if (activeParadigm == null) return;
@@ -108,6 +109,99 @@ public class SimulationManager : MonoBehaviour
         // The paradigm owns the entire lifecycle: step rewards,
         // terminal checks, generation/episode boundaries, resets.
         activeParadigm?.Tick();
+    }
+
+    private void Update()
+    {
+        // Temporary hotkeys for testing save/load until UI buttons are wired up.
+        var keyboard = Keyboard.current;
+        if (keyboard == null) return;
+
+        // Save/load only apply to a live training run, not during inference replay.
+        if (!inInferenceMode)
+        {
+            if (keyboard.sKey.wasPressedThisFrame)
+                SaveState();
+
+            if (keyboard.lKey.wasPressedThisFrame)
+                LoadState();
+        }
+
+        // Inference toggle: 'i' replays the saved champion, 't' resumes training.
+        if (keyboard.iKey.wasPressedThisFrame)
+            EnterInferenceMode();
+
+        if (keyboard.tKey.wasPressedThisFrame)
+            ExitInferenceMode();
+
+        // ── TEMP: reward-tuning smoke test (remove once the UI is wired) ──
+        // K = stage a bump on the first reward param, C = commit, V = discard.
+        if (keyboard.kKey.wasPressedThisFrame) TempStageRewardParam();
+        if (keyboard.cKey.wasPressedThisFrame) ParameterTuners.Reward?.Commit();
+        if (keyboard.vKey.wasPressedThisFrame) ParameterTuners.Reward?.Discard();
+
+        // ── TEMP: hyperparameter-tuning smoke test (remove once the UI is wired) ──
+        // H = stage a HOT knob (round-trip keeps trained state),
+        // B = stage a COLD knob (commit rebuilds from scratch),
+        // N = commit, M = discard.
+        if (keyboard.hKey.wasPressedThisFrame) TempStageHyperParam(wantReset: false);
+        if (keyboard.bKey.wasPressedThisFrame) TempStageHyperParam(wantReset: true);
+        if (keyboard.nKey.wasPressedThisFrame) ParameterTuners.Hyperparameters?.Commit();
+        if (keyboard.mKey.wasPressedThisFrame) ParameterTuners.Hyperparameters?.Discard();
+    }
+
+    // ── TEMP: reward-tuning smoke test helpers (remove once the UI is wired) ──
+    private void TempStageRewardParam()
+    {
+        ParameterTuner tuner = ParameterTuners.Reward;
+        if (tuner == null || tuner.Descriptors.Count == 0) return;
+
+        ParameterDescriptor d = tuner.Descriptors[0];
+        float current = tuner.GetEffectiveValue(d.Key);
+        // Bump by 10% of the range, wrapping back to Min once we hit Max.
+        float step = (d.Max - d.Min) * 0.1f;
+        float next = current + step > d.Max ? d.Min : current + step;
+
+        tuner.Stage(d.Key, next);
+        Debug.Log($"[RewardTuneTest] Staged '{d.Key}' -> {next:F2} | live={tuner.GetLiveValue(d.Key):F2} effective={tuner.GetEffectiveValue(d.Key):F2}");
+    }
+
+    private void LogRewardTunerState()
+    {
+        ParameterTuner tuner = ParameterTuners.Reward;
+        if (tuner == null) return;
+        Debug.Log($"[RewardTuneTest] OnStateChanged — pending changes: {tuner.HasPendingChanges} ({tuner.Pending.Count})");
+    }
+
+    // Stages a bump on the first hyperparameter whose RequiresReset matches
+    // wantReset, so the smoke test can exercise both the hot (round-trip) and
+    // cold (rebuild) commit paths.
+    private void TempStageHyperParam(bool wantReset)
+    {
+        ParameterTuner tuner = ParameterTuners.Hyperparameters;
+        if (tuner == null) return;
+
+        foreach (ParameterDescriptor d in tuner.Descriptors)
+        {
+            if (d.RequiresReset != wantReset) continue;
+
+            float current = tuner.GetEffectiveValue(d.Key);
+            float step = (d.Max - d.Min) * 0.1f;
+            float next = current + step > d.Max ? d.Min : current + step;
+
+            tuner.Stage(d.Key, next);
+            Debug.Log($"[HyperTuneTest] Staged '{d.Key}' ({(d.RequiresReset ? "COLD" : "HOT")}) -> {next:F3} | live={tuner.GetLiveValue(d.Key):F3} effective={tuner.GetEffectiveValue(d.Key):F3}");
+            return;
+        }
+
+        Debug.Log($"[HyperTuneTest] No {(wantReset ? "COLD" : "HOT")} hyperparameter to stage for {settings.AIType}.");
+    }
+
+    private void LogHyperTunerState()
+    {
+        ParameterTuner tuner = ParameterTuners.Hyperparameters;
+        if (tuner == null) return;
+        Debug.Log($"[HyperTuneTest] OnStateChanged — pending changes: {tuner.HasPendingChanges} ({tuner.Pending.Count})");
     }
 
     private void OnDestroy()
@@ -134,7 +228,7 @@ public class SimulationManager : MonoBehaviour
         // Reward changes are always "hot" — keep the trained state.
         ApplyHotCommit();
 
-        Debug.Log($"<color=cyan>[SimulationManager]</color> Committed {staged.Count} reward parameter change(s) for {Track}/{settings.AIType}; real save left untouched.");
+        Debug.Log($"<color=cyan>[SimulationManager]</color> Committed {staged.Count} reward parameter change(s) for {objective.Mode}/{settings.AIType}; real save left untouched.");
     }
 
     // ── Hyperparameter tuning ────────────────────────────────────────
@@ -161,12 +255,12 @@ public class SimulationManager : MonoBehaviour
         if (requiresReset)
         {
             RebuildFromScratch();
-            Debug.Log($"<color=cyan>[SimulationManager]</color> Committed {staged.Count} hyperparameter change(s) for {Track}/{settings.AIType}; a cold change forced a rebuild — trained state was discarded.");
+            Debug.Log($"<color=cyan>[SimulationManager]</color> Committed {staged.Count} hyperparameter change(s) for {objective.Mode}/{settings.AIType}; a cold change forced a rebuild — trained state was discarded.");
         }
         else
         {
             ApplyHotCommit();
-            Debug.Log($"<color=cyan>[SimulationManager]</color> Committed {staged.Count} hyperparameter change(s) for {Track}/{settings.AIType}; trained state kept, real save left untouched.");
+            Debug.Log($"<color=cyan>[SimulationManager]</color> Committed {staged.Count} hyperparameter change(s) for {objective.Mode}/{settings.AIType}; trained state kept, real save left untouched.");
         }
     }
 
@@ -186,17 +280,17 @@ public class SimulationManager : MonoBehaviour
     // hot-hyperparameter commits.
     private void ApplyHotCommit()
     {
-        var track = Track;
+        var mode = objective.Mode;
         var aiType = settings.AIType;
 
-        bool realExisted = DataManager.HasTrainingState(track, aiType);
-        if (realExisted) DataManager.BackupTrainingState(track, aiType);
+        bool realExisted = DataManager.HasTrainingState(mode, aiType);
+        if (realExisted) DataManager.BackupTrainingState(mode, aiType);
 
         SaveState();   // current brains/policy + new params → slot
         LoadState();   // rebuild the run from it, re-applying the params
 
-        if (realExisted) DataManager.RestoreTrainingStateBackup(track, aiType);
-        else             DataManager.DeleteTrainingState(track, aiType);
+        if (realExisted) DataManager.RestoreTrainingStateBackup(mode, aiType);
+        else             DataManager.DeleteTrainingState(mode, aiType);
     }
 
     // Tears the run down and rebuilds it fresh from the current (already updated)
@@ -210,7 +304,7 @@ public class SimulationManager : MonoBehaviour
         activeParadigm = null;
         DestroyPopulation();
 
-        DataManager.SaveSettings(Track, settings);
+        DataManager.SaveSettings(objective.Mode, settings);
 
         population = InstantiatePopulation(settings.PopulationSize);
         ConfigureSensors(population, objective);
@@ -238,7 +332,7 @@ public class SimulationManager : MonoBehaviour
         if (objective != null && settings != null && staged != null && staged.Count > 0)
         {
             hyperParams.SetParameters(staged);
-            DataManager.SaveSettings(Track, settings);
+            DataManager.SaveSettings(objective.Mode, settings);
         }
 
         // Optionally preserve the trained brains/policy on disk before reloading.
@@ -294,8 +388,6 @@ public class SimulationManager : MonoBehaviour
         snapshot.SelectedAgent = selectedAgent;
         snapshot.TracksAttrition = objective != null && objective.TracksAttrition;
         snapshot.InInferenceMode = inInferenceMode;
-        snapshot.AIName = settings != null ? settings.AIType.DisplayName() : "—";
-        snapshot.ObjectiveName = objective != null ? objective.Mode.DisplayName() : "—";
 
         return snapshot;
     }
@@ -319,7 +411,7 @@ public class SimulationManager : MonoBehaviour
     {
         if (activeParadigm == null) return;
 
-        string dir = DataManager.TrackPath(Track);
+        string dir = DataManager.ModePath(objective.Mode);
         DataManager.EnsureDirectory(dir);
         activeParadigm.SaveChampion(dir);
     }
@@ -344,10 +436,10 @@ public class SimulationManager : MonoBehaviour
     {
         if (objective == null) return;
 
-        TrainingSaveData data = DataManager.LoadTrainingState(Track, settings.AIType);
+        TrainingSaveData data = DataManager.LoadTrainingState(objective.Mode, settings.AIType);
         if (data == null)
         {
-            Debug.LogWarning($"[SimulationManager] No saved state found for {Track}/{settings.AIType}.");
+            Debug.LogWarning($"[SimulationManager] No saved state found for {objective.Mode}/{settings.AIType}.");
             return;
         }
 
@@ -361,7 +453,7 @@ public class SimulationManager : MonoBehaviour
         if (data.Settings != null)
         {
             settings = data.Settings;
-            DataManager.SaveSettings(Track, settings);
+            DataManager.SaveSettings(objective.Mode, settings);
         }
 
         // Re-apply saved objective parameters
@@ -378,7 +470,7 @@ public class SimulationManager : MonoBehaviour
         activeParadigm.Initialize(population, settings, objective);
         activeParadigm.LoadState();
 
-        Debug.Log($"[SimulationManager] Loaded saved {settings.AIType} run for track {Track} ({objective.Mode}).");
+        Debug.Log($"[SimulationManager] Loaded saved {settings.AIType} run for {objective.Mode}.");
     }
 
     private void DestroyPopulation()
@@ -413,9 +505,9 @@ public class SimulationManager : MonoBehaviour
         }
 
         // Inference replays a saved run, so one must exist first.
-        if (!DataManager.HasTrainingState(Track, settings.AIType))
+        if (!DataManager.HasTrainingState(objective.Mode, settings.AIType))
         {
-            Debug.LogWarning($"[SimulationManager] No saved run for {Track}/{settings.AIType}. Train and save (S) before entering inference.");
+            Debug.LogWarning($"[SimulationManager] No saved run for {objective.Mode}/{settings.AIType}. Train and save (S) before entering inference.");
             return;
         }
 
@@ -441,7 +533,7 @@ public class SimulationManager : MonoBehaviour
         }
 
         inInferenceMode = true;
-        Debug.Log($"<color=yellow>[SimulationManager]</color> Inference ON for {Track}/{settings.AIType}. Press 'T' to resume training from the save.");
+        Debug.Log($"<color=yellow>[SimulationManager]</color> Inference ON for {objective.Mode}/{settings.AIType}. Press 'T' to resume training from the save.");
     }
 
     /// <summary>

@@ -10,12 +10,6 @@ public class SimulationSnapshot
     public string ParadigmName;
     public List<JetAgent> Population;
 
-    // Human-readable identity of the active run, stamped by SimulationManager: which
-    // AI is training (e.g. "PPO") and toward which objective (e.g. "Max Altitude").
-    // Lets the telemetry UI describe itself rather than leaving the user to guess.
-    public string AIName;
-    public string ObjectiveName;
-
     // Seconds of (scaled) wall-clock since the current run started. Every paradigm
     // stamps it from its own start marker, so the UI has one uniform TIME source
     // regardless of whether it's a generation- or episode-based run. (RL also keeps
@@ -27,8 +21,8 @@ public class SimulationSnapshot
     public JetAgent SelectedAgent;
 
     // True while the run is replaying a saved champion/policy (no learning, no
-    // saving) instead of training. Lets UI reflect the current mode. Stamped
-    // from SimulationManager.
+    // saving) instead of training. Lets UI reflect the current mode and stay in
+    // sync with the inference hotkeys. Stamped from SimulationManager.
     public bool InInferenceMode;
 
     // Whether the population thins out gradually within an iteration (jets
