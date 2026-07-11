@@ -178,11 +178,20 @@ public class RLParadigm : ITrainingParadigm
             var jetAgent = population[i];
             var go = jetAgent.gameObject;
 
+            // Configure the behavior BEFORE adding/enabling Agent. JetMLAgent's
+            // Agent base class requires BehaviorParameters and can register with
+            // the Academy as soon as it is added. If Unity auto-creates the
+            // component at that point, its default ActionSpec has zero actions and
+            // the Python policy crashes in action_model with an empty tensor list.
+            var behavior = go.GetComponent<BehaviorParameters>();
+            if (behavior == null)
+                behavior = go.AddComponent<BehaviorParameters>();
+            ConfigureBehaviorParameters(jetAgent, behavior);
+
             var mlAgent = go.GetComponent<JetMLAgent>();
             if (mlAgent == null)
                 mlAgent = go.AddComponent<JetMLAgent>();
 
-            ConfigureBehaviorParameters(jetAgent);
             ConfigureDecisionRequester(go);
 
             mlAgent.Inject(objective, this, i, population.Count);
@@ -195,10 +204,9 @@ public class RLParadigm : ITrainingParadigm
         }
     }
 
-    private void ConfigureBehaviorParameters(JetAgent jetAgent)
+    private void ConfigureBehaviorParameters(JetAgent jetAgent, BehaviorParameters bp)
     {
         var rl = settings.RLSettings;
-        var bp = jetAgent.gameObject.GetComponent<BehaviorParameters>();
 
         // The observation size must match the active sensor exactly or ML-Agents throws
         // at connect. Derive it from the sensor so the two can't silently drift; treat

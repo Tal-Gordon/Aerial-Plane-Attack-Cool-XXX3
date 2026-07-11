@@ -38,6 +38,12 @@ public class UIManager : MonoBehaviour
         if (Instance != null) { Destroy(gameObject); return; }
         Instance = this;
 
+        // The old visualizer branch wired selection in one test scene only. Keep
+        // scene-authored controllers when present, otherwise install the bridge on
+        // the UI manager so every training track can select a jet.
+        if (FindFirstObjectByType<JetSelectionController>() == null)
+            gameObject.AddComponent<JetSelectionController>();
+
         if (simManager == null)
             simManager = FindFirstObjectByType<SimulationManager>();
 
