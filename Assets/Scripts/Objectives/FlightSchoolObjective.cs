@@ -1,9 +1,13 @@
 using Assets.Scripts.Sensors;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class FlightSchoolObjective : MonoBehaviour, IObjective
 {
+    /// <summary>Jet, zero-based hoop index, and hoop transform.</summary>
+    public event Action<JetAgent, int, Transform> HoopPassed;
+
     public DataManager.GameMode Mode => DataManager.GameMode.FlightSchool;
     public SensorType RequiredSensorType => SensorType.Waypoint;
 
@@ -36,6 +40,7 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
 
     // TODO REMOVE
     private JetAgent debugAgent = null;
+
 
     private void Awake()
     {
@@ -153,6 +158,7 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
 
         // TODO REMOVE
         if (debugAgent == null) debugAgent = agent;
+
     }
 
     public float GetStepReward(JetAgent agent)
@@ -249,10 +255,12 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
                 // Were they inside the ring when they crossed?
                 if (distanceFromCenter < hoopRadius)
                 {
+                    int passedHoopIndex = currentIndex;
                     agentTargetIndices[agent]++;
                     if (agentBreakdowns.ContainsKey(agent)) agentBreakdowns[agent]["Hoop Pass"] += hoopPassReward;
                     stepReward += hoopPassReward;
                     lastHoopTime[agent] = agent.TimeAlive;
+                    HoopPassed?.Invoke(agent, passedHoopIndex, targetHoop);
 
                     // Update trackers to look at the NEW hoop
                     if (agentTargetIndices[agent] < waypoints.Length)
