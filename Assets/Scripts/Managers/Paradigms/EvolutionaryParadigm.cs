@@ -70,12 +70,6 @@ public class EvolutionaryParadigm : ITrainingParadigm
             objective.SetStartingState(population[i], i, population.Count);
             population[i].gameObject.SetActive(true);
         }
-
-        // Generation 1 is now fully spawned and alive. Without this, aliveCount
-        // stays at 0 and the very first Tick() takes the "generation complete"
-        // branch immediately — evolving a phantom gen 1 from all-zero fitness and
-        // jumping the run straight to generation 2.
-        aliveCount = population.Count;
     }
 
     // Mirror the active decision cadence onto a spawned agent so evolutionary jets
@@ -251,7 +245,6 @@ public class EvolutionaryParadigm : ITrainingParadigm
         {
             AIType = settings.AIType,
             Mode = objective.Mode,
-            Track = DataManager.CurrentTrack,
             Settings = settings.Clone(),
             ObjectiveParameters = objective.GetParameters(),
             Generation = currentGeneration,
@@ -263,15 +256,15 @@ public class EvolutionaryParadigm : ITrainingParadigm
             EngineState = engine.CaptureState(),
         };
 
-        DataManager.SaveTrainingState(DataManager.CurrentTrack, settings.AIType, data);
+        DataManager.SaveTrainingState(objective.Mode, settings.AIType, data);
     }
 
     public void LoadState()
     {
-        TrainingSaveData data = DataManager.LoadTrainingState(DataManager.CurrentTrack, settings.AIType);
+        TrainingSaveData data = DataManager.LoadTrainingState(objective.Mode, settings.AIType);
         if (data == null || string.IsNullOrEmpty(data.EngineState))
         {
-            Debug.LogWarning($"[EvolutionaryParadigm] No restorable brain state for {DataManager.CurrentTrack}/{settings.AIType}; keeping the freshly initialized population.");
+            Debug.LogWarning($"[EvolutionaryParadigm] No restorable brain state for {objective.Mode}/{settings.AIType}; keeping the freshly initialized population.");
             return;
         }
 
@@ -301,15 +294,15 @@ public class EvolutionaryParadigm : ITrainingParadigm
         cachedSnapshot.EvoData.MutationRate = settings.ActiveEvoSettings.MutationRate;
         cachedSnapshot.EvoData.Lambda = settings.ActiveEvoSettings.Lambda;
 
-        Debug.Log($"<color=cyan>[EvolutionaryParadigm]</color> Loaded saved run for {DataManager.CurrentTrack}/{settings.AIType}. Resuming at generation {currentGeneration} with {n} brains | Champion: {engine.GetChampionScore():F2}");
+        Debug.Log($"<color=cyan>[EvolutionaryParadigm]</color> Loaded saved run for {objective.Mode}/{settings.AIType}. Resuming at generation {currentGeneration} with {n} brains | Champion: {engine.GetChampionScore():F2}");
     }
 
     public IBrain LoadChampionBrain()
     {
-        TrainingSaveData data = DataManager.LoadTrainingState(DataManager.CurrentTrack, settings.AIType);
+        TrainingSaveData data = DataManager.LoadTrainingState(objective.Mode, settings.AIType);
         if (data == null || string.IsNullOrEmpty(data.EngineState))
         {
-            Debug.LogWarning($"[EvolutionaryParadigm] No saved champion to load for {DataManager.CurrentTrack}/{settings.AIType}.");
+            Debug.LogWarning($"[EvolutionaryParadigm] No saved champion to load for {objective.Mode}/{settings.AIType}.");
             return null;
         }
 

@@ -8218,7 +8218,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d040810ce4c61344e8ecbe4c7250c362, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UIManager
-  simManager: {fileID: 0}
+  geneticManager: {fileID: 347754375}
   telemetryWindow: {fileID: 1958252323}
   sections: []
 --- !u!114 &1958252328

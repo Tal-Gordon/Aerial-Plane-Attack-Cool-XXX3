@@ -62,16 +62,6 @@ public class BrainVisualizerWidget : UIWidget
 
     protected override void OnInitialize()
     {
-        // The serialized background is a pre-theme mid-grey that clashes with the
-        // dark window (prefab-default trap — code defaults can't reach it). Pin the
-        // structural colours to the palette; activation colours already match it.
-        paletteBackground = new Color(0.10f, 0.11f, 0.14f, 1f);
-        if (noSelectionOverlay != null)
-        {
-            var overlayLabel = noSelectionOverlay.GetComponentInChildren<TMPro.TMP_Text>(includeInactive: true);
-            if (overlayLabel != null) overlayLabel.color = UITheme.TextDimmed;
-        }
-
         computedRadius = maxNodeRadius;
 
         // Renderers are tried in order; their Matches() checks are mutually

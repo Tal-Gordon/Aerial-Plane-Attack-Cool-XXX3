@@ -55,13 +55,6 @@ public class HyperparameterEditorWidget : UIWidget
     private readonly Dictionary<string, ParameterTuner> rowTuner = new();
     private string builtSignature;
 
-    // Group headers built in code (one above each row container), naming the active
-    // AI and objective from the snapshot. The separator between the two groups is the
-    // prefab's "Delimiter" object, made visible here.
-    private TextMeshProUGUI hyperHeader;
-    private TextMeshProUGUI rewardHeader;
-    private GameObject separator;
-
     protected override void OnInitialize()
     {
         if (saveButton) saveButton.onClick.AddListener(OnSaveClicked);
@@ -72,63 +65,7 @@ public class HyperparameterEditorWidget : UIWidget
         if (confirmNoSaveButton) confirmNoSaveButton.onClick.AddListener(OnConfirmNoSave);
         if (declineButton) declineButton.onClick.AddListener(HideDialog);
 
-        // The dialog is a scene object wired per scene (not a child of this widget),
-        // so the widget/window skin passes never reach it — theme it here.
-        if (confirmDialog != null)
-        {
-            UITheme.Skin(confirmDialog);
-            UITheme.StylePrimary(confirmSaveButton); // safe path: save progress + reload
-            UITheme.StyleDestructive(confirmNoSaveButton); // discards training progress
-        }
-
-        BuildGroupHeaders();
         HideDialog();
-    }
-
-    // A titled header above each row group ("AI Parameters · PPO",
-    // "Reward Parameters · Max Altitude"), plus the prefab's hidden "Delimiter"
-    // recoloured into a visible hairline separator between the two. Runs after the
-    // window/theme skin pass, so these colours aren't overwritten.
-    private void BuildGroupHeaders()
-    {
-        if (hyperparameterRowContainer != null)
-            hyperHeader = CreateHeader(hyperparameterRowContainer);
-        if (rewardRowContainer != null)
-            rewardHeader = CreateHeader(rewardRowContainer);
-
-        // The prefab ships a black "Delimiter" between the groups — invisible on the
-        // dark theme. Lift it to a hairline stroke and give it a little height.
-        Transform delim = transform.Find("Delimiter");
-        if (delim != null)
-        {
-            separator = delim.gameObject;
-            Image line = separator.GetComponent<Image>();
-            if (line != null) line.color = UITheme.Hairline;
-            LayoutElement le = separator.GetComponent<LayoutElement>();
-            if (le != null) { le.minHeight = 2f; le.preferredHeight = 2f; }
-        }
-    }
-
-    // Builds a bold section label and slots it directly above the given container.
-    private TextMeshProUGUI CreateHeader(Transform container)
-    {
-        var go = new GameObject("GroupHeader", typeof(RectTransform));
-        go.transform.SetParent(transform, worldPositionStays: false);
-
-        var label = go.AddComponent<TextMeshProUGUI>();
-        label.fontSize = 18f;
-        label.fontStyle = FontStyles.Bold;
-        label.color = UITheme.TextColor;
-        label.alignment = TextAlignmentOptions.MidlineLeft;
-        label.raycastTarget = false;
-        if (TMP_Settings.defaultFontAsset != null) label.font = TMP_Settings.defaultFontAsset;
-
-        var element = go.AddComponent<LayoutElement>();
-        element.minHeight = 26f;
-        element.preferredHeight = 26f;
-
-        go.transform.SetSiblingIndex(container.GetSiblingIndex());
-        return label;
     }
 
     // Tuners rendered by this widget, in display order. Hyperparameters first,
@@ -155,8 +92,6 @@ public class HyperparameterEditorWidget : UIWidget
             if (rowTuner.TryGetValue(entry.Key, out ParameterTuner tuner) && tuner != null)
                 entry.Value.SetDisplayedValue(tuner.GetEffectiveValue(entry.Key));
 
-        UpdateGroupHeaders(snapshot);
-
         if (saveButton) saveButton.interactable = HasAnyPendingChanges();
     }
 
@@ -165,27 +100,6 @@ public class HyperparameterEditorWidget : UIWidget
         foreach (ParameterTuner tuner in Tuners())
             if (tuner != null && tuner.HasPendingChanges) return true;
         return false;
-    }
-
-    // Names each group after the active run and hides a header (and the separator)
-    // when its group has no rows — e.g. an objective with no tunable reward params.
-    private void UpdateGroupHeaders(SimulationSnapshot snapshot)
-    {
-        bool hasHyper = hyperparameterRowContainer != null && hyperparameterRowContainer.childCount > 0;
-        bool hasReward = rewardRowContainer != null && rewardRowContainer.childCount > 0;
-
-        if (hyperHeader != null)
-        {
-            hyperHeader.gameObject.SetActive(hasHyper);
-            if (hasHyper) hyperHeader.text = $"AI Parameters · {snapshot?.AIName}";
-        }
-        if (rewardHeader != null)
-        {
-            rewardHeader.gameObject.SetActive(hasReward);
-            if (hasReward) rewardHeader.text = $"Reward Parameters · {snapshot?.ObjectiveName}";
-        }
-        // The separator only earns its place when it actually divides two groups.
-        if (separator != null) separator.SetActive(hasHyper && hasReward);
     }
 
     // ── Row building ─────────────────────────────────────────────────
@@ -235,7 +149,6 @@ public class HyperparameterEditorWidget : UIWidget
             }
 
             GameObject obj = Instantiate(rowPrefab, container);
-            UITheme.Skin(obj); // rows spawn per descriptor at runtime — theme each clone
             ParameterRow row = obj.GetComponent<ParameterRow>();
             if (row == null)
             {

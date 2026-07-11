@@ -86,16 +86,6 @@ public static class TelemetryWindowBuilder
         TextMeshProUGUI title = BuildLabel("Title", titleBar, config.windowTitle, 13f, config.textColor, FontStyles.Bold);
         title.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
 
-        // Thin accent line separating the title bar from the content — the one bright
-        // stroke that ties the window to the rest of the theme.
-        RectTransform accentLine = NewRect("AccentLine", windowRt);
-        accentLine.anchorMin = new Vector2(0f, 1f);
-        accentLine.anchorMax = Vector2.one;
-        accentLine.pivot = new Vector2(0.5f, 1f);
-        accentLine.sizeDelta = new Vector2(0f, 2f);
-        accentLine.anchoredPosition = new Vector2(0f, -config.titleBarHeight);
-        accentLine.gameObject.AddComponent<Image>().color = UITheme.Accent;
-
         // Scroll view fills the rest of the window; it's also the window's fold content.
         RectTransform scrollRt = NewRect("ScrollView", windowRt);
         Stretch(scrollRt);
@@ -231,7 +221,6 @@ public static class TelemetryWindowBuilder
 
             UIWidget widget = Object.Instantiate(entry.prefab, parent);
             widget.name = entry.prefab.name;
-            UITheme.Skin(widget.gameObject); // prefabs keep default (white) visuals; theme at runtime
 
             // Full-screen dialogs inside the widget escape the scroll view's clipping.
             foreach (PopupRoot popup in widget.GetComponentsInChildren<PopupRoot>(includeInactive: true))
@@ -243,7 +232,7 @@ public static class TelemetryWindowBuilder
 
     private static (Button, TextMeshProUGUI) BuildFoldButton(RectTransform parent, TelemetryLayoutConfig config)
     {
-        TextMeshProUGUI label = BuildLabel("FoldButton", parent, "↓", 12f, UITheme.Accent, FontStyles.Bold);
+        TextMeshProUGUI label = BuildLabel("FoldButton", parent, "↓", 12f, config.textColor, FontStyles.Bold);
         label.alignment = TextAlignmentOptions.Center;
         label.raycastTarget = true;
         label.gameObject.AddComponent<LayoutElement>().preferredWidth = 18f;

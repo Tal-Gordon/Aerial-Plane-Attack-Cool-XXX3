@@ -2553,10 +2553,6 @@ MonoBehaviour:
   availableModes:
   - {fileID: 11400000, guid: 385fd052e805c7349a5c70047b4c8d6f, type: 2}
   - {fileID: 11400000, guid: 1f12d797e2b28234aa8bb40205d95e5e, type: 2}
-  - {fileID: 11400000, guid: 05ee52fae1ec56748b1aed42f851457f, type: 2}
-  - {fileID: 11400000, guid: 595dc18185d4ef541b953ea2b35f7f66, type: 2}
-  - {fileID: 11400000, guid: 59a0fefcac89fc843a0d2b698ac18f59, type: 2}
-  - {fileID: 11400000, guid: 56cfc9f827725084e8ece05d92f16ea0, type: 2}
 --- !u!1 &1160019199
 GameObject:
   m_ObjectHideFlags: 0
