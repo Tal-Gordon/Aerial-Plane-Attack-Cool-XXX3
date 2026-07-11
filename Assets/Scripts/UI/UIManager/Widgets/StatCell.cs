@@ -11,6 +11,27 @@ public class StatCell : MonoBehaviour
     [SerializeField] private TextMeshProUGUI caption;
     [SerializeField] private TextMeshProUGUI value;
 
+    private void Awake()
+    {
+        // Uniform typography regardless of prefab-serialized auto-sizing: captions
+        // otherwise render at different sizes per string length, so the tile row
+        // looks ragged. Values keep auto-size (bounded) to fit "1111 / 1111".
+        if (caption)
+        {
+            caption.enableAutoSizing = false;
+            caption.fontSize = 12f;
+            caption.color = UITheme.TextDimmed;
+        }
+        if (value)
+        {
+            value.enableAutoSizing = true;
+            value.fontSizeMin = 9f;
+            value.fontSizeMax = 17f;
+            value.fontStyle = FontStyles.Bold;
+            value.color = UITheme.TextColor;
+        }
+    }
+
     public void Set(string captionText, string valueText)
     {
         if (caption) caption.text = captionText;

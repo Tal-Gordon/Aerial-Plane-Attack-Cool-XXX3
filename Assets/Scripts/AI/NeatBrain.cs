@@ -17,6 +17,13 @@ public class NeatBrain : IEvolvableBrain
 
     public NeatGenome Genome => genome;
 
+    // The control outputs produced by the most recent GetControlOutputs call,
+    // already remapped to (-1,1). Exposed read-only for the brain visualizer so it
+    // can colour the output nodes WITHOUT re-activating the black box — a second
+    // Activate() would advance the recurrent network's state and perturb the jet
+    // it's visualizing. Zero-filled until the agent makes its first decision.
+    public float[] LastOutputs => cachedOutputs;
+
     public void Copy(IEvolvableBrain brain)
     {
         throw new System.NotSupportedException("NeatBrain does not support Copy. Use the engine's evolution methods.");

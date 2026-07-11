@@ -32,10 +32,10 @@ public class LoadingOverlay : MonoBehaviour
     public static LoadingOverlay Instance { get; private set; }
 
     // ── Tunables (edit here, or tweak the generated objects at runtime) ──
-    private static readonly Color BackgroundColor = new Color(0.06f, 0.07f, 0.09f, 1f);
-    private static readonly Color AccentColor = new Color(0.85f, 0.87f, 0.90f, 1f); // active dot / fill
-    private static readonly Color DotIdleColor = new Color(0.85f, 0.87f, 0.90f, 0.22f);
-    private static readonly Color TextColor = new Color(0.85f, 0.87f, 0.90f, 1f);
+    private static readonly Color BackgroundColor = UITheme.Background;
+    private static readonly Color AccentColor = UITheme.Accent; // active dot / fill
+    private static readonly Color DotIdleColor = new Color(UITheme.Accent.r, UITheme.Accent.g, UITheme.Accent.b, 0.20f);
+    private static readonly Color TextColor = UITheme.TextColor;
     private const float ModalDimAlpha = 0.80f; // background opacity in modal mode
     private const int DotCount = 3;
     private const float DotStepSeconds = 0.12f; // how fast the active dot advances
@@ -50,6 +50,7 @@ public class LoadingOverlay : MonoBehaviour
     private int dotIndex;
     private float dotTimer;
     private Text statusText;
+    private GameObject modalPanel; // toast-like card behind the status line (modal mode only)
     private RectTransform progressFill;
     private GameObject progressBar;
     private bool spinnerActive;
@@ -202,6 +203,7 @@ public class LoadingOverlay : MonoBehaviour
         ShowProgress(false);
         // Dimmed, not opaque — the scene shows through.
         backgroundImage.color = new Color(BackgroundColor.r, BackgroundColor.g, BackgroundColor.b, ModalDimAlpha);
+        if (modalPanel != null) modalPanel.SetActive(true);
         SetVisible(overlayGroup, true, true);
 
         // Paint at least one full frame so the overlay is on screen *before* the
@@ -217,6 +219,7 @@ public class LoadingOverlay : MonoBehaviour
         // so a failure never leaves the screen stuck behind the overlay.
         yield return null;
         SetVisible(overlayGroup, false, false);
+        if (modalPanel != null) modalPanel.SetActive(false);
         SetSpinner(false);
         busy = false;
 
@@ -331,14 +334,30 @@ public class LoadingOverlay : MonoBehaviour
             dots[i] = dot;
         }
 
-        // Status text under the spinner.
+        // Modal status card — sits behind the status text so in-scene "Applying…"
+        // work reads as a popup (same look as the toast) instead of floating text.
+        // Scene loads keep the bare fullscreen layout and never show it.
+        modalPanel = NewUIChild("ModalPanel", overlayGO.transform);
+        var modalBg = modalPanel.AddComponent<Image>();
+        modalBg.color = UITheme.Panel;
+        Center(modalPanel.GetComponent<RectTransform>(), new Vector2(480, 96), new Vector2(0, -48));
+        var modalAccent = AddImage(modalPanel.transform, "AccentLine", AccentColor);
+        var accentRt = modalAccent.rectTransform;
+        accentRt.anchorMin = new Vector2(0f, 1f);
+        accentRt.anchorMax = Vector2.one;
+        accentRt.pivot = new Vector2(0.5f, 1f);
+        accentRt.sizeDelta = new Vector2(0f, 2f);
+        accentRt.anchoredPosition = Vector2.zero;
+        modalPanel.SetActive(false);
+
+        // Status text under the spinner (drawn after the modal card so it sits on top).
         statusText = AddText(overlayGO.transform, "Status", font, 28, TextColor);
         Center(statusText.rectTransform, new Vector2(900, 44), new Vector2(0, -48));
 
         // Progress bar (shown for scene loads only).
         progressBar = NewUIChild("Progress", overlayGO.transform);
         var barBg = progressBar.AddComponent<Image>();
-        barBg.color = new Color(0.85f, 0.87f, 0.90f, 0.15f);
+        barBg.color = new Color(UITheme.Accent.r, UITheme.Accent.g, UITheme.Accent.b, 0.15f);
         Center(barBg.rectTransform, new Vector2(480, 6), new Vector2(0, -96));
         var fillGO = NewUIChild("Fill", progressBar.transform);
         var fill = fillGO.AddComponent<Image>();

@@ -16,6 +16,22 @@ public class PauseMenuController : MonoBehaviour
     private float savedTimeScale = 1f;
     private float savedFixedDeltaTime = 0.02f;
 
+    private void Awake()
+    {
+        // The pause panel is scene-authored (duplicated across scenes/prefab) with
+        // default visuals — theme it in place instead of editing every copy's YAML.
+        if (pauseMenuUI != null)
+        {
+            UITheme.Skin(pauseMenuUI);
+            foreach (UnityEngine.UI.Button button in pauseMenuUI.GetComponentsInChildren<UnityEngine.UI.Button>(includeInactive: true))
+            {
+                if (button.name != "Resume") continue;
+                UITheme.StylePrimary(button); // Resume is the call-to-action
+                break;
+            }
+        }
+    }
+
     private void OnEnable()
     {
         pauseAction.Enable();

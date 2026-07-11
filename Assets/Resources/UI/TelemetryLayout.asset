@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1216cf7357cecdc4e83a666854e77c14, type: 3}
+  m_Name: TelemetryLayout
+  m_EditorClassIdentifier: Assembly-CSharp::TelemetryLayoutConfig
+  sections:
+  - title: Run Overview
+    enabled: 1
+    startFolded: 0
+    widgets:
+    - prefab: {fileID: 1956224606840778142, guid: 4db3a23031b0322409b7ae96b6337122, type: 3}
+      enabled: 1
+    - prefab: {fileID: 8847967309586212973, guid: 2d7166b90ad40fb46b4a7e2075a2b4ad, type: 3}
+      enabled: 1
+  - title: Simulation Controls
+    enabled: 1
+    startFolded: 0
+    widgets:
+    - prefab: {fileID: 6855827075962382602, guid: d1aaa65ec327dae4e92d5d83098dde9c, type: 3}
+      enabled: 1
+    - prefab: {fileID: 8904234247416777653, guid: 0bbf222f247be3c4a88c93954dbd2b6b, type: 3}
+      enabled: 1
+    - prefab: {fileID: 4487142839894627163, guid: 5990f9f8ecf57b8448d3cb580880379f, type: 3}
+      enabled: 1
+  - title: Tuning
+    enabled: 1
+    startFolded: 1
+    widgets:
+    - prefab: {fileID: 2115478861360746347, guid: 760b323c8c0ce554ba2b734dea5c6eff, type: 3}
+      enabled: 1
+  - title: Agent Inspector
+    enabled: 1
+    startFolded: 1
+    widgets:
+    - prefab: {fileID: 5796642398165190632, guid: d1873d468d81cc54b9a7c2f246e6dc5c, type: 3}
+      enabled: 1
+  windowTitle: Telemetry
+  windowSize: {x: 380, y: 640}
+  windowOffset: {x: -16, y: -16}
+  windowChromePrefab: {fileID: 0}
+  sectionPrefab: {fileID: 0}
+  widgetSeparatorPrefab: {fileID: 0}
+  windowBackground: {r: 0.13, g: 0.14, b: 0.17, a: 0.94}
+  titleBarColor: {r: 0.08, g: 0.11, b: 0.16, a: 1}
+  sectionHeaderColor: {r: 0.16, g: 0.22, b: 0.32, a: 1}
+  textColor: {r: 0.85, g: 0.87, b: 0.92, a: 1}
+  titleBarHeight: 28
+  sectionHeaderHeight: 24
+  scrollbarWidth: 10

@@ -104,8 +104,7 @@ GameObject:
   - component: {fileID: 3641281719087979610}
   - component: {fileID: 346840953204065755}
   - component: {fileID: 7857637353285484887}
-  - component: {fileID: 5739497274694273398}
-  - component: {fileID: 413301666170439925}
+  - component: {fileID: 5402848230371202803}
   m_Layer: 0
   m_Name: F35
   m_TagString: Untagged
@@ -541,53 +540,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a31fe42ef41fa0e42a7d24e8533dbb75, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::JetAgent
---- !u!114 &5739497274694273398
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 835737604007996434}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5d1c4e0b1822b495aa52bc52839ecb30, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
-  m_BrainParameters:
-    VectorObservationSize: 1
-    NumStackedVectorObservations: 1
-    m_ActionSpec:
-      m_NumContinuousActions: 0
-      BranchSizes: 01000000
-    VectorActionSize: 01000000
-    VectorActionDescriptions: []
-    VectorActionSpaceType: 0
-    hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
-  m_InferenceDevice: 0
-  m_BehaviorType: 0
-  m_BehaviorName: My Behavior
-  TeamId: 0
-  m_UseChildSensors: 1
-  m_UseChildActuators: 1
-  m_DeterministicInference: 0
-  m_ObservableAttributeHandling: 0
---- !u!114 &413301666170439925
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 835737604007996434}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6ca70e4273063b5498053ef2bd3db33a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::JetMLAgent
-  agentParameters:
-    maxStep: 0
-  hasUpgradedFromAgentParameters: 1
-  MaxStep: 0
 --- !u!1 &1926233024234982582
 GameObject:
   m_ObjectHideFlags: 0
@@ -890,3 +842,19 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &5402848230371202803
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 835737604007996434}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c0e5ad54c8047588a02825b437cc6f6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  createHoops: 0
+  hoopSpacing: 1250
+  hoopPrefab: {fileID: 3963078238349875913, guid: 794c09d6738189741af4be859aa39d66, type: 3}
+  trackParent: {fileID: 0}

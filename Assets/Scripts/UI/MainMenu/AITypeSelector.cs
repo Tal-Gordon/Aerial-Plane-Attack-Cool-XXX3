@@ -9,6 +9,11 @@ public class AITypeSelector : MonoBehaviour
 
     private int currentIndex = -1;
 
+    /// <summary>Currently selected button index, or -1 before any selection. Lets a
+    /// late subscriber (e.g. a listener whose OnEnable runs after a selection was
+    /// already broadcast) sync to the selection it missed.</summary>
+    public int CurrentIndex => currentIndex;
+
     void Start()
     {
         for (int i = 0; i < optionButtons.Length; i++)
@@ -17,6 +22,10 @@ public class AITypeSelector : MonoBehaviour
             // for the lambda expression to work correctly.
             int index = i;
             optionButtons[i].onClick.AddListener(() => SelectOption(index));
+
+            // Selection is shown via the disabled state — make it read as "chosen"
+            // (muted accent fill) rather than greyed-out.
+            UITheme.StyleSelectedWhenDisabled(optionButtons[i]);
         }
 
         // Select Option A (index 0) by default
@@ -25,6 +34,11 @@ public class AITypeSelector : MonoBehaviour
             SelectOption(0);
         }
     }
+
+    /// <summary>Reverts to the first option (the default) — re-enables the previously
+    /// chosen button and broadcasts the change so the recorded AI type follows the
+    /// visuals. No-op when the default is already selected.</summary>
+    public void ResetToDefault() => SelectOption(0);
 
     public void SelectOption(int index)
     {

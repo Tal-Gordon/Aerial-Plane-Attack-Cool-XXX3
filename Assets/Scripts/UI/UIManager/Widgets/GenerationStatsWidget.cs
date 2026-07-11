@@ -30,6 +30,20 @@ public class GenerationStatsWidget : UIWidget
     // Pool of cloned tiles, grown on demand and reused frame to frame.
     private readonly List<StatCell> cells = new List<StatCell>();
 
+    protected override void OnInitialize()
+    {
+        // The serialized bar colours (green fill on a grey track) predate the theme
+        // and survive every generic skin pass — pin them to the palette here.
+        if (populationFillBar != null)
+        {
+            populationFillBar.color = UITheme.Accent;
+            Image track = populationFillBar.transform.parent != null
+                ? populationFillBar.transform.parent.GetComponent<Image>()
+                : null;
+            if (track != null) track.color = UITheme.FieldPressed;
+        }
+    }
+
     // One stat's content. Empty Value = not shown.
     private struct Stat
     {
@@ -159,7 +173,11 @@ public class GenerationStatsWidget : UIWidget
     private StatCell GetCell(int index)
     {
         while (cells.Count <= index)
-            cells.Add(Instantiate(cellPrefab, cellRow));
+        {
+            StatCell newCell = Instantiate(cellPrefab, cellRow);
+            UITheme.Skin(newCell.gameObject); // pool grows at runtime — theme each clone
+            cells.Add(newCell);
+        }
 
         StatCell cell = cells[index];
         SetActive(cell.gameObject, true);
