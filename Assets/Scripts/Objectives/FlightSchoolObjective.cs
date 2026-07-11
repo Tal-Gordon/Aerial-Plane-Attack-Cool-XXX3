@@ -7,6 +7,8 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
 {
     /// <summary>Jet, zero-based hoop index, and hoop transform.</summary>
     public event Action<JetAgent, int, Transform> HoopPassed;
+    /// <summary>Fired once when a jet's current run reaches any terminal state.</summary>
+    public event Action<JetAgent> AgentFinished;
 
     public DataManager.GameMode Mode => DataManager.GameMode.FlightSchool;
     public SensorType RequiredSensorType => SensorType.Waypoint;
@@ -37,6 +39,7 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
     private Dictionary<JetAgent, float> lastLocalZ = new Dictionary<JetAgent, float>();
     private Dictionary<JetAgent, float> lastHoopTime = new Dictionary<JetAgent, float>();
     private Dictionary<JetAgent, Dictionary<string, float>> agentBreakdowns = new Dictionary<JetAgent, Dictionary<string, float>>();
+    private HashSet<JetAgent> terminalReported = new HashSet<JetAgent>();
 
     // TODO REMOVE
     private JetAgent debugAgent = null;
@@ -119,6 +122,10 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
 
     public void SetStartingState(JetAgent agent, int index, int totalPopulation)
     {
+        // RL agents restart independently. Allow this new run to report its own
+        // terminal event after the previous run was removed from camera counts.
+        terminalReported.Remove(agent);
+
         // Define center behind the first hoop (500 units along its local Z)
         Vector3 spawnCenter = waypoints[0].position - (waypoints[0].forward * 1500f);
 
@@ -359,20 +366,16 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
 
     public bool CheckTerminalState(JetAgent agent)
     {
-        if (agent.HasCrashed) return true;
+        bool terminal = agent.HasCrashed
+            || agent.TimeAlive > maxTimeAllowed
+            || (lastHoopTime.ContainsKey(agent)
+                && (agent.TimeAlive - lastHoopTime[agent]) > timeBetweenHoopsAllowed)
+            || (agentTargetIndices.ContainsKey(agent)
+                && agentTargetIndices[agent] >= waypoints.Length);
 
-        if (agent.TimeAlive > maxTimeAllowed) return true;
+        if (terminal && terminalReported.Add(agent))
+            AgentFinished?.Invoke(agent);
 
-        if (lastHoopTime.ContainsKey(agent) && (agent.TimeAlive - lastHoopTime[agent]) > timeBetweenHoopsAllowed)
-        {
-            return true;
-        }
-
-        if (agentTargetIndices.ContainsKey(agent) && agentTargetIndices[agent] >= waypoints.Length)
-        {
-            return true;
-        }
-
-        return false;
+        return terminal;
     }
 }
