@@ -13,13 +13,13 @@ public class ParameterRow : MonoBehaviour
     [SerializeField] private TextMeshProUGUI label;
     [SerializeField] private TMP_InputField input;
 
-    // Muted, readable-over-white tints signalling how a committed change is applied
-    // (see ParameterDescriptor.RequiresReset). Kept as constants rather than
+    // Readable-over-dark tints (UITheme palette) signalling how a committed change is
+    // applied (see ParameterDescriptor.RequiresReset). Kept as constants rather than
     // SerializeFields to dodge the prefab-default trap noted in CLAUDE.md.
-    //   hot  (RequiresReset == false) → soft red   (kept in place, trained state survives)
+    //   hot  (RequiresReset == false) → soft amber (kept in place, trained state survives)
     //   cold (RequiresReset == true)  → soft blue  (forces a rebuild / reload)
-    private static readonly Color HotColor = new Color(0.72f, 0.25f, 0.22f);
-    private static readonly Color ColdColor = new Color(0.20f, 0.38f, 0.66f);
+    private static readonly Color HotColor = new Color(0.96f, 0.62f, 0.32f);
+    private static readonly Color ColdColor = new Color(0.47f, 0.72f, 0.98f);
 
     private ParameterDescriptor descriptor;
     private Action<string, float> onCommitted;
@@ -38,13 +38,21 @@ public class ParameterRow : MonoBehaviour
         if (label)
         {
             label.text = desc.DisplayName;
+            // Left-aligned reads as a settings list; the prefab centres it.
+            label.alignment = TextAlignmentOptions.MidlineLeft;
             // Paint the label by commit type so the user can see at a glance which
-            // edits keep trained state (hot/red) and which force a rebuild (cold/blue).
+            // edits keep trained state (hot/amber) and which force a rebuild (cold/blue).
             label.color = desc.RequiresReset ? ColdColor : HotColor;
         }
 
         if (input)
         {
+            // The prefab's field text is auto-sized tiny — pin a readable size.
+            if (input.textComponent != null)
+            {
+                input.textComponent.enableAutoSizing = false;
+                input.textComponent.fontSize = 14f;
+            }
             // Toggle params are 0/1 flags — restrict to whole numbers so the field
             // can't take a fractional value; everything else allows decimals.
             input.contentType = desc.IsToggle

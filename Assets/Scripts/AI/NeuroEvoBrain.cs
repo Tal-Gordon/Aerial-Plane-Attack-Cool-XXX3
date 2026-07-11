@@ -125,6 +125,37 @@ public class NeuroEvoBrain : IEvolvableBrain
         return layerBuffers[weights.Length - 1];
     }
 
+    // Read-only forward pass that captures the post-activation value of EVERY node,
+    // layer by layer, for the brain visualizer. activations[0] is the raw input
+    // layer; activations[l] (l >= 1) is the output of weight layer l-1 (ReLU for
+    // hidden layers, Tanh for the final layer) — mirroring GetControlOutputs.
+    //
+    // Deliberately allocates its own scratch buffers instead of reusing
+    // layerBuffers, so calling it from the UI never clobbers the action the agent
+    // cached on its last decision frame (JetAgent holds a reference to layerBuffers).
+    public float[][] GetLayerActivations(float[] inputs)
+    {
+        float[][] activations = new float[weights.Length + 1][];
+        activations[0] = (float[])inputs.Clone();
+
+        float[] current = inputs;
+        for (int i = 0; i < weights.Length; i++)
+        {
+            float[] output = new float[biases[i].Length];
+            FullyConnected(current, weights[i], biases[i], output);
+
+            if (i == weights.Length - 1)
+                TanhInPlace(output);
+            else
+                ReluInPlace(output);
+
+            activations[i + 1] = output;
+            current = output;
+        }
+
+        return activations;
+    }
+
     private void FullyConnected(float[] inputs, float[][] matrix, float[] layerBiases, float[] output)
     {
         for (int i = 0; i < output.Length; i++)

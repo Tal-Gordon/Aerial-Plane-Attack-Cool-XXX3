@@ -86,7 +86,7 @@ public class TimeScaleWidget : UIWidget
 
             if (informativeLabel)
             {
-                informativeLabel.color = new Color32(31, 31, 31, 255);
+                informativeLabel.color = UITheme.TextColor;
                 informativeLabel.text = "Time Scale";
             }
         }

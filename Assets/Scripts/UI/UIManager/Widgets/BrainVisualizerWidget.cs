@@ -1,158 +1,236 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
+// Live, per-AI brain visualizer. The widget owns the texture and the rasterizing
+// primitives only; the actual "what does this network look like" logic lives in a
+// set of BrainRenderer strategies (one per AI type). Each frame it picks the
+// renderer that matches the selected jet's brain, builds the topology once (or
+// rebuilds it when the structure changes — NEAT grows over generations), then
+// samples live activations and draws.
+//
+// The render texture sizes itself to the RawImage's on-screen rect, and node radius
+// adapts to how crowded the layout is, so complex architectures stay legible instead
+// of collapsing into noise.
+//
+// To trigger it, a jet must be selected (see JetSelectionController).
 public class BrainVisualizerWidget : UIWidget
 {
     [Header("Wiring")]
     [SerializeField] private RawImage rawImage;
     [SerializeField] private GameObject noSelectionOverlay; // optional "no agent selected" label
 
-    [Header("Labels (optional)")]
-    [SerializeField] private string[] inputLabels  = { "SALT", "SSPEED", "SHDG" };
-    [SerializeField] private string[] outputLabels = { "APITCH", "AROLL", "AYAW", "ATHROTTLE" };
+    [Header("Sizing")]
+    [Tooltip("Size the render texture to the RawImage's rect so it fills the panel.")]
+    [SerializeField] private bool dynamicSize = true;
+    [Tooltip("Used only when dynamicSize is off, or before the rect has been laid out.")]
+    [SerializeField] private int fallbackWidth = 340;
+    [SerializeField] private int fallbackHeight = 400;
+    [Tooltip("Upper bound on either texture dimension, to cap allocation.")]
+    [SerializeField] private int maxTextureDimension = 2048;
+    [SerializeField] private int padding = 24; // px border kept clear inside the texture
 
-    [Header("Texture Settings")]
-    [SerializeField] private int texWidth  = 340;
-    [SerializeField] private int texHeight = 200;
+    [Header("Nodes")]
+    [SerializeField] private int maxNodeRadius = 9;
+    [SerializeField] private int minNodeRadius = 2;
+    [Tooltip("Node radius as a fraction of the spacing to its nearest neighbour.")]
+    [SerializeField] private float nodeSpacingFraction = 0.4f;
 
-    [Header("Visual Config")]
-    [SerializeField] private int   nodeRadius       = 10;
-    [SerializeField] private int   updateEveryNFrames = 2; // skip frames (lower = better perf)
+    [Header("Performance")]
+    [SerializeField] private int updateEveryNFrames = 2; // skip frames (higher = cheaper)
 
-    // Colours
-    [SerializeField] private Color bgColor          = new Color(0.05f, 0.07f, 0.12f, 1f);
-    [SerializeField] private Color nodePositive     = new Color(0.2f, 0.9f, 1.0f,  1f); // high activation
-    [SerializeField] private Color nodeNeutral      = new Color(0.15f, 0.2f, 0.3f, 1f); // ~zero
-    [SerializeField] private Color nodeNegative     = new Color(0.9f, 0.2f, 0.3f,  1f); // negative
-    [SerializeField] private Color connectionPos    = new Color(0.2f, 0.8f, 0.4f, 0.5f);
-    [SerializeField] private Color connectionNeg    = new Color(0.9f, 0.3f, 0.2f, 0.5f);
-    [SerializeField] private Color connectionWeak   = new Color(0.3f, 0.3f, 0.35f, 0.2f);
+    [Header("Colours")]
+    [SerializeField] private Color paletteBackground = new Color(0.33f, 0.33f, 0.35f, 1f);
+    [SerializeField] private Color paletteNodeInactive = new Color(0.6f, 0.60f, 0.60f, 1f); // ~zero / unknown
+    [SerializeField] private Color paletteNodePositive = new Color(0.3f, 0.68f, 0.95f, 1f); // high activation (blue)
+    [SerializeField] private Color paletteNodeNegative = new Color(0.96f, 0.55f, 0.22f, 1f); // negative (orange)
+    [Tooltip("Connections are drawn uniform and opaque on purpose — quiet structure, not noise.")]
+    [SerializeField] private Color paletteConnection = new Color(0.18f, 0.21f, 0.28f, 1f);
 
     // ---- Internal ----
-    private Texture2D     tex;
-    private Color[]       clearPixels;   // cached blank frame
-    private int           frameCounter;
+    private Texture2D tex;
+    private Color[]   clearPixels;
+    private int       texW, texH;
+    private int       frameCounter;
+    private int       computedRadius;
 
-    // Cached node positions [layer][node] = pixel position
-    private Vector2Int[][] nodePositions;
-    private int[]          cachedShape;
-
-    // Last computed per-layer activations (pulled from brain each frame)
-    // We feed the sensor data through manually to get activations.
-    // If your NeuroEvoBrain exposes GetActivations(), use that instead.
-    private float[][]  activations;
+    private readonly NetworkGraph graph = new NetworkGraph();
+    private readonly Dictionary<int, int> columnCounts = new Dictionary<int, int>();
+    private BrainRenderer[] renderers;
+    private BrainRenderer   activeRenderer;
+    private object          topologyToken;
 
     protected override void OnInitialize()
     {
-        tex = new Texture2D(texWidth, texHeight, TextureFormat.RGBA32, mipChain: false)
+        // The serialized background is a pre-theme mid-grey that clashes with the
+        // dark window (prefab-default trap — code defaults can't reach it). Pin the
+        // structural colours to the palette; activation colours already match it.
+        paletteBackground = new Color(0.10f, 0.11f, 0.14f, 1f);
+        if (noSelectionOverlay != null)
         {
-            filterMode = FilterMode.Bilinear
+            var overlayLabel = noSelectionOverlay.GetComponentInChildren<TMPro.TMP_Text>(includeInactive: true);
+            if (overlayLabel != null) overlayLabel.color = UITheme.TextDimmed;
+        }
+
+        computedRadius = maxNodeRadius;
+
+        // Renderers are tried in order; their Matches() checks are mutually
+        // exclusive, so order only matters if a brain ever satisfies two of them.
+        renderers = new BrainRenderer[]
+        {
+            new NeuroEvoBrainRenderer(),
+            new NeatBrainRenderer(),
+            new RLBrainRenderer(),
         };
-
-        clearPixels = new Color[texWidth * texHeight];
-        for (int i = 0; i < clearPixels.Length; i++) clearPixels[i] = bgColor;
-
-        if (rawImage) rawImage.texture = tex;
     }
 
     public override void Tick(SimulationSnapshot snapshot)
     {
         frameCounter++;
-        if (frameCounter % updateEveryNFrames != 0) return;
+        if (frameCounter % Mathf.Max(1, updateEveryNFrames) != 0) return;
 
-        var agent = snapshot.SelectedAgent;
+        JetAgent agent = snapshot.SelectedAgent;
+        BrainRenderer renderer = agent != null ? PickRenderer(agent) : null;
+        bool canDraw = renderer != null;
 
-        bool hasBrain = agent != null && agent.Brain is IEvolvableBrain;
-        if (noSelectionOverlay) noSelectionOverlay.SetActive(!hasBrain);
-        if (rawImage)           rawImage.gameObject.SetActive(hasBrain);
+        if (noSelectionOverlay) noSelectionOverlay.SetActive(!canDraw);
+        if (rawImage)           rawImage.gameObject.SetActive(canDraw);
 
-        if (!hasBrain) return;
-
-        var brain = (IEvolvableBrain)agent.Brain;
-        int[] shape = brain.GetShape();
-
-        // Rebuild node positions only when topology changes (e.g. new agent selected)
-        if (!ShapeEquals(shape, cachedShape))
+        if (!canDraw)
         {
-            cachedShape   = shape;
-            nodePositions = BuildNodePositions(shape);
+            activeRenderer = null;
+            topologyToken  = null;
+            return;
         }
 
-        // Get current sensor data and run a forward pass to collect activations
-        // This assumes JetAgent exposes its ISensor via a getter.
-        // If not, we fall back to drawing without live activations.
-        float[] inputs = TryGetSensorData(agent);
-        activations   = ComputeActivations(brain, shape, inputs);
+        bool sizeChanged = EnsureTexture();
 
-        DrawFrame(shape);
-    }
-
-    private Vector2Int[][] BuildNodePositions(int[] shape)
-    {
-        int layers = shape.Length;
-        var positions = new Vector2Int[layers][];
-
-        int padX = 30;
-        int padY = 20;
-
-        for (int l = 0; l < layers; l++)
+        // Rebuild the layout only when the renderer changes (a different AI selected)
+        // or the topology token changes (NEAT grew a node/connection).
+        object token = renderer.TopologyToken(agent);
+        bool rebuilt = false;
+        if (renderer != activeRenderer || !Equals(token, topologyToken))
         {
-            positions[l] = new Vector2Int[shape[l]];
-            float xFraction = layers == 1 ? 0.5f : (float)l / (layers - 1);
-            int   x = padX + Mathf.RoundToInt(xFraction * (texWidth - padX * 2));
-
-            for (int n = 0; n < shape[l]; n++)
-            {
-                float yFraction = shape[l] == 1 ? 0.5f : (float)n / (shape[l] - 1);
-                int   y = padY + Mathf.RoundToInt(yFraction * (texHeight - padY * 2));
-                positions[l][n] = new Vector2Int(x, y);
-            }
+            activeRenderer = renderer;
+            topologyToken  = token;
+            graph.Clear();
+            renderer.BuildTopology(agent, graph);
+            rebuilt = true;
         }
 
-        return positions;
+        // Node positions (in pixels) only move when the layout or texture size
+        // changes, so the density-based radius is recomputed only then.
+        if (rebuilt || sizeChanged) RecomputeNodeRadius();
+
+        renderer.SampleActivations(agent, graph);
+        DrawFrame();
     }
 
-    private void DrawFrame(int[] shape)
+    private BrainRenderer PickRenderer(JetAgent agent)
     {
-        // Clear
+        foreach (BrainRenderer r in renderers)
+            if (r.Matches(agent)) return r;
+        return null;
+    }
+
+    // Creates/resizes the texture to match the RawImage rect (when dynamicSize is on).
+    // Returns true if the texture was (re)created this call.
+    private bool EnsureTexture()
+    {
+        int w = fallbackWidth;
+        int h = fallbackHeight;
+
+        if (dynamicSize && rawImage != null)
+        {
+            Rect rect = rawImage.rectTransform.rect;
+            float scale = rawImage.canvas != null ? rawImage.canvas.scaleFactor : 1f;
+            int rw = Mathf.RoundToInt(rect.width * scale);
+            int rh = Mathf.RoundToInt(rect.height * scale);
+            if (rw > 8 && rh > 8) { w = rw; h = rh; } // rect may be unset before first layout
+        }
+
+        w = Mathf.Clamp(w, 16, maxTextureDimension);
+        h = Mathf.Clamp(h, 16, maxTextureDimension);
+
+        if (tex != null && w == texW && h == texH) return false;
+
+        texW = w;
+        texH = h;
+
+        if (tex != null) Destroy(tex);
+        tex = new Texture2D(texW, texH, TextureFormat.RGBA32, mipChain: false)
+        {
+            filterMode = FilterMode.Bilinear
+        };
+
+        clearPixels = new Color[texW * texH];
+        for (int i = 0; i < clearPixels.Length; i++) clearPixels[i] = paletteBackground;
+
+        if (rawImage) rawImage.texture = tex;
+        return true;
+    }
+
+    // Shrinks nodes when a column gets crowded so dense graphs stay readable.
+    private void RecomputeNodeRadius()
+    {
+        if (graph.Nodes.Count == 0) { computedRadius = maxNodeRadius; return; }
+
+        columnCounts.Clear();
+        foreach (NetNode node in graph.Nodes)
+        {
+            int x = ToPixel(node).x; // nodes in the same column share an X, so this buckets them
+            columnCounts.TryGetValue(x, out int c);
+            columnCounts[x] = c + 1;
+        }
+
+        int maxPerColumn = 1;
+        foreach (int c in columnCounts.Values)
+            if (c > maxPerColumn) maxPerColumn = c;
+
+        int columns = columnCounts.Count;
+        int drawW = texW - 2 * padding;
+        int drawH = texH - 2 * padding;
+
+        float vSpacing = maxPerColumn > 1 ? (float)drawH / (maxPerColumn - 1) : drawH;
+        float hSpacing = columns > 1 ? (float)drawW / (columns - 1) : drawW;
+
+        int radius = Mathf.RoundToInt(nodeSpacingFraction * Mathf.Min(vSpacing, hSpacing));
+        computedRadius = Mathf.Clamp(radius, minNodeRadius, maxNodeRadius);
+    }
+
+    private void DrawFrame()
+    {
         tex.SetPixels(clearPixels);
 
-        // Connections (draw before nodes so nodes render on top)
-        for (int l = 0; l < shape.Length - 1; l++)
+        // Connections first (uniform + opaque, so they read as quiet structure and
+        // never let the panel behind show through), then nodes on top carry colour.
+        foreach (NetEdge edge in graph.Edges)
         {
-            for (int n = 0; n < shape[l]; n++)
-            {
-                for (int m = 0; m < shape[l + 1]; m++)
-                {
-                    // We don't have easy per-weight access via the interface,
-                    // so colour connections by the source node's activation.
-                    float activation = activations != null ? activations[l][n] : 0f;
-                    Color lineColor  = activation > 0.1f  ? connectionPos
-                                    : activation < -0.1f ? connectionNeg
-                                    : connectionWeak;
-
-                    DrawLine(nodePositions[l][n], nodePositions[l + 1][m], lineColor);
-                }
-            }
+            NetNode a = graph.Nodes[edge.From];
+            NetNode b = graph.Nodes[edge.To];
+            DrawLine(ToPixel(a), ToPixel(b), paletteConnection);
         }
 
-        // Nodes
-        for (int l = 0; l < shape.Length; l++)
-        {
-            for (int n = 0; n < shape[l]; n++)
-            {
-                float activation = activations != null ? activations[l][n] : 0f;
-
-                // Lerp: negative → neutral → positive
-                Color nodeColor = activation >= 0f
-                    ? Color.Lerp(nodeNeutral, nodePositive, activation)
-                    : Color.Lerp(nodeNeutral, nodeNegative, -activation);
-
-                DrawCircle(nodePositions[l][n], nodeRadius, nodeColor);
-            }
-        }
+        foreach (NetNode node in graph.Nodes)
+            DrawCircle(ToPixel(node), computedRadius, NodeColor(node));
 
         tex.Apply();
+    }
+
+    private Vector2Int ToPixel(NetNode n)
+    {
+        int x = padding + Mathf.RoundToInt(n.X * (texW - 2 * padding));
+        int y = padding + Mathf.RoundToInt(n.Y * (texH - 2 * padding));
+        return new Vector2Int(x, y);
+    }
+
+    private Color NodeColor(NetNode n)
+    {
+        if (!n.HasActivation) return paletteNodeInactive;
+        float a = Mathf.Clamp(n.Activation, -1f, 1f);
+        return a >= 0f
+            ? Color.Lerp(paletteNodeInactive, paletteNodePositive, a)
+            : Color.Lerp(paletteNodeInactive, paletteNodeNegative, -a);
     }
 
     private void DrawCircle(Vector2Int center, int radius, Color color)
@@ -163,7 +241,7 @@ public class BrainVisualizerWidget : UIWidget
             if (dx * dx + dy * dy > radius * radius) continue;
             int px = center.x + dx;
             int py = center.y + dy;
-            if (px < 0 || px >= texWidth || py < 0 || py >= texHeight) continue;
+            if (px < 0 || px >= texW || py < 0 || py >= texH) continue;
             tex.SetPixel(px, py, color);
         }
     }
@@ -178,86 +256,9 @@ public class BrainVisualizerWidget : UIWidget
             float t  = (float)i / steps;
             int   px = Mathf.RoundToInt(Mathf.Lerp(a.x, b.x, t));
             int   py = Mathf.RoundToInt(Mathf.Lerp(a.y, b.y, t));
-            if (px < 0 || px >= texWidth || py < 0 || py >= texHeight) continue;
+            if (px < 0 || px >= texW || py < 0 || py >= texH) continue;
             tex.SetPixel(px, py, color);
         }
-    }
-
-    // Runs the sensor data through the network layer by layer,
-    // capturing the activation at each node.
-    // Requires NeuroEvoBrain (or any IEvolvableBrain) to support GetControlOutputs.
-    // We reconstruct activations using the same forward pass logic.
-    private float[][] ComputeActivations(IEvolvableBrain brain, int[] shape, float[] inputs)
-    {
-        if (inputs == null || inputs.Length == 0)
-            return null;
-
-        // We call GetControlOutputs to get the final outputs,
-        // but for intermediate activations we need to re-implement
-        // the forward pass here OR expose GetLayerActivations() on NeuroEvoBrain.
-        //
-        // Simplest approach: store input layer activations; use output for last layer;
-        // interpolate middles. For a proper implementation, add this to NeuroEvoBrain:
-        //   public float[][] GetLayerActivations(float[] inputs) { ... }
-        // and call it here instead.
-
-        var activations = new float[shape.Length][];
-
-        // Input layer — clamp to [-1, 1] range for colour purposes
-        activations[0] = new float[shape[0]];
-        for (int i = 0; i < Mathf.Min(inputs.Length, shape[0]); i++)
-            activations[0][i] = Mathf.Clamp(inputs[i], -1f, 1f);
-
-        // Intermediate layers — zeroed until you expose GetLayerActivations
-        for (int l = 1; l < shape.Length - 1; l++)
-            activations[l] = new float[shape[l]]; // all zero until exposed
-
-        // Output layer — run the actual forward pass
-        float[] outputs = brain.GetControlOutputs(inputs);
-        activations[shape.Length - 1] = new float[shape[shape.Length - 1]];
-        for (int i = 0; i < Mathf.Min(outputs.Length, shape[shape.Length - 1]); i++)
-            activations[shape.Length - 1][i] = Mathf.Clamp(outputs[i], -1f, 1f);
-
-        return activations;
-    }
-
-    // TODO: Replace ComputeActivations with this once NeuroEvoBrain exposes GetLayerActivations()
-    // private float[][] ComputeActivations(IEvolvableBrain brain, int[] shape, float[] inputs)
-    // {
-    //     if (inputs == null || inputs.Length == 0) return null;
-
-    //     // Cast the interface to our specific brain script
-    //     var myBrain = brain as NeuroEvoBrain; 
-        
-    //     if (myBrain != null)
-    //     {
-    //         // Now we are getting the real data for every single node!
-    //         return myBrain.GetLayerActivations(inputs); 
-    //     }
-
-    //     return null;
-    // }
-
-    // Try to pull sensor data from the agent.
-    private float[] TryGetSensorData(JetAgent agent)
-    {
-        return agent.Sensor?.GetObservationData();
-
-        // fallback:
-        // var sensor = agent.GetComponent<ISensor>() as MonoBehaviour;
-        // return sensor != null
-        //     ? (sensor as ISensor)?.GetObservationData()
-        //     : null;
-        //
-        // Not recommended, slow
-        // But will work in case of null sensor errors and such
-    }
-
-    private bool ShapeEquals(int[] a, int[] b)
-    {
-        if (a == null || b == null || a.Length != b.Length) return false;
-        for (int i = 0; i < a.Length; i++) if (a[i] != b[i]) return false;
-        return true;
     }
 
     private void OnDestroy()

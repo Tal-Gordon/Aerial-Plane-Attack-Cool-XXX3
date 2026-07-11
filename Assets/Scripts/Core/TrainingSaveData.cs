@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 /// <summary>
 /// A complete, restorable snapshot of a training run for one
-/// (GameMode, AIType) pair. Serialized to JSON by <see cref="DataManager"/>.
+/// (Track, AIType) slot. Serialized to JSON by <see cref="DataManager"/>.
 ///
 /// The bundle is split into four parts so each can evolve independently:
 ///   1. Settings           — jet/AI parameters (population size, mutation rate,
@@ -25,6 +25,12 @@ public class TrainingSaveData
     // ── Identity ──────────────────────────────────────────────
     public AIType AIType;
     public DataManager.GameMode Mode;
+
+    // The track (scene) this save belongs to. Save slots are keyed by (track, AI
+    // type), so two tracks sharing a Mode (e.g. several FlightSchool tracks) each
+    // own an independent save. Informational here — the on-disk path is the
+    // authority — but it lets a save self-describe which slot produced it.
+    public string Track;
 
     // ── Jet / AI parameters ───────────────────────────────────
     public SimulationSettings Settings;

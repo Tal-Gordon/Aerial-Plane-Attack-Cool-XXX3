@@ -16,12 +16,12 @@ public class SettingsMenu : MonoBehaviour
 {
     public static SettingsMenu Instance { get; private set; }
 
-    // ── Palette (light / default Unity-UI look) ──
-    private static readonly Color DimColor = new Color(0f, 0f, 0f, 0.45f);          // backdrop behind the panel
-    private static readonly Color PanelColor = new Color(0.93f, 0.93f, 0.94f, 1f);  // light gray card
-    private static readonly Color FieldColor = new Color(1f, 1f, 1f, 1f);           // white fields/buttons
-    private static readonly Color AccentColor = new Color(0.40f, 0.56f, 0.85f, 0.45f); // selected-item highlight
-    private static readonly Color TextColor = new Color(0.13f, 0.13f, 0.14f, 1f);   // dark text
+    // ── Palette (dark, from UITheme — matches the loading screen and telemetry) ──
+    private static readonly Color DimColor = new Color(0f, 0f, 0f, 0.55f);   // backdrop behind the panel
+    private static readonly Color PanelColor = UITheme.Panel;                // dark card
+    private static readonly Color FieldColor = UITheme.Field;                // fields/buttons
+    private static readonly Color AccentColor = UITheme.Accent;              // highlights / title
+    private static readonly Color TextColor = UITheme.TextColor;             // light text
 
     private static readonly (string label, FullScreenMode mode)[] DisplayModes =
     {
@@ -148,7 +148,11 @@ public class SettingsMenu : MonoBehaviour
         var panel = AddImage(transform, "Panel", PanelColor);
         Center(panel.rectTransform, new Vector2(560, 340), Vector2.zero);
 
-        var title = AddText(panel.transform, "Title", font, 32, TextColor);
+        // Thin accent line along the panel's top edge (same stroke as the telemetry window).
+        var accentLine = AddImage(panel.transform, "AccentLine", AccentColor);
+        Top(accentLine.rectTransform, new Vector2(560, 2), Vector2.zero);
+
+        var title = AddText(panel.transform, "Title", font, 32, AccentColor);
         title.alignment = TextAnchor.MiddleCenter;
         Top(title.rectTransform, new Vector2(520, 52), new Vector2(0, -32));
         title.text = "Settings";
@@ -161,6 +165,7 @@ public class SettingsMenu : MonoBehaviour
         back.onClick.AddListener(Close);
         var apply = AddButton(panel.transform, font, "Apply", new Vector2(100, 36), new Vector2(150, 48));
         apply.onClick.AddListener(OnApply);
+        UITheme.StylePrimary(apply); // Apply is the call-to-action
     }
 
     /// <summary>A label on the left and a dropdown on the right, anchored at the panel's top.</summary>
@@ -191,6 +196,7 @@ public class SettingsMenu : MonoBehaviour
         rt.anchoredPosition = anchoredPos;
         var btn = img.gameObject.AddComponent<Button>();
         btn.targetGraphic = img;
+        UITheme.StyleSelectable(btn); // themed hover/pressed states
         var txt = AddText(img.transform, "Text", font, 24, TextColor);
         txt.alignment = TextAnchor.MiddleCenter;
         Stretch(txt.rectTransform);
@@ -272,6 +278,9 @@ public class SettingsMenu : MonoBehaviour
         dd.template = tmplRT;
         dd.captionText = caption;
         dd.itemText = itemLabel;
+        // Style only after targetGraphic is wired — styling first leaves the image's
+        // own colour in place and the state tint multiplies it to near-black.
+        UITheme.StyleSelectable(dd);
 
         template.gameObject.SetActive(false);
         return dd;

@@ -1,0 +1,52 @@
+# Unity writes its text assets (YAML) with LF line endings. Pin them to LF so git
+# never converts them on checkout/commit — on Windows, core.autocrlf would otherwise
+# rewrite them to CRLF the next time git touches the file, bloating scene/prefab
+# diffs with line-ending churn and inviting the merge corruption we've hit before.
+*.unity              text eol=lf
+*.prefab             text eol=lf
+*.asset              text eol=lf
+*.meta               text eol=lf
+*.mat                text eol=lf
+*.anim               text eol=lf
+*.controller         text eol=lf
+*.overrideController text eol=lf
+*.physicMaterial     text eol=lf
+*.physicsMaterial2D  text eol=lf
+*.playable           text eol=lf
+*.mask               text eol=lf
+*.brush              text eol=lf
+*.flare              text eol=lf
+*.fontsettings       text eol=lf
+*.guiskin            text eol=lf
+*.giparams           text eol=lf
+*.renderTexture      text eol=lf
+*.spriteatlas        text eol=lf
+*.terrainlayer       text eol=lf
+*.mixer              text eol=lf
+*.shadervariants     text eol=lf
+*.preset             text eol=lf
+*.asmdef             text eol=lf
+*.asmref             text eol=lf
+*.inputactions       text eol=lf
+
+# Binary assets — never convert line endings or attempt text diffs.
+*.dll   binary
+*.pdb   binary
+*.onnx  binary
+*.pt    binary
+*.fbx   binary
+*.FBX   binary
+*.obj   binary
+*.blend binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.tga   binary
+*.psd   binary
+*.exr   binary
+*.hdr   binary
+*.wav   binary
+*.mp3   binary
+*.ogg   binary
+*.ttf   binary
+*.otf   binary

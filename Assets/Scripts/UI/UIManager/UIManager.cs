@@ -9,26 +9,89 @@ public class UIManager : MonoBehaviour
     [Header("Simulation References")]
     [SerializeField] private SimulationManager simManager;
 
-    [Header("UI Wiring")]
+    [Header("UI Wiring (scene-authored mode)")]
     [SerializeField] private GameObject telemetryWindow;
     [SerializeField] private UISection[] sections;
+
+    [Header("Dynamic build (set a config to build the window at runtime instead)")]
+    [SerializeField] private TelemetryLayoutConfig layoutConfig;
+    [Tooltip("Canvas to build under; found automatically when left empty.")]
+    [SerializeField] private Canvas targetCanvas;
 
     public SimulationSnapshot Snapshot => snapshot;
 
     private SimulationSnapshot snapshot = new SimulationSnapshot();
     private UIWidget[] allWidgets;
 
+    /// <summary>
+    /// Pre-Awake injection for bootstrappers that create the UIManager from code
+    /// (add the component on an inactive GameObject, call this, then activate).
+    /// </summary>
+    public void SetLayout(TelemetryLayoutConfig config, Canvas canvas)
+    {
+        layoutConfig = config;
+        targetCanvas = canvas;
+    }
+
     private void Awake()
     {
         if (Instance != null) { Destroy(gameObject); return; }
         Instance = this;
 
+        if (simManager == null)
+            simManager = FindFirstObjectByType<SimulationManager>();
+
+        if (layoutConfig != null)
+            BuildFromConfig();
+        else if (telemetryWindow != null)
+        {
+            // Scene-authored windows keep default visuals; theme in place. Their root
+            // backdrop is usually ghostly semi-transparent white — over a bright sky it
+            // washes out to light grey, so pin it to the solid window colour explicitly.
+            UITheme.Skin(telemetryWindow);
+            Image windowBackground = telemetryWindow.GetComponent<Image>();
+            if (windowBackground != null)
+                windowBackground.color = new Color(0.13f, 0.14f, 0.17f, 0.94f);
+
+            // The drag strip isn't reliably named "TitleBar" in scene-authored windows,
+            // so the skin's name hint can miss it and leave grey glass — find it by its
+            // WindowDragHandle component and pin the solid title-bar colour.
+            var dragHandle = telemetryWindow.GetComponentInChildren<WindowDragHandle>(includeInactive: true);
+            if (dragHandle != null)
+            {
+                Image dragBar = dragHandle.GetComponent<Image>();
+                if (dragBar != null) dragBar.color = new Color(0.08f, 0.11f, 0.16f, 1f);
+            }
+        }
+
         if (sections == null || sections.Length == 0)
             sections = GetComponentsInChildren<UISection>(includeInactive: true);
 
-        allWidgets = GetComponentsInChildren<UIWidget>(includeInactive: true);
+        if (allWidgets == null)
+            allWidgets = GetComponentsInChildren<UIWidget>(includeInactive: true);
+
         foreach (var widget in allWidgets)
             widget.Initialize(this);
+    }
+
+    // Builds the telemetry window from the layout config. Sections and widgets come
+    // from the build result (not a child scan) so the UIManager can live anywhere —
+    // on the canvas, on a manager object, or on a bootstrap-created GameObject.
+    private void BuildFromConfig()
+    {
+        Canvas canvas = targetCanvas;
+        if (canvas == null) canvas = GetComponentInParent<Canvas>();
+        if (canvas == null) canvas = FindFirstObjectByType<Canvas>();
+        if (canvas == null)
+        {
+            Debug.LogError($"{nameof(UIManager)}: no Canvas found to build the telemetry window under.");
+            return;
+        }
+
+        TelemetryWindowBuilder.BuildResult result = TelemetryWindowBuilder.Build(canvas, layoutConfig);
+        telemetryWindow = result.Window.gameObject;
+        sections = result.Sections;
+        allWidgets = result.Window.GetComponentsInChildren<UIWidget>(includeInactive: true);
     }
 
     private void Update()
@@ -44,6 +107,7 @@ public class UIManager : MonoBehaviour
     /// </summary>
     private void RefreshSnapshot()
     {
+        if (simManager == null) return; // scene without a simulation — widgets keep the last snapshot
         snapshot = simManager.GetSnapshot();
     }
 

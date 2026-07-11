@@ -44,7 +44,7 @@ public class SelectionInputManager : MonoBehaviour
     private void OnSelectPerformed(InputAction.CallbackContext context)
     {
         if (Pointer.current == null) return;
-        
+
         Vector2 pointerPos = Pointer.current.position.ReadValue();
         HandleSelectionRaycast(pointerPos);
     }
@@ -62,7 +62,7 @@ public class SelectionInputManager : MonoBehaviour
     {
         Ray ray = mainCamera.ScreenPointToRay(screenPos);
 
-        if (Physics.Raycast(ray, out RaycastHit hit, 100f, selectableLayer))
+        if (Physics.Raycast(ray, out RaycastHit hit, 10000f, selectableLayer))
         {
             if (hit.transform != currentSelection)
             {

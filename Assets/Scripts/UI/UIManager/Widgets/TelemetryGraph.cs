@@ -7,7 +7,7 @@ using UnityEngine.UI;
 /// two polylines (plus an L-shaped axis) straight into the UI mesh — no charting
 /// package, no per-point GameObjects. It is deliberately "dumb": it knows nothing
 /// about generations or episodes, it just plots whatever NORMALISED points
-/// (x and y both in 0..1, origin bottom-left) GraphWidget hands it and stretches
+/// (x and y both in 0..1, origin bottom-left) RunGraphWidget hands it and stretches
 /// them across its RectTransform. All scaling / axis labelling lives in the widget.
 /// </summary>
 public class TelemetryGraph : MaskableGraphic
