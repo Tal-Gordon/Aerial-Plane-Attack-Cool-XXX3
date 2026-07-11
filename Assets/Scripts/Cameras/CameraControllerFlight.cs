@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -33,7 +34,9 @@ public class CameraControllerFlight : MonoBehaviour
     private Waypoint currentWaypoint;
     private Coroutine movementCoroutine;
     private bool autoFollow;
-    private int nextHoopTriggerIndex;
+    private int[] triggerOccupancy;
+    private readonly Dictionary<JetAgent, int> agentFurthestTrigger = new();
+    private readonly List<JetAgent> staleAgents = new();
 
     public bool IsAutoFollowEnabled => autoFollow;
 
@@ -105,51 +108,130 @@ public class CameraControllerFlight : MonoBehaviour
     public void SetAutoFollow(bool enabled)
     {
         autoFollow = enabled;
-        if (enabled) ResetAutomaticCoverage();
+        if (enabled) RefreshAutomaticCoverage();
     }
 
     private void SubscribeToObjective()
     {
         if (flightSchoolObjective == null) return;
         flightSchoolObjective.HoopPassed -= OnHoopPassed;
+        flightSchoolObjective.AgentFinished -= OnAgentFinished;
         flightSchoolObjective.HoopPassed += OnHoopPassed;
-        EvolutionaryParadigm.GenerationStarted -= OnPopulationReset;
-        EvolutionaryParadigm.GenerationStarted += OnPopulationReset;
+        flightSchoolObjective.AgentFinished += OnAgentFinished;
     }
 
     private void UnsubscribeFromObjective()
     {
         if (flightSchoolObjective == null) return;
         flightSchoolObjective.HoopPassed -= OnHoopPassed;
-        EvolutionaryParadigm.GenerationStarted -= OnPopulationReset;
+        flightSchoolObjective.AgentFinished -= OnAgentFinished;
     }
 
     private void OnHoopPassed(JetAgent jet, int zeroBasedHoopIndex, Transform hoop)
     {
-        if (!autoFollow || advanceAfterHoopNumbers == null ||
-            nextHoopTriggerIndex >= advanceAfterHoopNumbers.Length) return;
+        EnsureTrackingCapacity();
+        if (jet == null || triggerOccupancy.Length == 0) return;
 
         int hoopNumber = zeroBasedHoopIndex + 1;
-        if (hoopNumber < advanceAfterHoopNumbers[nextHoopTriggerIndex]) return;
+        int reachedTrigger = -1;
+        for (int i = 0; i < advanceAfterHoopNumbers.Length; i++)
+        {
+            if (advanceAfterHoopNumbers[i] == hoopNumber)
+            {
+                reachedTrigger = i;
+                break;
+            }
+        }
+        if (reachedTrigger < 0) return;
 
-        GoToNextWaypoint();
-        nextHoopTriggerIndex++;
+        int previousTrigger = agentFurthestTrigger.TryGetValue(jet, out int previous)
+            ? previous
+            : -1;
+        if (reachedTrigger <= previousTrigger) return;
+
+        // A jet contributes to every configured checkpoint it has visited. Thus a
+        // lone jet reaching hoop 6 with triggers [4,6,9] produces [1,1,0].
+        for (int i = previousTrigger + 1; i <= reachedTrigger; i++)
+            triggerOccupancy[i]++;
+
+        agentFurthestTrigger[jet] = reachedTrigger;
+        RefreshAutomaticCoverage();
     }
 
-    private void OnPopulationReset()
+    private void OnAgentFinished(JetAgent jet)
     {
-        if (autoFollow) ResetAutomaticCoverage();
+        RemoveAgentContribution(jet);
+        RefreshAutomaticCoverage();
     }
 
-    private void ResetAutomaticCoverage()
+    private void RemoveAgentContribution(JetAgent jet)
     {
-        nextHoopTriggerIndex = 0;
-        Waypoint firstSection = firstSectionWaypoint != null
+        EnsureTrackingCapacity();
+        // A destroyed Unity object compares equal to null but remains a valid CLR
+        // dictionary key, so do not reject it before removing its stale entry.
+        if (!agentFurthestTrigger.TryGetValue(jet, out int furthest)) return;
+
+        for (int i = 0; i <= furthest && i < triggerOccupancy.Length; i++)
+            triggerOccupancy[i] = Mathf.Max(0, triggerOccupancy[i] - 1);
+
+        agentFurthestTrigger.Remove(jet);
+    }
+
+    private void LateUpdate()
+    {
+        // Population rebuilds can destroy jets without running their objective
+        // terminal check. Remove those stale contributions as a safety net.
+        if (agentFurthestTrigger.Count == 0) return;
+
+        staleAgents.Clear();
+        foreach (var pair in agentFurthestTrigger)
+            if (pair.Key == null) staleAgents.Add(pair.Key);
+
+        if (staleAgents.Count == 0) return;
+        foreach (JetAgent stale in staleAgents) RemoveAgentContribution(stale);
+        RefreshAutomaticCoverage();
+    }
+
+    private void EnsureTrackingCapacity()
+    {
+        int required = advanceAfterHoopNumbers?.Length ?? 0;
+        if (triggerOccupancy != null && triggerOccupancy.Length == required) return;
+
+        // The mapping changed in the Inspector, so old per-agent indices no longer
+        // describe the same hoops. Start the occupancy model cleanly.
+        triggerOccupancy = new int[required];
+        agentFurthestTrigger.Clear();
+    }
+
+    private void RefreshAutomaticCoverage()
+    {
+        if (!autoFollow) return;
+        EnsureTrackingCapacity();
+
+        int furthestOccupied = -1;
+        for (int i = triggerOccupancy.Length - 1; i >= 0; i--)
+        {
+            if (triggerOccupancy[i] <= 0) continue;
+            furthestOccupied = i;
+            break;
+        }
+
+        Waypoint targetCamera = GetFirstSectionWaypoint();
+        // No occupied trigger means the second camera (first track section).
+        // Trigger 0 means one camera after it, trigger 1 means two after it, etc.
+        int cameraSteps = furthestOccupied + 1;
+        for (int i = 0; i < cameraSteps && targetCamera != null; i++)
+            targetCamera = targetCamera.Next;
+
+        if (targetCamera != null) GoToWaypoint(targetCamera);
+        else Debug.LogWarning("[CameraControllerFlight] The camera waypoint chain is shorter than the configured hoop trigger list.", this);
+    }
+
+    private Waypoint GetFirstSectionWaypoint()
+    {
+        return firstSectionWaypoint != null
             ? firstSectionWaypoint
             : startingWaypoint != null ? startingWaypoint.Next : null;
-
-        if (firstSection != null) GoToWaypoint(firstSection);
-        else Debug.LogWarning("[CameraControllerFlight] Auto-follow needs a First Section Waypoint or Starting Waypoint.Next.", this);
     }
 
     public void GoToWaypoint(Waypoint targetWaypoint)
