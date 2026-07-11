@@ -22,9 +22,6 @@ public class CameraControllerFlight : MonoBehaviour
     [Tooltip("Optional action that toggles automatic camera progression.")]
     [SerializeField] private InputAction toggleAutoFollowAction;
 
-    [Tooltip("Enable automatic track coverage as soon as play begins.")]
-    [SerializeField] private bool autoFollowOnStart;
-
     [Tooltip("1-based hoop numbers. Each entry advances one section camera when the first jet passes that hoop. Example: 4, 9, 14.")]
     [SerializeField] private int[] advanceAfterHoopNumbers;
 
@@ -37,6 +34,8 @@ public class CameraControllerFlight : MonoBehaviour
     private Coroutine movementCoroutine;
     private bool autoFollow;
     private int nextHoopTriggerIndex;
+
+    public bool IsAutoFollowEnabled => autoFollow;
 
     private void Awake()
     {
@@ -51,7 +50,10 @@ public class CameraControllerFlight : MonoBehaviour
             JumpToWaypointImmediate(startingWaypoint);
         }
 
-        if (autoFollowOnStart) SetAutoFollow(true);
+        // Automatic coverage is opt-in through CameraAutoFollowToggleWidget.
+        // Always start off, including scenes that still carry the old serialized
+        // autoFollowOnStart value from before the toggle existed.
+        SetAutoFollow(false);
     }
 
     private void OnEnable()
