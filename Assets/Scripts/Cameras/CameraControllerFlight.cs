@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class CameraControllerFlight : MonoBehaviour
 {
@@ -7,8 +8,12 @@ public class CameraControllerFlight : MonoBehaviour
     [Tooltip("How long it takes to move between waypoints in seconds.")]
     public float transitionDuration = 1.5f;
 
-    [Tooltip("Easing curve for smooth starts and stops.")]
-    public AnimationCurve easeCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
+    [Header("Input")]
+    [Tooltip("Action that advances to the next waypoint.")]
+    public InputAction nextWaypointAction;
+
+    [Tooltip("Action that returns to the previous waypoint.")]
+    public InputAction previousWaypointAction;
 
     [Header("State")]
     public Waypoint startingWaypoint;
@@ -25,17 +30,24 @@ public class CameraControllerFlight : MonoBehaviour
 
     private void OnEnable()
     {
-        // Subscribe to global events
-        FlightInputManager.OnNextCommand += GoToNextWaypoint;
-        FlightInputManager.OnPreviousCommand += GoToPreviousWaypoint;
+        nextWaypointAction.Enable();
+        previousWaypointAction.Enable();
+
+        nextWaypointAction.performed += OnNextPerformed;
+        previousWaypointAction.performed += OnPreviousPerformed;
     }
 
     private void OnDisable()
     {
-        // Unsubscribe
-        FlightInputManager.OnNextCommand -= GoToNextWaypoint;
-        FlightInputManager.OnPreviousCommand -= GoToPreviousWaypoint;
+        nextWaypointAction.performed -= OnNextPerformed;
+        previousWaypointAction.performed -= OnPreviousPerformed;
+
+        nextWaypointAction.Disable();
+        previousWaypointAction.Disable();
     }
+
+    private void OnNextPerformed(InputAction.CallbackContext context) => GoToNextWaypoint();
+    private void OnPreviousPerformed(InputAction.CallbackContext context) => GoToPreviousWaypoint();
 
     public void GoToWaypoint(Waypoint targetWaypoint)
     {
@@ -73,18 +85,13 @@ public class CameraControllerFlight : MonoBehaviour
         if (targetWaypoint == null) return;
 
         currentWaypoint = targetWaypoint;
-        transform.position = targetWaypoint.transform.position;
-        transform.rotation = targetWaypoint.transform.rotation;
+        transform.SetPositionAndRotation(targetWaypoint.transform.position, targetWaypoint.transform.rotation);
     }
 
     private IEnumerator MoveToWaypointRoutine(Waypoint target)
     {
-        Vector3 startPos = transform.position;
-        Quaternion startRot = transform.rotation;
-
-        Vector3 endPos = target.transform.position;
-        Quaternion endRot = target.transform.rotation;
-
+        transform.GetPositionAndRotation(out Vector3 startPos, out Quaternion startRot);
+        target.transform.GetPositionAndRotation(out Vector3 endPos, out Quaternion endRot);
         float elapsedTime = 0f;
 
         while (elapsedTime < transitionDuration)
@@ -93,17 +100,21 @@ public class CameraControllerFlight : MonoBehaviour
 
             // Normalize time and apply easing
             float t = Mathf.Clamp01(elapsedTime / transitionDuration);
-            float curveT = easeCurve.Evaluate(t);
+            float curveT = Smootherstep(t);
 
-            transform.position = Vector3.Lerp(startPos, endPos, curveT);
-            transform.rotation = Quaternion.Slerp(startRot, endRot, curveT);
-
+            transform.SetPositionAndRotation(Vector3.Lerp(startPos, endPos, curveT), Quaternion.Slerp(startRot, endRot, curveT));
             yield return null;
         }
 
         // Snap to exact final position to prevent floating point drift
-        transform.position = endPos;
-        transform.rotation = endRot;
+        transform.SetPositionAndRotation(endPos, endRot);
         movementCoroutine = null;
+    }
+
+    // Ken Perlin's smootherstep: 6t^5 - 15t^4 + 10t^3.
+    // Zero 1st and 2nd derivatives at both ends for gentler starts/stops than smoothstep.
+    private static float Smootherstep(float t)
+    {
+        return t * t * t * (t * (t * 6f - 15f) + 10f);
     }
 }
