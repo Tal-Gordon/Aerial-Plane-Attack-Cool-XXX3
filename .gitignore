@@ -105,6 +105,10 @@ CLAUDE.md
 CLAUDE.md.meta
 .claude/
 
+# Agents
+AGENTS.md
+AGENTS.md.meta
+
 # VS Code
 .vscode/
 
