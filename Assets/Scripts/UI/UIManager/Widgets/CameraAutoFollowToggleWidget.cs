@@ -15,6 +15,15 @@ public class CameraAutoFollowToggleWidget : UIWidget
 
     protected override void OnInitialize()
     {
+        // This control belongs only to Flight School. Max Altitude uses its own
+        // always-automatic camera, so hide the shared-prefab widget before looking
+        // for or wiring a CameraControllerFlight.
+        if (FindFirstObjectByType<FlightSchoolObjective>() == null)
+        {
+            gameObject.SetActive(false);
+            return;
+        }
+
         if (cameraController == null)
             cameraController = FindFirstObjectByType<CameraControllerFlight>();
 
