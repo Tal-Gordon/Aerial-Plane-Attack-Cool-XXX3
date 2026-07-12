@@ -19,6 +19,7 @@ public class ClassicNeuroEvoEngine : IEvolutionEngine
     private List<NeuroEvoBrain> parentPool;
 
     private int currentGeneration;
+    private int lastGenerationBestEliteIndex;
 
     public List<IEvolvableBrain> InitializeGeneration(SimulationSettings settings)
     {
@@ -70,10 +71,26 @@ public class ClassicNeuroEvoEngine : IEvolutionEngine
         // --- Elitism: preserve the top ceil(1%) of the population ---
         int eliteCount = Mathf.Max(1, Mathf.CeilToInt(popSize * 0.01f));
 
-        // If historical champion didn't make it into the current elite, inject it at index 0
+        // If the historical champion is older, retain BOTH it and this generation's
+        // winner. Previously the champion overwrote slot zero and could erase the
+        // latest winner despite elitism, leaving no exact jet for the camera to follow.
         if (highestScoreThisGen < championScore)
         {
+            if (popSize > 1)
+            {
+                currentBrains[1].Copy(currentBrains[0]);
+                eliteCount = Mathf.Max(eliteCount, 2);
+                lastGenerationBestEliteIndex = 1;
+            }
+            else
+            {
+                lastGenerationBestEliteIndex = 0;
+            }
             currentBrains[0].Copy(championBrain);
+        }
+        else
+        {
+            lastGenerationBestEliteIndex = 0;
         }
 
         // Snapshot the parents BEFORE we start overwriting offspring slots. Each
@@ -119,6 +136,8 @@ public class ClassicNeuroEvoEngine : IEvolutionEngine
         currentGeneration++;
         return new List<IEvolvableBrain>(currentBrains);
     }
+
+    public int GetLastGenerationBestEliteIndex() => lastGenerationBestEliteIndex;
 
     public IEvolvableBrain GetChampionBrain()
     {
