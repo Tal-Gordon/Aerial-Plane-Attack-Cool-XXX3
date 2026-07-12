@@ -29,9 +29,13 @@ using UnityEngine;
 public class NetworkShapeController
 {
     // Shared authoring limits. The input/output layers are fixed and not counted here.
-    public const int MinHiddenLayers = 1;
     public const int MinLayerWidth = 1;
     public const int MaxLayerWidth = 1024;
+
+    /// <summary>Fixed NeuroEvo supports a direct input-to-output network. ML-Agents'
+    /// LinearEncoder always creates at least one hidden layer, even when num_layers is
+    /// zero, so its truthful minimum remains one.</summary>
+    public int MinHiddenLayers => IsUniform ? 1 : 0;
 
     /// <summary>Depth cap, per AI: NeuroEvo has no backend limit (the practical ceiling
     /// is training compute) so it gets a generous 32; ML-Agents keeps 5, matching the
@@ -149,7 +153,7 @@ public class NetworkShapeController
         if (s == null || !IsEditable || hiddenLayers == null) return;
 
         List<int> normalized = Normalize(hiddenLayers);
-        if (normalized.Count == 0) return;
+        if (normalized.Count < MinHiddenLayers) return;
 
         switch (s.AIType)
         {
@@ -206,8 +210,9 @@ public class NetworkShapeController
         var rl = s.RLSettings;
         if (rl == null) return;
 
-        // The list is already uniform here (Normalize), so the shared width is [0].
-        rl.NumLayers = Mathf.Max(1, hidden.Count);
+        // Normalize/Commit enforce ML-Agents' one-layer minimum, and the list is
+        // uniform, so its first entry supplies the shared width.
+        rl.NumLayers = hidden.Count;
         rl.HiddenUnits = hidden[0];
     }
 

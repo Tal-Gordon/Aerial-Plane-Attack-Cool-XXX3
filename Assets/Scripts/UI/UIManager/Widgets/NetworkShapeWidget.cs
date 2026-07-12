@@ -169,7 +169,7 @@ public class NetworkShapeWidget : UIWidget
         // locked bookends make the fixed ends part of the picture without being editable.
         SpawnLockedRow("Input (sensor readings)", shape.InputSize);
 
-        bool removable = staged.Count > NetworkShapeController.MinHiddenLayers;
+        bool removable = staged.Count > shape.MinHiddenLayers;
         for (int i = 0; i < staged.Count; i++)
         {
             SpawnHairline();
@@ -385,7 +385,8 @@ public class NetworkShapeWidget : UIWidget
 
     private void OnRowRemoved(NetworkLayerRow row)
     {
-        if (staged.Count <= NetworkShapeController.MinHiddenLayers) return;
+        NetworkShapeController shape = Shape;
+        if (shape == null || staged.Count <= shape.MinHiddenLayers) return;
         int idx = rows.IndexOf(row);
         if (idx < 0) return;
 
