@@ -74,7 +74,7 @@ The thin build stays small and downloads the environment from the `env-v1` GitHu
 1. Ensure `Assets/StreamingAssets/mlagents-env` is absent, then build the Windows player normally.
 2. Distribute the entire resulting build folder. Unity automatically includes the small `setup-training-env.ps1` installer in StreamingAssets.
 
-The recipient simply double-clicks the game `.exe`. The player automatically relaunches itself with ML-Agents port 5004. When PPO or SAC is first selected, it opens the setup window, downloads the ~1.7 GB release asset, extracts ~3.3 GB into `<Game>_Data/StreamingAssets/mlagents-env`, and continues into training. Interrupted downloads resume automatically; subsequent RL launches skip setup. `Launch (training).bat` remains available only as a manual fallback.
+The recipient simply double-clicks the game `.exe`. Before showing the menu, the player opens the setup window, downloads the ~1.7 GB release asset, and extracts ~3.3 GB into `<Game>_Data/StreamingAssets/mlagents-env`. It then automatically relaunches itself with ML-Agents port 5004. Setup is mandatory: if it fails, the player exits instead of continuing without RL. Interrupted downloads resume automatically, while subsequent launches skip setup because `python.exe` is already installed. `Launch (training).bat` remains available only as a manual fallback.
 
 The recipient therefore still needs ~5 GB of free space during installation (the compressed download plus extracted environment), but the download is not part of Git or the build archive.
 

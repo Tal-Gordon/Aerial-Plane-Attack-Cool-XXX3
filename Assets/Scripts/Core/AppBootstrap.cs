@@ -24,6 +24,15 @@ public static class AppBootstrap
     private static void Configure()
     {
 #if UNITY_STANDALONE_WIN && !UNITY_EDITOR
+        // This player always supports RL, so install the pinned training environment
+        // before showing the menu rather than waiting until PPO/SAC is selected.
+        if (!TrainerProcessLauncher.EnsureBundledEnvironmentInstalled())
+        {
+            Debug.LogError("[AppBootstrap] The ML-Agents environment is required. Exiting because setup failed.");
+            Application.Quit();
+            return;
+        }
+
         // ML-Agents does not create a communicator in a standalone player unless
         // --mlagents-port is present. Make the normal game executable its own launcher
         // so users can double-click it instead of knowing about a special batch file.

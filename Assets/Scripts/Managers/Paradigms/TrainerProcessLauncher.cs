@@ -272,7 +272,7 @@ public class TrainerProcessLauncher : IDisposable
 #if UNITY_STANDALONE_WIN && !UNITY_EDITOR
         // A thin build ships only this tiny installer. Download the pinned Release
         // asset on first use, then continue through the same bundled-Python path.
-        if (TryInstallBundledEnvironment() && File.Exists(bundled))
+        if (EnsureBundledEnvironmentInstalled() && File.Exists(bundled))
             return bundled;
 #endif
 
@@ -280,8 +280,11 @@ public class TrainerProcessLauncher : IDisposable
     }
 
 #if UNITY_STANDALONE_WIN && !UNITY_EDITOR
-    private static bool TryInstallBundledEnvironment()
+    public static bool EnsureBundledEnvironmentInstalled()
     {
+        string bundled = Path.Combine(Application.streamingAssetsPath, "mlagents-env", "python.exe");
+        if (File.Exists(bundled)) return true;
+
         string installer = Path.Combine(Application.streamingAssetsPath, "setup-training-env.ps1");
         if (!File.Exists(installer))
         {
