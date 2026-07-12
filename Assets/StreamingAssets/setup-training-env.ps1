@@ -11,13 +11,12 @@
 param(
     [string]$Repo = "Tal-Gordon/Aerial-Plane-Attack-Cool-XXX3",
     [string]$Tag = "env-v1",
-    [string]$Asset = "mlagents-env.tar.zst",
-    [string]$GameDataFolder = "Aerial Plane Attack Cool XXX3_Data"
+    [string]$Asset = "mlagents-env.tar.zst"
 )
 
 $ErrorActionPreference = "Stop"
 
-$streaming = Join-Path $PSScriptRoot "$GameDataFolder\StreamingAssets"
+$streaming = $PSScriptRoot
 $destDir = Join-Path $streaming "mlagents-env"
 $marker = Join-Path $destDir "python.exe"
 
