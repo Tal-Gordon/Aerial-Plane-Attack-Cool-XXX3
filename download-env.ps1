@@ -18,8 +18,12 @@
     Windows 10. If extraction fails complaining about the format, that tar lacks the zstd
     codec; install a zstd-capable tar, or re-publish the asset as .tar.xz.
 
-    Private repo: Invoke-WebRequest can't auth, so the download 404s. Either make the repo
-    public, or replace the download line with:  gh release download $Tag -R $Repo -p $Asset -D $env:TEMP
+    Uses Windows' bundled curl.exe instead of Windows PowerShell's Invoke-WebRequest. The
+    latter can be extremely slow for multi-gigabyte files because its legacy progress and
+    response-stream handling add substantial overhead. curl also resumes a partial download.
+
+    Private repo: an unauthenticated download 404s. Use gh release download instead, or pass
+    suitable authentication to curl.
 #>
 [CmdletBinding()]
 param(
@@ -48,7 +52,17 @@ $tmp = Join-Path $env:TEMP $Asset
 
 Write-Host "==> Downloading $url" -ForegroundColor Cyan
 Write-Host "    (~1.7 GB - this takes a while)"
-Invoke-WebRequest -Uri $url -OutFile $tmp
+$curl = Join-Path $env:SystemRoot "System32\curl.exe"
+if (-not (Test-Path $curl)) {
+    throw "curl.exe was not found. Install curl, or download $url in a browser and save it as $tmp"
+}
+
+# -L follows GitHub's release-asset redirect. -C - resumes $tmp when a previous run was
+# interrupted, while --retry handles transient network failures without restarting 1.7 GB.
+& $curl -L --fail --retry 5 --retry-delay 2 -C - -o $tmp $url
+if ($LASTEXITCODE -ne 0) {
+    throw "Download failed (curl exit $LASTEXITCODE). Re-run the script to resume the partial file."
+}
 
 # The archive's top-level entry is 'mlagents-env/', so extracting into StreamingAssets
 # yields StreamingAssets/mlagents-env/... with no double-nesting.

@@ -49,7 +49,7 @@ The first command changes script policy only for the current PowerShell process.
 
 After the script reports success, open or return to Unity and choose PPO or SAC in the game UI. The project finds the bundled interpreter automatically and launches the ML-Agents trainer; you do not need to install Python or Conda.
 
-If extraction reports that the archive format is unsupported, update Windows or install a `tar` implementation with Zstandard support, then run the script again. If the download was interrupted, remove the partial `mlagents-env.tar.zst` file from your temporary directory before retrying.
+If extraction reports that the archive format is unsupported, update Windows or install a `tar` implementation with Zstandard support, then run the script again. Interrupted downloads are kept in your temporary directory and resumed automatically when you rerun the script.
 
 ## Alternative RL setup for developers
 
@@ -64,6 +64,19 @@ The lookup order is:
 The checked-in `environment.yml` documents the pinned developer environment. `package.ps1` is for maintainers producing the downloadable bundle; ordinary users should run `download-env.ps1` instead.
 
 ## Standalone-build note
+
+Before building an RL-enabled player, run `download-env.ps1` in the project root. Unity automatically copies the extracted folder below into the build, so the build output must contain:
+
+```text
+Game.exe
+Game_Data/
+  StreamingAssets/
+    mlagents-env/
+      python.exe
+      ...the rest of the bundled environment...
+```
+
+You do **not** need to copy the `.tar.zst` archive, install Python/Conda on the target machine, or manually copy the `config` directory. The trainer YAML is generated at runtime. Keep the build in a writable location because the trainer writes `config/`, `results/`, and save data while it runs. Unity also includes the scenes and project packages selected in Build Settings automatically.
 
 RL training in a standalone player requires launching the executable with the same ML-Agents port used by the trainer:
 
