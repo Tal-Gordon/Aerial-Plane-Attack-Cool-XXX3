@@ -4020,26 +4020,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::BrainVisualizerWidget
   rawImage: {fileID: 510860694}
   noSelectionOverlay: {fileID: 740082405}
-  inputLabels:
-  - SALT
-  - SSPEED
-  - SHDG
-  outputLabels:
-  - APITCH
-  - AROLL
-  - AYAW
-  - ATHROTTLE
-  texWidth: 340
-  texHeight: 200
-  nodeRadius: 10
+  dynamicSize: 1
+  fallbackWidth: 340
+  fallbackHeight: 400
+  maxTextureDimension: 2048
+  padding: 24
+  maxNodeRadius: 9
+  minNodeRadius: 2
+  nodeSpacingFraction: 0.4
   updateEveryNFrames: 2
-  bgColor: {r: 0.05, g: 0.07, b: 0.12, a: 1}
-  nodePositive: {r: 0.2, g: 0.9, b: 1, a: 1}
-  nodeNeutral: {r: 0.15, g: 0.2, b: 0.3, a: 1}
-  nodeNegative: {r: 0.9, g: 0.2, b: 0.3, a: 1}
-  connectionPos: {r: 0.2, g: 0.8, b: 0.4, a: 0.5}
-  connectionNeg: {r: 0.9, g: 0.3, b: 0.2, a: 0.5}
-  connectionWeak: {r: 0.3, g: 0.3, b: 0.35, a: 0.2}
+  paletteBackground: {r: 0.33, g: 0.33, b: 0.35, a: 1}
+  paletteNodeInactive: {r: 0.6, g: 0.6, b: 0.6, a: 1}
+  paletteNodePositive: {r: 0.3, g: 0.68, b: 0.95, a: 1}
+  paletteNodeNegative: {r: 0.96, g: 0.55, b: 0.22, a: 1}
+  paletteConnection: {r: 0.18, g: 0.21, b: 0.28, a: 1}
 --- !u!1 &637395646
 GameObject:
   m_ObjectHideFlags: 0
@@ -4619,6 +4613,8 @@ MonoBehaviour:
   simManager: {fileID: 1733047901}
   telemetryWindow: {fileID: 677357794}
   sections: []
+  layoutConfig: {fileID: 0}
+  targetCanvas: {fileID: 0}
 --- !u!1 &740082405
 GameObject:
   m_ObjectHideFlags: 0
@@ -5875,6 +5871,8 @@ GameObject:
   - component: {fileID: 961707042}
   - component: {fileID: 961707041}
   - component: {fileID: 961707040}
+  - component: {fileID: 961707043}
+  - component: {fileID: 961707044}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -5922,7 +5920,7 @@ Camera:
     width: 1
     height: 1
   near clip plane: 0.3
-  far clip plane: 1000
+  far clip plane: 999999
   field of view: 60
   orthographic: 0
   orthographic size: 5
@@ -5956,6 +5954,64 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &961707043
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 961707039}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalCameraData
+  m_RenderShadows: 1
+  m_RequiresDepthTextureOption: 2
+  m_RequiresOpaqueTextureOption: 2
+  m_CameraType: 0
+  m_Cameras: []
+  m_RendererIndex: -1
+  m_VolumeLayerMask:
+    serializedVersion: 2
+    m_Bits: 1
+  m_VolumeTrigger: {fileID: 0}
+  m_VolumeFrameworkUpdateModeOption: 2
+  m_RenderPostProcessing: 0
+  m_Antialiasing: 0
+  m_AntialiasingQuality: 2
+  m_StopNaN: 0
+  m_Dithering: 0
+  m_ClearDepth: 1
+  m_AllowXRRendering: 1
+  m_AllowHDROutput: 1
+  m_UseScreenCoordOverride: 0
+  m_ScreenSizeOverride: {x: 0, y: 0, z: 0, w: 0}
+  m_ScreenCoordScaleBias: {x: 0, y: 0, z: 0, w: 0}
+  m_RequiresDepthTexture: 0
+  m_RequiresColorTexture: 0
+  m_TaaSettings:
+    m_Quality: 3
+    m_FrameInfluence: 0.1
+    m_JitterScale: 1
+    m_MipBias: 0
+    m_VarianceClampScale: 0.9
+    m_ContrastAdaptiveSharpening: 0
+  m_Version: 2
+--- !u!114 &961707044
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 961707039}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 42e00c6475d44ee09a8d452f0bd55be9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CameraControllerMaxAltitude
+  verticalOffset: 0
+  verticalSharpness: 5
 --- !u!1 &988404454
 GameObject:
   m_ObjectHideFlags: 0

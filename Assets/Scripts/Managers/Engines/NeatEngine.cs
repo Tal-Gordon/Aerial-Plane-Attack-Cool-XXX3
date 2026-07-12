@@ -31,6 +31,7 @@ public class NeatEngine : IEvolutionEngine
     private SteppableNeatEvolutionAlgorithm<NeatGenome> evolutionAlgorithm;
     private NeatEvolutionAlgorithmParameters eaParams;
     private PreScoredGenomeListEvaluator evaluator;
+    private int lastGenerationBestEliteIndex;
 
     // TODO: Make it so that in the flight school objective it starts with 0 edges
     // TODO: Make sure the negative score handling doesn't cause issues (NEAT expects positive fitness values, so we shift them all up by the absolute value of the most negative score + a small baseline to avoid zero fitness)
@@ -132,6 +133,8 @@ public class NeatEngine : IEvolutionEngine
             championBrain = new NeatBrain(bestGenomeThisGen, bestBlackBox);
         }
 
+        uint bestGenomeIdThisGeneration = currentGenomeList[bestIndex].Id;
+
         // SharpNEAT 2.4 uses probabilistic rounding for per-species elite counts,
         // which can randomly wipe small species (including ones with top performers).
         // We save the top genomes and re-inject any that get lost.
@@ -150,11 +153,19 @@ public class NeatEngine : IEvolutionEngine
 
         InjectMissingElites(savedElites, genomeList);
 
+        // SharpNEAT groups the new list by species, so the overall winner is not
+        // necessarily at index zero. The elite guard above guarantees it survives;
+        // locate its new slot for the spectator camera.
+        lastGenerationBestEliteIndex = genomeList.FindIndex(g => g.Id == bestGenomeIdThisGeneration);
+        if (lastGenerationBestEliteIndex < 0) lastGenerationBestEliteIndex = 0;
+
         currentBrains = DecodeBrains(genomeList);
 
         currentGeneration++;
         return new List<IEvolvableBrain>(currentBrains);
     }
+
+    public int GetLastGenerationBestEliteIndex() => lastGenerationBestEliteIndex;
 
     public IEvolvableBrain GetChampionBrain()
     {
