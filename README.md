@@ -49,7 +49,7 @@ The first command changes script policy only for the current PowerShell process.
 
 After the script reports success, open or return to Unity and choose PPO or SAC in the game UI. The project finds the bundled interpreter automatically and launches the ML-Agents trainer; you do not need to install Python or Conda.
 
-If extraction reports that the archive format is unsupported, update Windows or install a `tar` implementation with Zstandard support, then run the script again. If the download was interrupted, remove the partial `mlagents-env.tar.zst` file from your temporary directory before retrying.
+If extraction reports that the archive format is unsupported, update Windows or install a `tar` implementation with Zstandard support, then run the script again. Interrupted downloads are kept in your temporary directory and resumed automatically when you rerun the script.
 
 ## Alternative RL setup for developers
 
@@ -64,6 +64,34 @@ The lookup order is:
 The checked-in `environment.yml` documents the pinned developer environment. `package.ps1` is for maintainers producing the downloadable bundle; ordinary users should run `download-env.ps1` instead.
 
 ## Standalone-build note
+
+There are two distribution options.
+
+### Thin build (recommended for sharing)
+
+The thin build stays small and downloads the environment from the `env-v1` GitHub Release on its first training launch:
+
+1. Ensure `Assets/StreamingAssets/mlagents-env` is absent, then build the Windows player normally.
+2. Distribute the entire resulting build folder. Unity automatically includes the small `setup-training-env.ps1` installer in StreamingAssets.
+
+The recipient simply double-clicks the game `.exe`. Before showing the menu, the player opens the setup window, downloads the ~1.7 GB release asset, and extracts ~3.3 GB into `<Game>_Data/StreamingAssets/mlagents-env`. It then automatically relaunches itself with ML-Agents port 5004. Setup is mandatory: if it fails, the player exits instead of continuing without RL. Interrupted downloads resume automatically, while subsequent launches skip setup because `python.exe` is already installed. `Launch (training).bat` remains available only as a manual fallback.
+
+The recipient therefore still needs ~5 GB of free space during installation (the compressed download plus extracted environment), but the download is not part of Git or the build archive.
+
+### Self-contained build
+
+For an offline build, run `download-env.ps1` before building and leave the copied environment in the output. Unity automatically copies the extracted folder below into the build:
+
+```text
+Game.exe
+Game_Data/
+  StreamingAssets/
+    mlagents-env/
+      python.exe
+      ...the rest of the bundled environment...
+```
+
+In either distribution, users do **not** install Python/Conda or manually copy the `config` directory. The trainer YAML is generated at runtime. Keep the build in a writable location because the trainer writes `config/`, `results/`, and save data while it runs. Unity also includes the scenes and project packages selected in Build Settings automatically.
 
 RL training in a standalone player requires launching the executable with the same ML-Agents port used by the trainer:
 
