@@ -99,6 +99,19 @@ public class SimulationManager : MonoBehaviour
 
         // Hand the population & objective to the paradigm
         activeParadigm.Initialize(population, settings, objective);
+
+        // The main menu's continue-or-fresh dialog requested resuming the latest
+        // save: rebuild from it now that the fresh run exists (LoadState is a full
+        // teardown + rebuild, same as the hyperparameter-commit path). One-shot —
+        // consume the flag first so scene reloads don't re-trigger the load.
+        if (GameSession.LoadSaveOnStart)
+        {
+            GameSession.LoadSaveOnStart = false;
+            if (DataManager.HasTrainingState(Track, settings.AIType))
+                LoadState();
+            else
+                Debug.LogWarning($"[SimulationManager] Continue requested but no save exists for {Track}/{settings.AIType}; starting fresh.");
+        }
     }
 
     private void FixedUpdate()
