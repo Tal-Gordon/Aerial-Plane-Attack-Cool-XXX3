@@ -12,6 +12,8 @@ public class SimulationManager : MonoBehaviour
     // TODO: Add a controls per step parameter
     [Header("Simulation Setup")]
     [SerializeField] private GameObject jetPrefab;
+    [Tooltip("Parent for all runtime-instantiated jets. A child named 'Jets' is created automatically when left empty.")]
+    [SerializeField] private Transform jetParent;
 
     [Header("Objective Setup")]
     [Tooltip("Drag a GameObject with an IObjective component here.")]
@@ -524,15 +526,26 @@ public class SimulationManager : MonoBehaviour
     private List<JetAgent> InstantiatePopulation(int count)
     {
         var pop = new List<JetAgent>(count);
+        Transform parent = GetOrCreateJetParent();
 
         for (int i = 0; i < count; i++)
         {
-            GameObject jetObject = Instantiate(jetPrefab);
+            GameObject jetObject = Instantiate(jetPrefab, parent);
             JetAgent agent = jetObject.GetComponent<JetAgent>();
             pop.Add(agent);
         }
 
         return pop;
+    }
+
+    private Transform GetOrCreateJetParent()
+    {
+        if (jetParent != null) return jetParent;
+
+        var container = new GameObject("Jets");
+        jetParent = container.transform;
+        jetParent.SetParent(transform, false);
+        return jetParent;
     }
 
     private ITrainingParadigm CreateParadigm(AIType type)

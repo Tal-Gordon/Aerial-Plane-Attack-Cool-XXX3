@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using System;
 
     // TODO Opus Note #2: This entire FixedUpdate body moves into EvolutionaryParadigm.Tick().
     // SimulationManager.FixedUpdate() should only call activeParadigm.Tick().
@@ -12,6 +13,11 @@ using System.Collections.Generic;
     // Zero-allocation cached snapshot
 public class EvolutionaryParadigm : ITrainingParadigm
 {
+    /// <summary>
+    /// Fired after a generation has been spawned. The jet is the elite carrying
+    /// the previous generation's best brain (population[0] for generation one).
+    /// </summary>
+    public static event Action<JetAgent> BestJetReady;
     private IEvolutionEngine engine;
     private IObjective objective;
 
@@ -76,6 +82,7 @@ public class EvolutionaryParadigm : ITrainingParadigm
         // branch immediately — evolving a phantom gen 1 from all-zero fitness and
         // jumping the run straight to generation 2.
         aliveCount = population.Count;
+        if (population.Count > 0) BestJetReady?.Invoke(population[0]);
     }
 
     // Mirror the active decision cadence onto a spawned agent so evolutionary jets
@@ -173,6 +180,12 @@ public class EvolutionaryParadigm : ITrainingParadigm
                 population[i].gameObject.SetActive(true);
             }
 
+            if (population.Count > 0)
+            {
+                int eliteIndex = Mathf.Clamp(
+                    engine.GetLastGenerationBestEliteIndex(), 0, population.Count - 1);
+                BestJetReady?.Invoke(population[eliteIndex]);
+            }
             currentGeneration++;
             aliveCount = population.Count;
             return;
@@ -336,6 +349,7 @@ public class EvolutionaryParadigm : ITrainingParadigm
         inferenceJet.ResetAgent();
         objective.SetStartingState(inferenceJet, 0, 1);
         inferenceJet.gameObject.SetActive(true);
+        BestJetReady?.Invoke(inferenceJet);
 
         // Repurpose the cached snapshot for the inference display.
         cachedSnapshot.ParadigmName = "Inference";

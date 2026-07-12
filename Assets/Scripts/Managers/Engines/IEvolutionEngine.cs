@@ -6,6 +6,13 @@ public interface IEvolutionEngine
 
     public List<IEvolvableBrain> EvolveNextGeneration(List<float> fitnessScores);
 
+    /// <summary>
+    /// Index in the newly evolved population that carries the best brain from the
+    /// generation most recently scored by <see cref="EvolveNextGeneration"/>.
+    /// Used by spectator systems that want to follow the previous winner.
+    /// </summary>
+    public int GetLastGenerationBestEliteIndex();
+
     public IEvolvableBrain GetChampionBrain();
 
     public float GetChampionScore();
