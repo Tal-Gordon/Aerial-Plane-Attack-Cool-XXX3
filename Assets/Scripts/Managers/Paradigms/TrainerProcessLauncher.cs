@@ -269,8 +269,56 @@ public class TrainerProcessLauncher : IDisposable
             if (File.Exists(path)) return path;
         }
 
+#if UNITY_STANDALONE_WIN && !UNITY_EDITOR
+        // A thin build ships only this tiny installer. Download the pinned Release
+        // asset on first use, then continue through the same bundled-Python path.
+        if (TryInstallBundledEnvironment() && File.Exists(bundled))
+            return bundled;
+#endif
+
         return null;
     }
+
+#if UNITY_STANDALONE_WIN && !UNITY_EDITOR
+    private static bool TryInstallBundledEnvironment()
+    {
+        string installer = Path.Combine(Application.streamingAssetsPath, "setup-training-env.ps1");
+        if (!File.Exists(installer))
+        {
+            Debug.LogError($"[TrainerLauncher] First-run installer is missing: {installer}");
+            return false;
+        }
+
+        Debug.Log("[TrainerLauncher] Bundled Python is missing; opening first-run environment setup...");
+        try
+        {
+            using var setup = Process.Start(new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = $"-NoProfile -ExecutionPolicy Bypass -File \"{installer}\"",
+                WorkingDirectory = Application.streamingAssetsPath,
+                UseShellExecute = true,
+            });
+
+            if (setup == null)
+            {
+                Debug.LogError("[TrainerLauncher] PowerShell setup process did not start.");
+                return false;
+            }
+
+            setup.WaitForExit();
+            if (setup.ExitCode == 0) return true;
+
+            Debug.LogError($"[TrainerLauncher] Environment setup failed (exit {setup.ExitCode}).");
+            return false;
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[TrainerLauncher] Could not run first-use setup: {e.Message}");
+            return false;
+        }
+    }
+#endif
 
     private static void StartOutputPipe(StreamReader reader)
     {
