@@ -65,7 +65,24 @@ The checked-in `environment.yml` documents the pinned developer environment. `pa
 
 ## Standalone-build note
 
-Before building an RL-enabled player, run `download-env.ps1` in the project root. Unity automatically copies the extracted folder below into the build, so the build output must contain:
+There are two distribution options.
+
+### Thin build (recommended for sharing)
+
+The thin build stays small and downloads the environment from the `env-v1` GitHub Release on its first training launch:
+
+1. Build the Windows player normally.
+2. Delete `<Game>_Data/StreamingAssets/mlagents-env` from the finished build. This removes the local copy that Unity automatically included.
+3. Copy `Launch (training).bat` and `setup-training-env.ps1` from the repository root beside the built `.exe`.
+4. Distribute the entire resulting build folder.
+
+The distributed folder initially contains no Python environment. When the recipient runs `Launch (training).bat`, it downloads the ~1.7 GB release asset, extracts ~3.3 GB into `<Game>_Data/StreamingAssets/mlagents-env`, and then starts the player with port 5004. Interrupted downloads resume automatically; subsequent launches skip setup.
+
+The recipient therefore still needs ~5 GB of free space during installation (the compressed download plus extracted environment), but the download is not part of Git or the build archive.
+
+### Self-contained build
+
+For an offline build, run `download-env.ps1` before building and leave the copied environment in the output. Unity automatically copies the extracted folder below into the build:
 
 ```text
 Game.exe
@@ -76,7 +93,7 @@ Game_Data/
       ...the rest of the bundled environment...
 ```
 
-You do **not** need to copy the `.tar.zst` archive, install Python/Conda on the target machine, or manually copy the `config` directory. The trainer YAML is generated at runtime. Keep the build in a writable location because the trainer writes `config/`, `results/`, and save data while it runs. Unity also includes the scenes and project packages selected in Build Settings automatically.
+In either distribution, users do **not** install Python/Conda or manually copy the `config` directory. The trainer YAML is generated at runtime. Keep the build in a writable location because the trainer writes `config/`, `results/`, and save data while it runs. Unity also includes the scenes and project packages selected in Build Settings automatically.
 
 RL training in a standalone player requires launching the executable with the same ML-Agents port used by the trainer:
 
