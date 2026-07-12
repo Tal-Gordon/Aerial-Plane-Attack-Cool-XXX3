@@ -16,9 +16,18 @@ public static class GameSession
     /// </summary>
     public static AIType? SelectedAIType { get; set; }
 
+    /// <summary>
+    /// True when the player chose "Continue" in the main menu's continue-or-fresh
+    /// dialog: SimulationManager consumes it on Start and loads the latest save for
+    /// the (track, AI type) instead of starting from defaults. One-shot — the
+    /// consumer resets it so scene reloads don't re-trigger the load.
+    /// </summary>
+    public static bool LoadSaveOnStart { get; set; }
+
     /// <summary>Clears any carried selection (e.g. when returning to the menu).</summary>
     public static void Clear()
     {
         SelectedAIType = null;
+        LoadSaveOnStart = false;
     }
 }
