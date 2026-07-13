@@ -20,11 +20,25 @@ public class JetSelectionController : MonoBehaviour
     [SerializeField] private float selectionRadius = 60f;
     [Tooltip("Extra pixels added around the jet's visible bounds, giving the screen-space fallback a forgiving collider-like target.")]
     [SerializeField] private float selectionPadding = 18f;
+    [Tooltip("Colour multiplier applied to the selected jet's main material.")]
+    [SerializeField] private Color selectionTint = new(1f, 0.08f, 0.05f, 1f);
 
     // Renderer lookup is stable for a jet's lifetime. Cache it so a click across a
     // large population doesn't repeatedly traverse every F35 hierarchy.
     private readonly Dictionary<JetAgent, Renderer> selectionRenderers = new();
     private Camera selectionCamera;
+    private JetAgent highlightedAgent;
+    private Renderer highlightedRenderer;
+    private MaterialPropertyBlock originalProperties;
+    private MaterialPropertyBlock highlightedProperties;
+
+    private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+    private static readonly int LegacyColorId = Shader.PropertyToID("_Color");
+
+    private void Awake()
+    {
+        EnsurePropertyBlocks();
+    }
 
     private void OnEnable()
     {
@@ -36,6 +50,7 @@ public class JetSelectionController : MonoBehaviour
     {
         SelectionInputManager.OnCubeSelected -= HandleSelected;
         SelectionInputManager.OnCubeDeselected -= HandleDeselected;
+        ClearHighlight();
     }
 
     private void Update()
@@ -101,7 +116,7 @@ public class JetSelectionController : MonoBehaviour
         }
 
         if (nearest != null)
-            manager.SelectAgent(nearest);
+            SelectAgent(nearest);
     }
 
     private Camera ResolveSelectionCamera()
@@ -132,6 +147,57 @@ public class JetSelectionController : MonoBehaviour
         return renderer;
     }
 
+    private void SelectAgent(JetAgent agent)
+    {
+        if (UIManager.Instance == null || agent == null) return;
+
+        Highlight(agent);
+        UIManager.Instance.SelectAgent(agent);
+    }
+
+    private void Highlight(JetAgent agent)
+    {
+        if (highlightedAgent == agent) return;
+        ClearHighlight();
+        EnsurePropertyBlocks();
+
+        Renderer renderer = GetSelectionRenderer(agent);
+        if (renderer == null) return;
+
+        originalProperties.Clear();
+        renderer.GetPropertyBlock(originalProperties);
+
+        highlightedProperties.Clear();
+        renderer.GetPropertyBlock(highlightedProperties);
+
+        Material material = renderer.sharedMaterial;
+        if (material != null && material.HasProperty(BaseColorId))
+            highlightedProperties.SetColor(BaseColorId, selectionTint);
+        if (material != null && material.HasProperty(LegacyColorId))
+            highlightedProperties.SetColor(LegacyColorId, selectionTint);
+
+        renderer.SetPropertyBlock(highlightedProperties);
+        highlightedAgent = agent;
+        highlightedRenderer = renderer;
+    }
+
+    private void ClearHighlight()
+    {
+        if (highlightedRenderer != null)
+            highlightedRenderer.SetPropertyBlock(originalProperties);
+
+        highlightedAgent = null;
+        highlightedRenderer = null;
+        originalProperties?.Clear();
+        highlightedProperties?.Clear();
+    }
+
+    private void EnsurePropertyBlocks()
+    {
+        originalProperties ??= new MaterialPropertyBlock();
+        highlightedProperties ??= new MaterialPropertyBlock();
+    }
+
     private void HandleSelected(Transform selected)
     {
         if (UIManager.Instance == null || selected == null) return;
@@ -139,11 +205,12 @@ public class JetSelectionController : MonoBehaviour
         // The collider that was hit may be a child of the jet root, so search upward.
         JetAgent agent = selected.GetComponentInParent<JetAgent>();
         if (agent != null)
-            UIManager.Instance.SelectAgent(agent);
+            SelectAgent(agent);
     }
 
     private void HandleDeselected()
     {
+        ClearHighlight();
         if (UIManager.Instance != null)
             UIManager.Instance.ClearSelection();
     }
