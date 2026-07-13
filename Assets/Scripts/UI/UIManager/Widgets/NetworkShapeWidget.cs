@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using TMPro;
@@ -55,6 +56,7 @@ public class NetworkShapeWidget : UIWidget
     // Tracks the last editable state so a flip (e.g. AI type change) can trigger a
     // layout rebuild, since showing/hiding the list changes the widget's height.
     private bool? lastEditable;
+    private Coroutine deferredLayoutRebuild;
 
     private static NetworkShapeController Shape => ParameterTuners.NetworkShape;
 
@@ -71,6 +73,7 @@ public class NetworkShapeWidget : UIWidget
 
         EnsureLayout();
         uniformNoteLabel = BuildUniformNote();
+        RequestLayoutRebuild();
     }
 
     public override void Tick(SimulationSnapshot snapshot)
@@ -85,7 +88,7 @@ public class NetworkShapeWidget : UIWidget
         if (lastEditable != editable)
         {
             lastEditable = editable;
-            ForceRebuild();
+            RequestLayoutRebuild();
         }
 
         if (!editable) return;
@@ -184,7 +187,7 @@ public class NetworkShapeWidget : UIWidget
         SpawnHairline();
         SpawnLockedRow("Output (flight controls)", shape.OutputSize);
 
-        ForceRebuild();
+        RequestLayoutRebuild();
     }
 
     private NetworkLayerRow SpawnRow()
@@ -213,7 +216,9 @@ public class NetworkShapeWidget : UIWidget
     {
         var go = new GameObject("Hairline", typeof(RectTransform));
         go.transform.SetParent(layerRowContainer, worldPositionStays: false);
-        go.AddComponent<Image>().color = UITheme.Hairline;
+        Image hairline = go.AddComponent<Image>();
+        hairline.color = UITheme.Hairline;
+        hairline.raycastTarget = false;
         LeafHeight(go, 1f);
         generated.Add(go);
     }
@@ -232,7 +237,9 @@ public class NetworkShapeWidget : UIWidget
         {
             ConfigureContainer(layerRowContainer.gameObject, spacing: 0f, padding: new RectOffset(0, 0, 0, 0));
             // Inset card behind the list so the rows read as one grouped control.
-            Ensure<Image>(layerRowContainer.gameObject).color = new Color(0.10f, 0.11f, 0.135f, 1f);
+            Image card = Ensure<Image>(layerRowContainer.gameObject);
+            card.color = new Color(0.10f, 0.11f, 0.135f, 1f);
+            card.raycastTarget = false;
         }
 
         StyleAddLayerAsGhostRow();
@@ -333,6 +340,29 @@ public class NetworkShapeWidget : UIWidget
             LayoutRebuilder.ForceRebuildLayoutImmediate(rt);
             rt = rt.parent as RectTransform;
         }
+    }
+
+    // ContentSizeFitter changes propagate from the generated rows outward. In the
+    // combined shared Canvas that chain spans the widget, section, scroll content and
+    // window, so one immediate pass can leave the outer ScrollRect with last frame's
+    // bounds. Rebuild now for responsiveness and once next frame for the settled sizes.
+    private void RequestLayoutRebuild()
+    {
+        Canvas.ForceUpdateCanvases();
+        ForceRebuild();
+
+        if (!isActiveAndEnabled) return;
+        if (deferredLayoutRebuild != null)
+            StopCoroutine(deferredLayoutRebuild);
+        deferredLayoutRebuild = StartCoroutine(RebuildLayoutNextFrame());
+    }
+
+    private IEnumerator RebuildLayoutNextFrame()
+    {
+        yield return null;
+        Canvas.ForceUpdateCanvases();
+        ForceRebuild();
+        deferredLayoutRebuild = null;
     }
 
     // Since the containers don't control child height, a leaf must state its own — set on
@@ -462,7 +492,10 @@ public class NetworkShapeWidget : UIWidget
 
         bool show = shape.IsUniform;
         if (uniformNoteLabel.gameObject.activeSelf != show)
+        {
             uniformNoteLabel.gameObject.SetActive(show);
+            RequestLayoutRebuild();
+        }
     }
 
     // Builds the dimmed uniform-mode note and slots it at the top of the widget column.
@@ -489,6 +522,8 @@ public class NetworkShapeWidget : UIWidget
 
     private void OnDestroy()
     {
+        if (deferredLayoutRebuild != null)
+            StopCoroutine(deferredLayoutRebuild);
         if (addLayerButton) addLayerButton.onClick.RemoveListener(OnAddLayer);
         if (resetButton) resetButton.onClick.RemoveListener(OnResetClicked);
         if (saveButton) saveButton.onClick.RemoveListener(OnSaveClicked);

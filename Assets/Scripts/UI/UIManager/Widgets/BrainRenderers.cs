@@ -40,12 +40,22 @@ public class NetworkGraph
 {
     public readonly List<NetNode> Nodes = new List<NetNode>();
     public readonly List<NetEdge> Edges = new List<NetEdge>();
+    public readonly List<NetLayerAnnotation> LayerAnnotations = new List<NetLayerAnnotation>();
 
     public void Clear()
     {
         Nodes.Clear();
         Edges.Clear();
+        LayerAnnotations.Clear();
     }
+}
+
+/// Display-only metadata for a network column. BrainVisualizerWidget renders these
+/// as UI labels over the texture, so a compact layer can still report its real size.
+public class NetLayerAnnotation
+{
+    public float X;
+    public string Text;
 }
 
 public abstract class BrainRenderer
@@ -320,42 +330,82 @@ public class NeatBrainRenderer : BrainRenderer
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PPO / SAC (ML-Agents) — the policy network lives in the external Python trainer
-// and is unreachable in-process. The most we can honestly show is the network's
-// I/O: observation inputs on the left, the last continuous actions on the right.
-// Edges are illustrative only (no readable weights). Covers both RL AI types.
+// and is unreachable in-process. Its configured architecture is still available,
+// so hidden layers are shown as compact representative columns with exact size
+// labels. Only input/output activations are live; weights remain unavailable.
 // ─────────────────────────────────────────────────────────────────────────────
 public class RLBrainRenderer : BrainRenderer
 {
+    private const int MaxRepresentativeNodesPerHiddenLayer = 16;
+
     public override bool Matches(JetAgent agent) => agent.GetComponent<JetMLAgent>() != null;
 
     public override object TopologyToken(JetAgent agent)
     {
         int inN = agent.Sensor?.GetObservationData()?.Length ?? 0;
         int outN = agent.GetComponent<JetMLAgent>().LastActions?.Length ?? 0;
-        return $"rl:{inN}:{outN}";
+        List<int> hidden = GetConfiguredHiddenLayers();
+        return $"rl:{inN}:{string.Join(",", hidden)}:{outN}";
     }
 
     public override void BuildTopology(JetAgent agent, NetworkGraph graph)
     {
         int inN = agent.Sensor?.GetObservationData()?.Length ?? 0;
         int outN = agent.GetComponent<JetMLAgent>().LastActions?.Length ?? 0;
+        List<int> hidden = GetConfiguredHiddenLayers();
+        int layerCount = hidden.Count + 2;
 
+        var starts = new int[layerCount];
+        var counts = new int[layerCount];
+
+        starts[0] = graph.Nodes.Count;
+        counts[0] = inN;
         for (int i = 0; i < inN; i++)
         {
             float y = inN == 1 ? 0.5f : (float)i / (inN - 1);
             graph.Nodes.Add(new NetNode { X = 0f, Y = y, Role = NetNodeRole.Input });
         }
+
+        for (int layer = 0; layer < hidden.Count; layer++)
+        {
+            int configuredUnits = Mathf.Max(1, hidden[layer]);
+            int shownUnits = Mathf.Min(configuredUnits, MaxRepresentativeNodesPerHiddenLayer);
+            float x = (float)(layer + 1) / (layerCount - 1);
+
+            starts[layer + 1] = graph.Nodes.Count;
+            counts[layer + 1] = shownUnits;
+            for (int n = 0; n < shownUnits; n++)
+            {
+                float y = shownUnits == 1 ? 0.5f : (float)n / (shownUnits - 1);
+                graph.Nodes.Add(new NetNode
+                {
+                    X = x,
+                    Y = y,
+                    Role = NetNodeRole.Hidden,
+                    HasActivation = false,
+                });
+            }
+
+            graph.LayerAnnotations.Add(new NetLayerAnnotation
+            {
+                X = x,
+                Text = $"{configuredUnits} units",
+            });
+        }
+
+        int outputLayer = layerCount - 1;
+        starts[outputLayer] = graph.Nodes.Count;
+        counts[outputLayer] = outN;
         for (int o = 0; o < outN; o++)
         {
             float y = outN == 1 ? 0.5f : (float)o / (outN - 1);
             graph.Nodes.Add(new NetNode { X = 1f, Y = y, Role = NetNodeRole.Output });
         }
 
-        // Faint "everything connects to everything" edges — the real wiring is
-        // hidden in the trainer, so these only convey the I/O shape.
-        for (int i = 0; i < inN; i++)
-            for (int o = 0; o < outN; o++)
-                graph.Edges.Add(new NetEdge { From = i, To = inN + o, HasWeight = false });
+        // Sparse structural links show layer order without claiming to be weights.
+        for (int layer = 0; layer < layerCount - 1; layer++)
+            ConnectRepresentativeColumns(graph,
+                starts[layer], counts[layer], starts[layer + 1], counts[layer + 1]);
     }
 
     public override void SampleActivations(JetAgent agent, NetworkGraph graph)
@@ -386,5 +436,50 @@ public class RLBrainRenderer : BrainRenderer
                 outIdx++;
             }
         }
+    }
+
+    private static List<int> GetConfiguredHiddenLayers()
+    {
+        NetworkShapeController shape = ParameterTuners.NetworkShape;
+        return shape != null ? shape.GetHiddenLayers() : new List<int>();
+    }
+
+    // These sparse edges show data flow between configured layers. They are not
+    // presented as policy weights, which remain inside the external trainer.
+    private static void ConnectRepresentativeColumns(NetworkGraph graph,
+        int fromStart, int fromCount, int toStart, int toCount)
+    {
+        if (fromCount <= 0 || toCount <= 0) return;
+
+        for (int i = 0; i < fromCount; i++)
+        {
+            int mapped = MapIndex(i, fromCount, toCount);
+            graph.Edges.Add(new NetEdge
+            {
+                From = fromStart + i,
+                To = toStart + mapped,
+                HasWeight = false,
+            });
+        }
+
+        // Cover the target side as well when the next column is wider.
+        for (int i = 0; i < toCount; i++)
+        {
+            int mapped = MapIndex(i, toCount, fromCount);
+            bool duplicate = MapIndex(mapped, fromCount, toCount) == i;
+            if (!duplicate)
+                graph.Edges.Add(new NetEdge
+                {
+                    From = fromStart + mapped,
+                    To = toStart + i,
+                    HasWeight = false,
+                });
+        }
+    }
+
+    private static int MapIndex(int index, int sourceCount, int targetCount)
+    {
+        if (sourceCount <= 1 || targetCount <= 1) return 0;
+        return Mathf.RoundToInt((float)index / (sourceCount - 1) * (targetCount - 1));
     }
 }
