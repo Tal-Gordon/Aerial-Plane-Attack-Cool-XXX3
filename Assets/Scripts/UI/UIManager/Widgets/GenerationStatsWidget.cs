@@ -32,6 +32,8 @@ public class GenerationStatsWidget : UIWidget
 
     protected override void OnInitialize()
     {
+        UpgradeLegacyCanvasLayout();
+
         // The serialized bar colours (green fill on a grey track) predate the theme
         // and survive every generic skin pass — pin them to the palette here.
         if (populationFillBar != null)
@@ -41,6 +43,69 @@ public class GenerationStatsWidget : UIWidget
                 ? populationFillBar.transform.parent.GetComponent<Image>()
                 : null;
             if (track != null) track.color = UITheme.FieldPressed;
+        }
+    }
+
+    /// <summary>
+    /// The shared Canvas still contains the pre-pooling version of this widget: five
+    /// fixed TMP labels and no CellRow reference. Recreate the layout from the newer
+    /// GenerationStatsWidget prefab in place so scene-authored canvases use the same
+    /// dynamic StatCell implementation as config-built telemetry windows.
+    /// </summary>
+    private void UpgradeLegacyCanvasLayout()
+    {
+        if (cellRow != null) return;
+
+        Transform populationBarRoot = null;
+        if (populationFillBar != null)
+        {
+            populationBarRoot = populationFillBar.transform;
+            while (populationBarRoot.parent != null && populationBarRoot.parent != transform)
+                populationBarRoot = populationBarRoot.parent;
+        }
+
+        // Retire the old Generation/AvgFitness/TopFitness/AliveCount/DeadCount
+        // labels. Render() will populate the replacement row with StatCell clones.
+        for (int i = 0; i < transform.childCount; i++)
+        {
+            Transform child = transform.GetChild(i);
+            if (child != populationBarRoot)
+                child.gameObject.SetActive(false);
+        }
+
+        var rowObject = new GameObject("CellRow", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+        rowObject.layer = gameObject.layer;
+        cellRow = rowObject.GetComponent<RectTransform>();
+        cellRow.SetParent(transform, worldPositionStays: false);
+        cellRow.SetSiblingIndex(0);
+        cellRow.anchorMin = new Vector2(0.5f, 0.5f);
+        cellRow.anchorMax = new Vector2(0.5f, 0.5f);
+        cellRow.anchoredPosition = new Vector2(0f, 30f);
+        cellRow.sizeDelta = new Vector2(440f, 80f);
+
+        HorizontalLayoutGroup rowLayout = rowObject.GetComponent<HorizontalLayoutGroup>();
+        rowLayout.childAlignment = TextAnchor.MiddleCenter;
+        rowLayout.spacing = 15f;
+        rowLayout.childForceExpandWidth = true;
+        rowLayout.childForceExpandHeight = true;
+        rowLayout.childControlWidth = true;
+        rowLayout.childControlHeight = true;
+
+        // Match the recovered prefab's compact footprint. The legacy Canvas copy was
+        // 200 px tall, which also pushed the Network Shape editor out of the window.
+        if (transform is RectTransform rootRect)
+            rootRect.sizeDelta = new Vector2(rootRect.sizeDelta.x, 140f);
+
+        LayoutElement rootLayout = GetComponent<LayoutElement>();
+        if (rootLayout == null) rootLayout = gameObject.AddComponent<LayoutElement>();
+        rootLayout.minHeight = 150f;
+        rootLayout.preferredHeight = 150f;
+        rootLayout.flexibleHeight = 1f;
+
+        if (populationBarRoot is RectTransform barRect)
+        {
+            barRect.anchoredPosition = new Vector2(0f, -40f);
+            barRect.sizeDelta = new Vector2(440f, 40f);
         }
     }
 
