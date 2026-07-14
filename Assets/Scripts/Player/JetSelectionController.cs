@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -15,8 +16,29 @@ using UnityEngine.InputSystem;
 /// closest visible jet to the cursor in screen space.
 public class JetSelectionController : MonoBehaviour
 {
-    [Tooltip("Maximum cursor distance, in screen pixels, for selecting a jet.")]
-    [SerializeField] private float selectionRadius = 40f;
+    [Tooltip("Minimum cursor distance, in screen pixels, for selecting a jet.")]
+    [SerializeField] private float selectionRadius = 60f;
+    [Tooltip("Extra pixels added around the jet's visible bounds, giving the screen-space fallback a forgiving collider-like target.")]
+    [SerializeField] private float selectionPadding = 18f;
+    [Tooltip("Colour multiplier applied to the selected jet's main material.")]
+    [SerializeField] private Color selectionTint = new(1f, 0.08f, 0.05f, 1f);
+
+    // Renderer lookup is stable for a jet's lifetime. Cache it so a click across a
+    // large population doesn't repeatedly traverse every F35 hierarchy.
+    private readonly Dictionary<JetAgent, Renderer> selectionRenderers = new();
+    private Camera selectionCamera;
+    private JetAgent highlightedAgent;
+    private Renderer highlightedRenderer;
+    private MaterialPropertyBlock originalProperties;
+    private MaterialPropertyBlock highlightedProperties;
+
+    private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+    private static readonly int LegacyColorId = Shader.PropertyToID("_Color");
+
+    private void Awake()
+    {
+        EnsurePropertyBlocks();
+    }
 
     private void OnEnable()
     {
@@ -28,6 +50,7 @@ public class JetSelectionController : MonoBehaviour
     {
         SelectionInputManager.OnCubeSelected -= HandleSelected;
         SelectionInputManager.OnCubeDeselected -= HandleDeselected;
+        ClearHighlight();
     }
 
     private void Update()
@@ -49,12 +72,12 @@ public class JetSelectionController : MonoBehaviour
     private void SelectNearestJet(Vector2 pointerPosition)
     {
         UIManager manager = UIManager.Instance;
-        Camera camera = Camera.main;
+        Camera camera = ResolveSelectionCamera();
         var population = manager != null ? manager.Snapshot?.Population : null;
         if (camera == null || population == null) return;
 
         JetAgent nearest = null;
-        float nearestSqrDistance = selectionRadius * selectionRadius;
+        float nearestSqrDistance = float.PositiveInfinity;
 
         // This O(population) scan runs only on a click—not every frame—and avoids
         // adding thousands of moving collider shapes to large training runs.
@@ -62,10 +85,30 @@ public class JetSelectionController : MonoBehaviour
         {
             if (agent == null || !agent.gameObject.activeInHierarchy) continue;
 
-            Vector3 screenPoint = camera.WorldToScreenPoint(agent.transform.position);
+            Vector3 worldCenter = agent.transform.position;
+            float hitRadius = selectionRadius;
+
+            Renderer renderer = GetSelectionRenderer(agent);
+            if (renderer != null)
+            {
+                Bounds bounds = renderer.bounds;
+                worldCenter = bounds.center;
+
+                // Project the render bounds' sphere onto the screen. This approximates
+                // the old collider-sized hit area while retaining the collider-free
+                // fallback needed by large training populations.
+                Vector3 edgePoint = bounds.center + camera.transform.right * bounds.extents.magnitude;
+                Vector3 centerScreen = camera.WorldToScreenPoint(bounds.center);
+                Vector3 edgeScreen = camera.WorldToScreenPoint(edgePoint);
+                if (centerScreen.z > 0f && edgeScreen.z > 0f)
+                    hitRadius = Mathf.Max(hitRadius, Vector2.Distance(centerScreen, edgeScreen) + selectionPadding);
+            }
+
+            Vector3 screenPoint = camera.WorldToScreenPoint(worldCenter);
             if (screenPoint.z <= 0f) continue;
 
             float sqrDistance = ((Vector2)screenPoint - pointerPosition).sqrMagnitude;
+            if (sqrDistance > hitRadius * hitRadius) continue;
             if (sqrDistance >= nearestSqrDistance) continue;
 
             nearestSqrDistance = sqrDistance;
@@ -73,7 +116,86 @@ public class JetSelectionController : MonoBehaviour
         }
 
         if (nearest != null)
-            manager.SelectAgent(nearest);
+            SelectAgent(nearest);
+    }
+
+    private Camera ResolveSelectionCamera()
+    {
+        if (selectionCamera != null && selectionCamera.isActiveAndEnabled)
+            return selectionCamera;
+
+        selectionCamera = Camera.main;
+        if (selectionCamera != null) return selectionCamera;
+
+        // A scene camera can render perfectly while lacking the MainCamera tag.
+        // Prefer the flight controller's own Camera over an arbitrary UI/overlay
+        // camera; Track 2 historically ships with exactly this misconfiguration.
+        CameraControllerFlight flightCamera = FindFirstObjectByType<CameraControllerFlight>();
+        if (flightCamera != null)
+            selectionCamera = flightCamera.GetComponent<Camera>();
+
+        return selectionCamera;
+    }
+
+    private Renderer GetSelectionRenderer(JetAgent agent)
+    {
+        if (selectionRenderers.TryGetValue(agent, out Renderer cached))
+            return cached;
+
+        Renderer renderer = agent.GetComponentInChildren<Renderer>();
+        selectionRenderers[agent] = renderer;
+        return renderer;
+    }
+
+    private void SelectAgent(JetAgent agent)
+    {
+        if (UIManager.Instance == null || agent == null) return;
+
+        Highlight(agent);
+        UIManager.Instance.SelectAgent(agent);
+    }
+
+    private void Highlight(JetAgent agent)
+    {
+        if (highlightedAgent == agent) return;
+        ClearHighlight();
+        EnsurePropertyBlocks();
+
+        Renderer renderer = GetSelectionRenderer(agent);
+        if (renderer == null) return;
+
+        originalProperties.Clear();
+        renderer.GetPropertyBlock(originalProperties);
+
+        highlightedProperties.Clear();
+        renderer.GetPropertyBlock(highlightedProperties);
+
+        Material material = renderer.sharedMaterial;
+        if (material != null && material.HasProperty(BaseColorId))
+            highlightedProperties.SetColor(BaseColorId, selectionTint);
+        if (material != null && material.HasProperty(LegacyColorId))
+            highlightedProperties.SetColor(LegacyColorId, selectionTint);
+
+        renderer.SetPropertyBlock(highlightedProperties);
+        highlightedAgent = agent;
+        highlightedRenderer = renderer;
+    }
+
+    private void ClearHighlight()
+    {
+        if (highlightedRenderer != null)
+            highlightedRenderer.SetPropertyBlock(originalProperties);
+
+        highlightedAgent = null;
+        highlightedRenderer = null;
+        originalProperties?.Clear();
+        highlightedProperties?.Clear();
+    }
+
+    private void EnsurePropertyBlocks()
+    {
+        originalProperties ??= new MaterialPropertyBlock();
+        highlightedProperties ??= new MaterialPropertyBlock();
     }
 
     private void HandleSelected(Transform selected)
@@ -83,11 +205,12 @@ public class JetSelectionController : MonoBehaviour
         // The collider that was hit may be a child of the jet root, so search upward.
         JetAgent agent = selected.GetComponentInParent<JetAgent>();
         if (agent != null)
-            UIManager.Instance.SelectAgent(agent);
+            SelectAgent(agent);
     }
 
     private void HandleDeselected()
     {
+        ClearHighlight();
         if (UIManager.Instance != null)
             UIManager.Instance.ClearSelection();
     }

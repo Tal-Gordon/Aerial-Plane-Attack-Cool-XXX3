@@ -89,12 +89,31 @@ public class SimulationManager : MonoBehaviour
         hyperParams = new ModelHyperparameters(() => settings);
         ParameterTuners.Hyperparameters = new ParameterTuner(hyperParams, CommitHyperparameters);
 
+        // Network shape (hidden-layer architecture) is a variable-length int[] that
+        // can't ride the flat-float tuner, so it gets its own controller. Editing it is
+        // always a cold change, so committing persists the new shape and reloads the run
+        // from scratch (see ReloadRunForShape).
+        ParameterTuners.NetworkShape = new NetworkShapeController(() => settings, ReloadRunForShape);
+
         // Create the correct paradigm for the chosen AI type
         activeParadigm = CreateParadigm(settings.AIType);
         if (activeParadigm == null) return;
 
         // Hand the population & objective to the paradigm
         activeParadigm.Initialize(population, settings, objective);
+
+        // The main menu's continue-or-fresh dialog requested resuming the latest
+        // save: rebuild from it now that the fresh run exists (LoadState is a full
+        // teardown + rebuild, same as the hyperparameter-commit path). One-shot —
+        // consume the flag first so scene reloads don't re-trigger the load.
+        if (GameSession.LoadSaveOnStart)
+        {
+            GameSession.LoadSaveOnStart = false;
+            if (DataManager.HasTrainingState(Track, settings.AIType))
+                LoadState();
+            else
+                Debug.LogWarning($"[SimulationManager] Continue requested but no save exists for {Track}/{settings.AIType}; starting fresh.");
+        }
     }
 
     private void FixedUpdate()
@@ -245,6 +264,23 @@ public class SimulationManager : MonoBehaviour
 
         // Optionally preserve the trained brains/policy on disk before reloading.
         if (saveProgress) SaveState();
+
+        Time.timeScale = 1f;
+        if (LoadingOverlay.Instance != null)
+            LoadingOverlay.Instance.ReloadActiveScene();
+        else
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+    }
+
+    // Commit path for the network-shape editor. The controller has already written the
+    // new hidden layers into the live settings; persist them and reload so the run
+    // rebuilds against the new architecture. A shape change is always structural, so the
+    // saved weights can't carry over — the reload intentionally starts fresh (there is
+    // no "keep progress" option, unlike the hot/cold hyperparameter split).
+    private void ReloadRunForShape()
+    {
+        if (settings != null)
+            DataManager.SaveSettings(Track, settings);
 
         Time.timeScale = 1f;
         if (LoadingOverlay.Instance != null)

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -59,6 +60,7 @@ public class BrainVisualizerWidget : UIWidget
     private BrainRenderer[] renderers;
     private BrainRenderer   activeRenderer;
     private object          topologyToken;
+    private readonly List<TextMeshProUGUI> layerLabels = new List<TextMeshProUGUI>();
 
     protected override void OnInitialize()
     {
@@ -115,6 +117,7 @@ public class BrainVisualizerWidget : UIWidget
             topologyToken  = token;
             graph.Clear();
             renderer.BuildTopology(agent, graph);
+            RebuildLayerLabels();
             rebuilt = true;
         }
 
@@ -215,6 +218,38 @@ public class BrainVisualizerWidget : UIWidget
             DrawCircle(ToPixel(node), computedRadius, NodeColor(node));
 
         tex.Apply();
+    }
+
+    // RL policies expose configured layer sizes but not their internal activations or
+    // weights. Labels keep compact representative columns numerically truthful.
+    private void RebuildLayerLabels()
+    {
+        foreach (TextMeshProUGUI label in layerLabels)
+            if (label != null) Destroy(label.gameObject);
+        layerLabels.Clear();
+
+        if (rawImage == null) return;
+
+        foreach (NetLayerAnnotation annotation in graph.LayerAnnotations)
+        {
+            var go = new GameObject("LayerSizeLabel", typeof(RectTransform));
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(rawImage.rectTransform, worldPositionStays: false);
+            rt.anchorMin = rt.anchorMax = new Vector2(annotation.X, 1f);
+            rt.pivot = new Vector2(0.5f, 1f);
+            rt.anchoredPosition = new Vector2(0f, -3f);
+            rt.sizeDelta = new Vector2(82f, 20f);
+
+            var label = go.AddComponent<TextMeshProUGUI>();
+            label.text = annotation.Text;
+            label.fontSize = 11f;
+            label.fontStyle = FontStyles.Bold;
+            label.alignment = TextAlignmentOptions.Top;
+            label.color = UITheme.TextDimmed;
+            label.raycastTarget = false;
+            if (TMP_Settings.defaultFontAsset != null) label.font = TMP_Settings.defaultFontAsset;
+            layerLabels.Add(label);
+        }
     }
 
     private Vector2Int ToPixel(NetNode n)

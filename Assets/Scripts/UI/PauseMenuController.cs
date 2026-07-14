@@ -29,7 +29,55 @@ public class PauseMenuController : MonoBehaviour
                 UITheme.StylePrimary(button); // Resume is the call-to-action
                 break;
             }
+
+            WirePanelButtons();
         }
+    }
+
+    // Completes the panel in code instead of editing the prefab YAML: hooks the
+    // Settings button (authored with no onClick) to OpenSettings, and clones the Quit
+    // button into a Main Menu button in the empty slot between Settings and Quit.
+    private void WirePanelButtons()
+    {
+        UnityEngine.UI.Button settings = FindPanelButton("Settings");
+        UnityEngine.UI.Button quit = FindPanelButton("Quit");
+
+        // Only add our listener if nothing was wired in the editor, so a scene that
+        // does wire it someday won't open the menu twice per click.
+        if (settings != null && settings.onClick.GetPersistentEventCount() == 0)
+            settings.onClick.AddListener(OpenSettings);
+
+        if (quit == null || settings == null || FindPanelButton("MainMenu") != null)
+            return;
+
+        // Clone Quit so the new button inherits the panel's authored look and the
+        // runtime theme already applied above.
+        UnityEngine.UI.Button mainMenu = Instantiate(quit, quit.transform.parent);
+        mainMenu.name = "MainMenu";
+        mainMenu.transform.SetSiblingIndex(quit.transform.GetSiblingIndex());
+
+        // The clone copies Quit's persistent onClick (QuitGame) — persistent calls
+        // can't be removed at runtime, so replace the whole event instance.
+        mainMenu.onClick = new UnityEngine.UI.Button.ButtonClickedEvent();
+        mainMenu.onClick.AddListener(LoadMenu);
+
+        var label = mainMenu.GetComponentInChildren<TMPro.TMP_Text>(includeInactive: true);
+        if (label != null) label.text = "Main Menu";
+
+        // The column is hand-anchored (no layout group); the panel leaves a
+        // button-sized gap between Settings and Quit — park the clone at its midpoint.
+        var settingsRt = (RectTransform)settings.transform;
+        var quitRt = (RectTransform)quit.transform;
+        ((RectTransform)mainMenu.transform).anchoredPosition =
+            (settingsRt.anchoredPosition + quitRt.anchoredPosition) * 0.5f;
+    }
+
+    private UnityEngine.UI.Button FindPanelButton(string buttonName)
+    {
+        foreach (UnityEngine.UI.Button button in pauseMenuUI.GetComponentsInChildren<UnityEngine.UI.Button>(includeInactive: true))
+            if (button.name == buttonName)
+                return button;
+        return null;
     }
 
     private void OnEnable()

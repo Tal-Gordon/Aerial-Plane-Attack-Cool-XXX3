@@ -19,4 +19,10 @@ public static class ParameterTuners
     /// "hot" knobs (kept on a round-trip) from "cold" ones (force a rebuild).
     /// Null when no run is active.</summary>
     public static ParameterTuner Hyperparameters { get; set; }
+
+    /// <summary>Controller for the active model's hidden-layer shape — the one
+    /// architecture knob that can't ride the flat-float tuner (it's a variable-length
+    /// int[]), so it has its own type. Disabled for NEAT (evolves its own topology).
+    /// Null when no run is active.</summary>
+    public static NetworkShapeController NetworkShape { get; set; }
 }
