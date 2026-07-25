@@ -20,6 +20,7 @@ public class TelemetryGraph : MaskableGraphic
     [Header("Lines")]
     [SerializeField] private Color maxColor = new Color(0.35f, 0.90f, 0.45f); // green
     [SerializeField] private Color avgColor = new Color(0.35f, 0.70f, 1.00f); // blue
+    [SerializeField] private Color referenceColor = new Color(1f, 0.72f, 0.24f, 0.72f);
     [SerializeField] private float lineThickness = 2.5f;
 
     [Header("Axis")]
@@ -29,10 +30,19 @@ public class TelemetryGraph : MaskableGraphic
 
     public Color MaxColor => maxColor;
     public Color AvgColor => avgColor;
+    public Color ReferenceColor => referenceColor;
+
+    public void SetBackgroundColor(Color color)
+    {
+        backgroundColor = color;
+        SetVerticesDirty();
+    }
 
     // Normalised (0..1) points supplied by the widget. Null/empty = nothing to draw.
     private IReadOnlyList<Vector2> avgPoints;
     private IReadOnlyList<Vector2> maxPoints;
+    private bool hasReference;
+    private float referenceY;
 
     protected override void Awake()
     {
@@ -48,10 +58,25 @@ public class TelemetryGraph : MaskableGraphic
         SetVerticesDirty();
     }
 
+    /// <summary>Shows a dashed horizontal reference line at a normalised Y value.</summary>
+    public void SetReference(float normalisedY)
+    {
+        hasReference = true;
+        referenceY = Mathf.Clamp01(normalisedY);
+        SetVerticesDirty();
+    }
+
+    public void ClearReference()
+    {
+        hasReference = false;
+        SetVerticesDirty();
+    }
+
     public void Clear()
     {
         avgPoints = null;
         maxPoints = null;
+        hasReference = false;
         SetVerticesDirty();
     }
 
@@ -71,8 +96,23 @@ public class TelemetryGraph : MaskableGraphic
         Rect plot = new Rect(r.xMin + padX, r.yMin + padY, r.width - 2f * padX, r.height - 2f * padY);
 
         DrawAxis(vh, plot);
+        if (hasReference) DrawDashedReference(vh, plot);
         DrawPolyline(vh, avgPoints, plot, avgColor);
         DrawPolyline(vh, maxPoints, plot, maxColor); // max on top so it wins overlaps
+    }
+
+    private void DrawDashedReference(VertexHelper vh, Rect plot)
+    {
+        float y = plot.yMin + referenceY * plot.height;
+        const int dashCount = 18;
+        float cell = plot.width / dashCount;
+        for (int i = 0; i < dashCount; i += 2)
+        {
+            Vector2 start = new Vector2(plot.xMin + i * cell, y);
+            Vector2 end = new Vector2(
+                plot.xMin + Mathf.Min((i + 1) * cell, plot.width), y);
+            AddSegment(vh, start, end, axisThickness, referenceColor);
+        }
     }
 
     // L-shaped axis: left (Y) and bottom (X) edges of the plot rect.
