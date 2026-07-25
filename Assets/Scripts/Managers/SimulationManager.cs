@@ -887,7 +887,7 @@ public class SimulationManager : MonoBehaviour
         if (returnToMenu)
         {
             GameSession.Clear();
-            const string menu = "MainMenu";
+            const string menu = "Main Menu";
             if (LoadingOverlay.Instance != null) LoadingOverlay.Instance.LoadScene(menu);
             else SceneManager.LoadScene(menu);
             return;

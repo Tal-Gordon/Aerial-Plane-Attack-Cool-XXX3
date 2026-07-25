@@ -8,9 +8,9 @@ public class PauseMenuController : MonoBehaviour
 
     public GameObject pauseMenuUI;
 
-    [Tooltip("Scene the Main Menu button returns to. 'MainMenuGrid' is the card-grid menu; " +
-             "'MainMenu' is the older three-button screen.")]
-    [SerializeField] private string mainMenuSceneName = "MainMenuGrid";
+    [Tooltip("Scene the Main Menu button returns to. 'Main Menu' is the card-grid menu; " +
+             "'MainMenuOld' is the older three-button screen.")]
+    [SerializeField] private string mainMenuSceneName = "Main Menu";
 
     [Header("Input")]
     public InputAction pauseAction;
