@@ -16,7 +16,20 @@ public class GameModeSelectionController : MonoBehaviour
     public GameObject buttonPrefab;   // A prefab of a single UI button
     public List<GameModeData> availableModes; // Drag your ScriptableObjects here
 
+    [Header("Hero Artwork")]
+    [Range(0.5f, 4f)]
+    [Tooltip("Brightness of the track artwork. The art is multiplied by the panel colour " +
+             "so white text stays readable over it; 1 is the panel's own darkness.")]
+    public float heroArtworkBrightness = 1f;
+
     private AITypeSelector aiTypeSelector; // found lazily — lives on the selection window
+
+    // Artwork is drawn on a dedicated child, never on heroImage itself. An Image with
+    // a sprite reports that sprite's native size as its preferred size, and HeroPanel
+    // is a child of the window's HorizontalLayoutGroup (childControlWidth on) — so a
+    // 1579px-wide screenshot on the panel background claims the whole window and
+    // squeezes the mode list to nothing. This child is excluded from layout entirely.
+    private Image heroArtwork;
 
     private readonly List<GameModeButton> modeButtons = new(); // spawned by PopulateList
     private GameModeData currentMode; // mode shown in the hero panel, null before the first SelectMode
@@ -30,6 +43,7 @@ public class GameModeSelectionController : MonoBehaviour
     void Start()
     {
         PopulateList();
+        BuildHeroArtworkLayer();
 
         // The Play call-to-action pops in accent against the themed panel, and the
         // hero title carries the accent (set explicitly — the generic skin keeps
@@ -75,8 +89,8 @@ public class GameModeSelectionController : MonoBehaviour
         // Update the Single Hero Panel with the new data
         heroTitleText.text = newlySelectedMode.modeName;
         heroDescriptionText.text = newlySelectedMode.description;
-        heroImage.sprite = newlySelectedMode.heroArtwork;
-        
+        SetHeroArtwork(newlySelectedMode.heroArtwork);
+
         // Clear old listeners so we don't load multiple scenes or repeat actions!
         heroButton.onClick.RemoveAllListeners();
         heroButton.onClick.AddListener(() => OnPlayClicked(newlySelectedMode));
@@ -93,6 +107,54 @@ public class GameModeSelectionController : MonoBehaviour
 
         // Note: This is exactly where you would add your DOTween or LeanTween
         // code to fade the text in or briefly scale up the hero image!
+    }
+
+    // ── Hero artwork layer ───────────────────────────────────────────
+
+    // Two objects behind the hero panel's contents, built in code so nothing extra
+    // needs scene wiring: a clipping frame filling the panel, and the artwork itself
+    // sized to cover that frame. Drawn first, so title/description/buttons sit on top.
+    private void BuildHeroArtworkLayer()
+    {
+        if (heroImage == null) return;
+
+        var frame = new GameObject("HeroArtworkFrame", typeof(RectTransform));
+        frame.transform.SetParent(heroImage.transform, worldPositionStays: false);
+        frame.transform.SetAsFirstSibling();
+
+        // ignoreLayout keeps this out of BOTH layout passes: the panel's own
+        // VerticalLayoutGroup won't position it, and it can't report a preferred
+        // size up the chain the way the panel background did.
+        frame.AddComponent<LayoutElement>().ignoreLayout = true;
+        StretchRect((RectTransform)frame.transform);
+        frame.AddComponent<RectMask2D>(); // crops the artwork's overflow
+
+        var art = new GameObject("HeroArtwork", typeof(RectTransform));
+        art.transform.SetParent(frame.transform, worldPositionStays: false);
+        CenterRect((RectTransform)art.transform, Vector2.zero); // HeroArtworkFitter owns the size
+
+        heroArtwork = art.AddComponent<Image>();
+        heroArtwork.raycastTarget = false;
+
+        // Multiply by the panel colour rather than fading with alpha. Fading toward a
+        // dark panel washes the picture out flat; tinting keeps its contrast while
+        // pulling the whole thing below the white text. This is what the artwork
+        // looked like when it was (wrongly) painted on the already-skinned panel.
+        // (built explicitly — Color * float would scale the alpha along with the channels)
+        heroArtwork.color = new Color(UITheme.Panel.r * heroArtworkBrightness,
+                                      UITheme.Panel.g * heroArtworkBrightness,
+                                      UITheme.Panel.b * heroArtworkBrightness, 1f);
+
+        art.AddComponent<HeroArtworkFitter>();
+        heroArtwork.enabled = false;
+    }
+
+    private void SetHeroArtwork(Sprite art)
+    {
+        if (heroArtwork == null) return;
+        heroArtwork.sprite = art;
+        heroArtwork.enabled = art != null; // a sprite-less Image still paints a full quad
+        if (art != null) heroArtwork.GetComponent<HeroArtworkFitter>().Refit();
     }
 
     public void ResetSelection()

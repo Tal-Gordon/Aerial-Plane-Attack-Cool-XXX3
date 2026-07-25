@@ -4,8 +4,15 @@ using UnityEngine.Events;
 
 public class AITypeSelector : MonoBehaviour
 {
+    /// <summary>Concrete event type with a field initializer, so a selector created at
+    /// runtime via AddComponent has one. A bare <c>UnityEvent&lt;int&gt;</c> field is only
+    /// ever non-null when Unity's deserializer builds it (i.e. scene-authored selectors) —
+    /// AddComponent leaves it null and every Invoke/AddListener throws.</summary>
+    [System.Serializable]
+    public class OptionSelectedEvent : UnityEvent<int> { }
+
     public Button[] optionButtons;
-    public UnityEvent<int> onOptionSelected;
+    public OptionSelectedEvent onOptionSelected = new OptionSelectedEvent();
 
     private int currentIndex = -1;
 
