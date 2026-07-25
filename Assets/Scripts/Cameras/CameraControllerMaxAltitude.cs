@@ -34,6 +34,7 @@ public class CameraControllerMaxAltitude : MonoBehaviour
     private Quaternion fixedRotation;
     private bool sideViewAnchored;
     private bool isSwappingTarget;
+    private MaxAltitudeHeightTape heightTape;
 
     private void Awake()
     {
@@ -48,11 +49,19 @@ public class CameraControllerMaxAltitude : MonoBehaviour
     private void OnEnable()
     {
         EvolutionaryParadigm.BestJetReady += FollowJet;
+        if (heightTape != null) heightTape.SetVisible(true);
     }
 
     private void OnDisable()
     {
         EvolutionaryParadigm.BestJetReady -= FollowJet;
+        if (heightTape != null) heightTape.SetVisible(false);
+    }
+
+    private void Start()
+    {
+        heightTape = MaxAltitudeHeightTape.Ensure(simulationManager);
+        if (heightTape != null) heightTape.SetVisible(true);
     }
 
     public void FollowJet(JetAgent jet)

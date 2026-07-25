@@ -834,7 +834,16 @@ public class SimulationManager : MonoBehaviour
         stats.Finish(jet, challengeObjective, ChallengeRaceElapsed);
         SetChallengeParticipantActive(jet, false);
 
-        if (isPlayer) challengePlayerFinished = true;
+        if (isPlayer)
+        {
+            challengePlayerFinished = true;
+
+            // Keep spectating the race instead of staring at the player's frozen
+            // wreck/finish position while the saved AI is still flying.
+            if (!challengeAIFinished && challengeAI != null)
+                if (challengeCamera != null)
+                    challengeCamera.Follow(challengeAI.transform);
+        }
         else challengeAIFinished = true;
     }
 

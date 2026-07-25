@@ -17,7 +17,11 @@ public class UISection : FoldablePanel
     protected override void Awake()
     {
         base.Awake();
-        if (headerLabel) headerLabel.text = sectionTitle;
+        if (headerLabel)
+        {
+            headerLabel.text = sectionTitle;
+            FixHeaderLabelLayout();
+        }
         RebindWidgets();
     }
 
@@ -31,8 +35,44 @@ public class UISection : FoldablePanel
         sectionTitle = title;
         if (header != null) headerLabel = header; // null keeps a prefab's own label
         widgetSeperatorPrefab = separatorPrefab;
-        if (headerLabel) headerLabel.text = sectionTitle;
+        if (headerLabel)
+        {
+            headerLabel.text = sectionTitle;
+            FixHeaderLabelLayout();
+        }
         RebindWidgets();
+    }
+
+    /// <summary>
+    /// Keeps section names on one line in both the compact runtime chrome and the
+    /// older scene-authored Canvas prefab. The latter serialized a narrow fixed
+    /// Title rect, which made "Simulation Controls" wrap despite spare header room.
+    /// </summary>
+    private void FixHeaderLabelLayout()
+    {
+        headerLabel.textWrappingMode = TextWrappingModes.NoWrap;
+        headerLabel.overflowMode = TextOverflowModes.Overflow;
+
+        RectTransform rect = headerLabel.rectTransform;
+        HorizontalLayoutGroup layout = rect.parent != null
+            ? rect.parent.GetComponent<HorizontalLayoutGroup>()
+            : null;
+        if (layout != null)
+        {
+            LayoutElement element = headerLabel.GetComponent<LayoutElement>();
+            if (element == null) element = headerLabel.gameObject.AddComponent<LayoutElement>();
+            element.minWidth = 0f;
+            element.flexibleWidth = 1f;
+            return;
+        }
+
+        // Preserve every serialized RectTransform value in scene-authored headers.
+        // Their 287 px title field is slightly too narrow at 36 pt, so allow TMP to
+        // shrink only as much as needed instead of rewriting anchors at Awake.
+        float authoredSize = headerLabel.fontSize;
+        headerLabel.enableAutoSizing = true;
+        headerLabel.fontSizeMax = authoredSize;
+        headerLabel.fontSizeMin = Mathf.Min(18f, authoredSize);
     }
 
     // Rescans children for widgets; inserts separators once, the first time more
