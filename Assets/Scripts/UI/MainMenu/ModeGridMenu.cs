@@ -5,7 +5,7 @@ using UnityEngine.UI;
 
 /// <summary>
 /// The whole main menu on one screen: title, a grid of mode cards, and a footer holding
-/// the selected mode's description, the AI selector and Play.
+/// the selected mode's description, the AI selector and saved-run actions.
 ///
 /// Replaces the two-step flow (three buttons → selection window) of the original MainMenu
 /// scene. With a fixed set of four modes there is nothing to page through, so every mode
@@ -48,6 +48,11 @@ public class ModeGridMenu : MonoBehaviour
     private const float AIButtonWidth = 132f;
     private const float AIRowSpacing = 8f;
     private const float AIRowWidth = 4f * AIButtonWidth + 3f * AIRowSpacing;
+    private const float ActionGap = 12f;
+    private const float SecondaryActionWidth = 130f;
+    private const float LoadActionWidth = 240f;
+    private const float ActionRowWidth =
+        2f * SecondaryActionWidth + LoadActionWidth + 2f * ActionGap;
     private const int CardRadius = 12;
     private static readonly Vector2 CornerButtonSize = new Vector2(140f, 50f);
 
@@ -58,6 +63,9 @@ public class ModeGridMenu : MonoBehaviour
     private TextMeshProUGUI modeDescription;
     private AITypeSelector aiSelector;
     private ContinueTrainingDialog continueDialog;
+    private Button challengeButton;
+    private Button trainingStatsButton;
+    private TrainingStatsOverlay trainingStatsOverlay;
 
     private void Start()
     {
@@ -232,9 +240,9 @@ public class ModeGridMenu : MonoBehaviour
         return badge.gameObject;
     }
 
-    // Footer reading order, left to right: what you picked, how it should learn, and the
-    // button that starts it. Play sits on the right edge, centred against the AI row
-    // rather than hanging below it.
+    // Footer reading order, left to right: what you picked, how it should learn, and
+    // saved-run actions. The larger Load action is flanked by smaller Stats and Challenge
+    // buttons so all three remain one clear group.
     private void BuildFooter()
     {
         Image footer = MenuUI.Panel(transform, "Footer", UITheme.Panel);
@@ -247,20 +255,16 @@ public class ModeGridMenu : MonoBehaviour
         modeTitle = MenuUI.Label(footer.transform, "ModeTitle", string.Empty, 34f,
             UITheme.Accent, TextAlignmentOptions.TopLeft, FontStyles.Bold);
         MenuUI.Place(modeTitle.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
-            new Vector2(640f, 44f), new Vector2(SideMargin, -34f));
+            new Vector2(400f, 44f), new Vector2(SideMargin, -34f));
 
         modeDescription = MenuUI.Label(footer.transform, "ModeDescription", string.Empty, 20f,
             UITheme.TextColor, TextAlignmentOptions.TopLeft);
         MenuUI.Place(modeDescription.rectTransform, new Vector2(0f, 1f), new Vector2(0f, 1f),
-            new Vector2(640f, 120f), new Vector2(SideMargin, -86f));
+            new Vector2(400f, 120f), new Vector2(SideMargin, -86f));
 
-        Button play = MenuUI.TextButton(footer.transform, "LoadButton", "LOAD", 38f);
-        MenuUI.Place(play.image.rectTransform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
-            new Vector2(300f, 78f), new Vector2(-SideMargin, 0f));
-        UITheme.StylePrimary(play);
-        play.onClick.AddListener(OnPlayClicked);
+        BuildActionRow(footer.transform);
 
-        float aiRight = -(SideMargin + 300f + 44f); // clear of Play, with a gap
+        float aiRight = -(SideMargin + ActionRowWidth + 44f); // clear of actions, with a gap
 
         TextMeshProUGUI caption = MenuUI.Label(footer.transform, "Caption", "Select AI", 18f,
             UITheme.TextDimmed, TextAlignmentOptions.Left);
@@ -268,6 +272,37 @@ public class ModeGridMenu : MonoBehaviour
             new Vector2(AIRowWidth, 24f), new Vector2(aiRight, 42f));
 
         BuildAISelector(footer.transform, aiRight);
+    }
+
+    private void BuildActionRow(Transform footer)
+    {
+        var row = new GameObject("RunActions", typeof(RectTransform));
+        row.transform.SetParent(footer, worldPositionStays: false);
+        MenuUI.Place((RectTransform)row.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
+            new Vector2(ActionRowWidth, 78f), new Vector2(-SideMargin, 0f));
+
+        var layout = row.AddComponent<HorizontalLayoutGroup>();
+        layout.spacing = ActionGap;
+        layout.childAlignment = TextAnchor.MiddleCenter;
+        layout.childControlWidth = false;
+        layout.childControlHeight = false;
+        layout.childForceExpandWidth = false;
+        layout.childForceExpandHeight = false;
+
+        trainingStatsButton = MenuUI.TextButton(row.transform, "TrainingStatsButton", "STATS", 19f);
+        trainingStatsButton.image.rectTransform.sizeDelta = new Vector2(SecondaryActionWidth, 64f);
+        trainingStatsButton.onClick.AddListener(ShowTrainingStats);
+
+        Button load = MenuUI.TextButton(row.transform, "LoadButton", "LOAD", 38f);
+        load.image.rectTransform.sizeDelta = new Vector2(LoadActionWidth, 78f);
+        UITheme.StylePrimary(load);
+        load.onClick.AddListener(OnPlayClicked);
+
+        challengeButton = MenuUI.TextButton(row.transform, "ChallengeButton", "CHALLENGE", 17f);
+        challengeButton.image.rectTransform.sizeDelta = new Vector2(SecondaryActionWidth, 64f);
+        challengeButton.onClick.AddListener(OnChallengeClicked);
+
+        RefreshSecondaryActions();
     }
 
     private void BuildAISelector(Transform footer, float rightOffset)
@@ -304,12 +339,12 @@ public class ModeGridMenu : MonoBehaviour
 
         // Subscribed after the writer, so GameSession already holds the new AI type by the
         // time the badges ask which tracks have a save for it.
-        aiSelector.onOptionSelected.AddListener(_ => RefreshSaveBadges());
+        aiSelector.onOptionSelected.AddListener(_ => RefreshSaveState());
     }
 
     // Which tracks have a saved run depends on the chosen AI type, so every card refreshes
     // whenever that changes.
-    private void RefreshSaveBadges()
+    private void RefreshSaveState()
     {
         bool known = GameSession.SelectedAIType.HasValue;
         foreach (ModeCard card in cards)
@@ -317,6 +352,18 @@ public class ModeGridMenu : MonoBehaviour
             card.SetHasSave(known && card.Data != null && DataManager.HasTrainingState(
                 DataManager.ResolveTrackId(card.Data.SceneToLoad), GameSession.SelectedAIType.Value));
         }
+
+        RefreshSecondaryActions();
+    }
+
+    private void RefreshSecondaryActions()
+    {
+        TrainingSaveData saved = GetSelectedSave();
+        if (trainingStatsButton != null)
+            trainingStatsButton.interactable = saved != null;
+        if (challengeButton != null)
+            challengeButton.interactable = saved != null
+                                           && saved.Mode == DataManager.GameMode.FlightSchool;
     }
 
     // ── Selection ────────────────────────────────────────────────────
@@ -335,6 +382,7 @@ public class ModeGridMenu : MonoBehaviour
         // Switching mode drops back to the default AI so a previous pick doesn't
         // silently carry over — same rule the old selection window followed.
         if (aiSelector != null && aiSelector.isActiveAndEnabled) aiSelector.ResetToDefault();
+        RefreshSaveState();
     }
 
     // ── Actions ──────────────────────────────────────────────────────
@@ -362,8 +410,46 @@ public class ModeGridMenu : MonoBehaviour
 
     private void StartRun(bool loadSave)
     {
+        GameSession.StartChallengeOnStart = false;
         GameSession.LoadSaveOnStart = loadSave; // consumed by SimulationManager.Start
         currentMode.LoadScene();
+    }
+
+    private void OnChallengeClicked()
+    {
+        TrainingSaveData saved = GetSelectedSave();
+        if (saved == null || saved.Mode != DataManager.GameMode.FlightSchool)
+        {
+            RefreshSecondaryActions();
+            return;
+        }
+
+        GameSession.LoadSaveOnStart = false;
+        GameSession.StartChallengeOnStart = true; // consumed by SimulationManager.Start
+        currentMode.LoadScene();
+    }
+
+    private void ShowTrainingStats()
+    {
+        TrainingSaveData saved = GetSelectedSave();
+        if (saved == null)
+        {
+            RefreshSecondaryActions();
+            return;
+        }
+
+        Canvas canvas = GetComponentInParent<Canvas>();
+        trainingStatsOverlay ??= TrainingStatsOverlay.Ensure(canvas);
+        trainingStatsOverlay?.Show(currentMode, saved);
+    }
+
+    private TrainingSaveData GetSelectedSave()
+    {
+        if (currentMode == null || GameSession.SelectedAIType is not AIType aiType)
+            return null;
+
+        string track = DataManager.ResolveTrackId(currentMode.SceneToLoad);
+        return DataManager.LoadTrainingState(track, aiType);
     }
 
     public void OpenSettings()
