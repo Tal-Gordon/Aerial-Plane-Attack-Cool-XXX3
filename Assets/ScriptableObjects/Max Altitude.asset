@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Max Altitude
   m_EditorClassIdentifier: Assembly-CSharp::GameModeData
   modeName: Max Altitude
-  description: 
+  description: No course and no hoops. Every jet gets one timed run to climb as high
+    as it can, with a small penalty for thrashing the controls to get there.
   heroArtwork: {fileID: 0}
   sceneName: Max Altitude

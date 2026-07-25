@@ -27,6 +27,10 @@ public class RLParadigm : ITrainingParadigm
     // stays comparable to the AVG). Starts at -inf so the first episode registers.
     private float bestEpisodeScore = float.NegativeInfinity;
     private float trainingStartTime;
+    private float elapsedBeforeCurrentSession;
+    private TrainingRunHistory runHistory = new TrainingRunHistory();
+    private ScoreDistributionData lastSavedScoreDistribution;
+    private int lastHistoryEpisode;
 
     // bestEpisodeScore before any episode completes is the -inf sentinel; report 0
     // instead so the save metadata never shows "-Infinity".
@@ -262,10 +266,20 @@ public class RLParadigm : ITrainingParadigm
         cachedSnapshot.IterationNumber = totalEpisodes;
         cachedSnapshot.ChampionScore = ReportedBest; // all-time, used by inference/save
         cachedSnapshot.RLData.TotalEpisodes = totalEpisodes;
-        cachedSnapshot.RLData.TrainingTime = Time.time - trainingStartTime;
+        cachedSnapshot.RLData.TrainingTime =
+            elapsedBeforeCurrentSession + Mathf.Max(0f, Time.time - trainingStartTime);
         cachedSnapshot.ElapsedTime = cachedSnapshot.RLData.TrainingTime;
         cachedSnapshot.RLData.CurrentMax = curMax;
         cachedSnapshot.RLData.CurrentAvg = curAvg;
+
+        // Match the live telemetry graph's cadence: record at most once per rendered
+        // snapshot even if many agents finish between frames. This avoids scanning a
+        // large population once for every simultaneous episode end.
+        if (totalEpisodes > lastHistoryEpisode)
+        {
+            runHistory.Append(totalEpisodes, curMax, curAvg);
+            lastHistoryEpisode = totalEpisodes;
+        }
 
         return cachedSnapshot;
     }
@@ -281,6 +295,7 @@ public class RLParadigm : ITrainingParadigm
 
         if (episodeReward > bestEpisodeScore)
             bestEpisodeScore = episodeReward;
+
     }
 
     public IBrain GetChampionBrain()
@@ -371,6 +386,13 @@ public class RLParadigm : ITrainingParadigm
             Debug.LogWarning($"[RLParadigm] Save taken, but the trainer hasn't written a NEW checkpoint this session (it checkpoints every {settings.RLSettings.CheckpointInterval} steps) — loading this save resumes from the previously saved step, not from current progress. Train past the next checkpoint and save again to capture it.");
 
         ComputeCurrentStats(out float topScore, out float average);
+        if (totalEpisodes > lastHistoryEpisode)
+        {
+            runHistory.Append(totalEpisodes, topScore, average);
+            lastHistoryEpisode = totalEpisodes;
+        }
+        ScoreDistributionData distribution = CaptureScoreDistribution()
+                                             ?? lastSavedScoreDistribution?.Clone();
 
         var data = new TrainingSaveData
         {
@@ -384,7 +406,11 @@ public class RLParadigm : ITrainingParadigm
             ChampionScore = ReportedBest,
             TopScore = topScore,
             AverageScore = average,
+            TrainingElapsedSeconds =
+                elapsedBeforeCurrentSession + Mathf.Max(0f, Time.time - trainingStartTime),
             SavedAtUtc = DateTime.UtcNow.ToString("o"),
+            RunHistory = runHistory.Clone(),
+            ScoreDistribution = distribution,
             // Opaque marker for the RL path: the run-id whose checkpoint snapshot
             // backs this save. Non-empty so HasTrainingState / load checks pass.
             EngineState = RunId,
@@ -413,6 +439,11 @@ public class RLParadigm : ITrainingParadigm
             // old save will show an inflated BEST until you re-save with current code.)
             bestEpisodeScore = data.ChampionScore;
             totalEpisodes = data.Generation;
+            elapsedBeforeCurrentSession = Mathf.Max(0f, data.TrainingElapsedSeconds);
+            runHistory = data.RunHistory?.Clone() ?? new TrainingRunHistory();
+            lastSavedScoreDistribution = data.ScoreDistribution?.Clone();
+            lastHistoryEpisode = totalEpisodes;
+            trainingStartTime = Time.time;
         }
 
         bool resume = StageSavedCheckpoint();
@@ -420,6 +451,18 @@ public class RLParadigm : ITrainingParadigm
             Debug.LogWarning($"[RLParadigm] No usable checkpoint in the save for {DataManager.CurrentTrack}/{settings.AIType}; starting a fresh run instead.");
 
         StartTrainer(resume);
+    }
+
+    private ScoreDistributionData CaptureScoreDistribution()
+    {
+        var scores = new List<float>();
+        for (int i = 0; i < lastEpisodeScores.Length; i++)
+        {
+            if (hasReported[i])
+                scores.Add(lastEpisodeScores[i]);
+        }
+
+        return ScoreDistributionData.FromScores(scores);
     }
 
     // Stages the saved checkpoint into the live results dir so the trainer can

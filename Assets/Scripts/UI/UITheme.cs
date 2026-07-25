@@ -41,7 +41,11 @@ public static class UITheme
     private static readonly HashSet<string> BuiltinSprites = new HashSet<string>
     {
         "UISprite", "Background", "InputFieldBackground", "Knob", "Checkmark", "DropdownArrow", "UIMask",
+        RoundedRectSpriteName, // ours, but it's chrome rather than artwork — recolour it
     };
+
+    private const string RoundedRectSpriteName = "RoundedRect";
+    private static readonly Dictionary<int, Sprite> RoundedRects = new Dictionary<int, Sprite>();
 
     /// <summary>
     /// Re-skins an existing UI hierarchy in place: plain images become dark panels,
@@ -193,6 +197,52 @@ public static class UITheme
             tex.SetPixel(0, y, Color.Lerp(bottom, top, (float)y / (steps - 1)));
         tex.Apply();
         return Sprite.Create(tex, new Rect(0f, 0f, 1f, steps), new Vector2(0.5f, 0.5f));
+    }
+
+    /// <summary>
+    /// A 9-sliced rounded-rectangle sprite for panels, cards and buttons — set it on an
+    /// Image with <c>type = Sliced</c> and the corners hold their radius at any size.
+    /// Generated rather than taken from Unity's built-in UISprite so the radius is ours to
+    /// choose, and anti-aliased over one pixel so the curve doesn't stair-step.
+    /// Cached per radius; the texture is tiny (a couple of hundred bytes).
+    /// </summary>
+    public static Sprite RoundedRectSprite(int cornerRadius)
+    {
+        cornerRadius = Mathf.Clamp(cornerRadius, 1, 64);
+        if (RoundedRects.TryGetValue(cornerRadius, out Sprite cached) && cached != null)
+            return cached;
+
+        int size = cornerRadius * 2 + 2; // the 2 spare pixels are the stretchable middle
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
+        {
+            wrapMode = TextureWrapMode.Clamp,
+            filterMode = FilterMode.Bilinear,
+            name = RoundedRectSpriteName,
+        };
+
+        float radius = cornerRadius;
+        var pixels = new Color32[size * size];
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                // Distance past the corner arc, measured from the nearest corner centre.
+                // Straight edges and the middle sit at 0 and come out fully opaque.
+                float dx = Mathf.Max(0f, Mathf.Max(radius - (x + 0.5f), (x + 0.5f) - (size - radius)));
+                float dy = Mathf.Max(0f, Mathf.Max(radius - (y + 0.5f), (y + 0.5f) - (size - radius)));
+                float alpha = Mathf.Clamp01(radius - Mathf.Sqrt(dx * dx + dy * dy) + 0.5f);
+                pixels[y * size + x] = new Color32(255, 255, 255, (byte)(alpha * 255f));
+            }
+        }
+        tex.SetPixels32(pixels);
+        tex.Apply();
+
+        Sprite sprite = Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f),
+            100f, 0, SpriteMeshType.FullRect, new Vector4(radius, radius, radius, radius));
+        sprite.name = RoundedRectSpriteName;
+
+        RoundedRects[cornerRadius] = sprite;
+        return sprite;
     }
 
     // ── internals ──

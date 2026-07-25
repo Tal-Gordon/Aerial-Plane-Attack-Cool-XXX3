@@ -30,8 +30,11 @@ public class EvolutionaryParadigm : ITrainingParadigm
     // Marks when this run started (scaled time), so the snapshot can report a TIME
     // the same way RLParadigm does. Reset on every Initialize (i.e. on rebuild).
     private float startTime;
+    private float elapsedBeforeCurrentSession;
 
     private JetAgent inferenceJet;
+    private TrainingRunHistory runHistory = new TrainingRunHistory();
+    private ScoreDistributionData latestScoreDistribution;
 
     private SimulationSnapshot cachedSnapshot;
 
@@ -136,6 +139,11 @@ public class EvolutionaryParadigm : ITrainingParadigm
                 population.Count > 0 ? sumScore / population.Count : 0f;
             cachedSnapshot.EvoData.LastGenerationMax =
                 population.Count > 0 ? maxScore : 0f;
+            runHistory.Append(
+                currentGeneration,
+                cachedSnapshot.EvoData.LastGenerationMax,
+                cachedSnapshot.EvoData.LastGenerationAverage);
+            latestScoreDistribution = ScoreDistributionData.FromScores(fitnessScores);
 
             string breakdownStr = "";
             if (bestAgent != null)
@@ -210,7 +218,8 @@ public class EvolutionaryParadigm : ITrainingParadigm
         // Update the cached snapshot values
         cachedSnapshot.IterationNumber = currentGeneration;
         cachedSnapshot.AgentsAlive = aliveCount;
-        cachedSnapshot.ElapsedTime = Time.time - startTime;
+        cachedSnapshot.ElapsedTime =
+            elapsedBeforeCurrentSession + Mathf.Max(0f, Time.time - startTime);
         cachedSnapshot.ChampionScore = engine.GetChampionScore();
         cachedSnapshot.EvoData.ChampionBrain = engine.GetChampionBrain();
         cachedSnapshot.EvoData.MutationRate = settings.ActiveEvoSettings.MutationRate;
@@ -272,7 +281,11 @@ public class EvolutionaryParadigm : ITrainingParadigm
             ChampionScore = engine.GetChampionScore(),
             TopScore = topScore,
             AverageScore = average,
+            TrainingElapsedSeconds =
+                elapsedBeforeCurrentSession + Mathf.Max(0f, Time.time - startTime),
             SavedAtUtc = System.DateTime.UtcNow.ToString("o"),
+            RunHistory = runHistory.Clone(),
+            ScoreDistribution = latestScoreDistribution?.Clone(),
             EngineState = engine.CaptureState(),
         };
 
@@ -293,6 +306,10 @@ public class EvolutionaryParadigm : ITrainingParadigm
 
         // Resume the generation counter so the run continues where it left off
         currentGeneration = Mathf.Max(1, data.Generation);
+        elapsedBeforeCurrentSession = Mathf.Max(0f, data.TrainingElapsedSeconds);
+        runHistory = data.RunHistory?.Clone() ?? new TrainingRunHistory();
+        latestScoreDistribution = data.ScoreDistribution?.Clone();
+        startTime = Time.time;
 
         // Assign restored brains and respawn the whole population for the next generation
         int n = Mathf.Min(population.Count, restoredBrains.Count);
