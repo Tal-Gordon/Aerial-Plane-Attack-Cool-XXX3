@@ -10,24 +10,12 @@
 Aerial Plane Attack puts several learning approaches into the same 3D flight environment so they can be trained, observed, tuned, saved, and compared under the same physics and objectives. Jets can learn to gain altitude or race through waypoint courses using fixed-topology neuroevolution, NEAT, PPO, or SAC.
 
 ## Visuals
+<img width="1917" height="995" alt="image" src="https://github.com/user-attachments/assets/42379142-194b-4711-bf85-b6421494e03a" />
 
-> [!NOTE]
-> **Project demo placeholder** — add a screenshot, GIF, or short video here when the media is ready.
->
-> Suggested file: `docs/media/training-demo.gif`
+&nbsp;
 
-<!-- Replace the note above with:
-![Jets learning to fly through a waypoint course](docs/media/training-demo.gif)
--->
+<img width="1915" height="1001" alt="image" src="https://github.com/user-attachments/assets/be4014ba-df0e-49e3-ad80-2d2ede6d14c3" />
 
-> [!NOTE]
-> **Telemetry / architecture screenshot placeholder** — this is a good place for the training dashboard, brain visualizer, or runtime parameter editor.
->
-> Suggested file: `docs/media/telemetry-dashboard.png`
-
-<!-- Replace the note above with:
-![Runtime training telemetry and parameter controls](docs/media/telemetry-dashboard.png)
--->
 
 ## What the project does
 
