@@ -38,7 +38,16 @@ public class GameModeSelectionController : MonoBehaviour
     // needs scene wiring and the UITheme look is applied automatically.
     private GameObject continueDialog;
     private TextMeshProUGUI continueDialogBody;
+    private Button challengeButton;
     private GameModeData pendingMode; // mode awaiting the player's continue/fresh choice
+
+    // Read-only saved-run report. Built beside Play so the scene needs no new
+    // serialized references and every track shares the same overlay.
+    private Button trainingStatsButton;
+    private TextMeshProUGUI trainingStatsButtonLabel;
+    private TrainingStatsOverlay trainingStatsOverlay;
+    private AIType? statsButtonAI;
+    private string statsButtonTrack;
 
     void Start()
     {
@@ -50,12 +59,25 @@ public class GameModeSelectionController : MonoBehaviour
         // all text neutral).
         UITheme.StylePrimary(heroButton);
         if (heroTitleText != null) heroTitleText.color = UITheme.Accent;
+        BuildTrainingStatsButton();
 
         // Auto-select the first mode so the screen isn't empty when it loads
         if (availableModes.Count > 0)
         {
             SelectMode(availableModes[0]);
         }
+    }
+
+    private void Update()
+    {
+        // AITypeSelector and this controller can receive Start in either order.
+        // Refresh only when the selected save slot changes.
+        AIType? selectedAI = GameSession.SelectedAIType;
+        string selectedTrack = currentMode != null
+            ? DataManager.ResolveTrackId(currentMode.SceneToLoad)
+            : null;
+        if (selectedAI != statsButtonAI || selectedTrack != statsButtonTrack)
+            RefreshTrainingStatsButton();
     }
 
     void PopulateList()
@@ -104,6 +126,8 @@ public class GameModeSelectionController : MonoBehaviour
             aiTypeSelector = FindFirstObjectByType<AITypeSelector>();
         if (aiTypeSelector != null && aiTypeSelector.isActiveAndEnabled)
             aiTypeSelector.ResetToDefault();
+
+        RefreshTrainingStatsButton();
 
         // Note: This is exactly where you would add your DOTween or LeanTween
         // code to fade the text in or briefly scale up the hero image!
@@ -178,6 +202,7 @@ public class GameModeSelectionController : MonoBehaviour
         if (!hasSave)
         {
             GameSession.LoadSaveOnStart = false;
+            GameSession.StartChallengeOnStart = false;
             mode.LoadScene();
             return;
         }
@@ -197,9 +222,22 @@ public class GameModeSelectionController : MonoBehaviour
             return;
         }
 
+        TrainingSaveData saved = DataManager.LoadTrainingState(
+            DataManager.ResolveTrackId(mode.SceneToLoad), aiType);
+        bool canChallenge = saved != null
+                            && saved.Mode == DataManager.GameMode.FlightSchool;
+
         continueDialogBody.text =
             $"'{mode.modeName}' has a saved {PrettyAIName(aiType)} training run.\n" +
-            "Continue from the latest save, or start over from the default settings?";
+            (canChallenge
+                ? "Continue from the latest save, challenge its best run, or start over?"
+                : "Continue from the latest save, or start over from the default settings?");
+
+        if (challengeButton != null)
+        {
+            challengeButton.gameObject.SetActive(canChallenge);
+            challengeButton.interactable = canChallenge;
+        }
 
         continueDialog.transform.SetAsLastSibling(); // draw above the selection window
         continueDialog.SetActive(true);
@@ -213,6 +251,7 @@ public class GameModeSelectionController : MonoBehaviour
     private void OnContinueSave()
     {
         HideContinueDialog();
+        GameSession.StartChallengeOnStart = false;
         GameSession.LoadSaveOnStart = true; // consumed by SimulationManager.Start
         pendingMode?.LoadScene();
     }
@@ -220,7 +259,16 @@ public class GameModeSelectionController : MonoBehaviour
     private void OnStartFresh()
     {
         HideContinueDialog();
+        GameSession.StartChallengeOnStart = false;
         GameSession.LoadSaveOnStart = false;
+        pendingMode?.LoadScene();
+    }
+
+    private void OnChallengeSave()
+    {
+        HideContinueDialog();
+        GameSession.LoadSaveOnStart = false;
+        GameSession.StartChallengeOnStart = true; // consumed by SimulationManager.Start
         pendingMode?.LoadScene();
     }
 
@@ -232,6 +280,80 @@ public class GameModeSelectionController : MonoBehaviour
         AIType.SAC_MLAgents  => "SAC",
         _                    => type.ToString(),
     };
+
+    // -- Saved training stats ------------------------------------------------
+
+    private void BuildTrainingStatsButton()
+    {
+        if (heroButton == null || trainingStatsButton != null) return;
+
+        RectTransform playRect = heroButton.GetComponent<RectTransform>();
+        if (playRect == null) return;
+
+        // Split the existing centered Play position into two balanced actions.
+        Vector2 originalPosition = playRect.anchoredPosition;
+        playRect.anchoredPosition = originalPosition + new Vector2(145f, 0f);
+
+        Image image = AddImage(playRect.parent, "Training Stats", UITheme.Field);
+        RectTransform statsRect = image.rectTransform;
+        statsRect.anchorMin = playRect.anchorMin;
+        statsRect.anchorMax = playRect.anchorMax;
+        statsRect.pivot = playRect.pivot;
+        statsRect.sizeDelta = playRect.sizeDelta;
+        statsRect.anchoredPosition = originalPosition - new Vector2(145f, 0f);
+
+        trainingStatsButton = image.gameObject.AddComponent<Button>();
+        trainingStatsButton.targetGraphic = image;
+        UITheme.StyleSelectable(trainingStatsButton);
+        trainingStatsButton.onClick.AddListener(ShowTrainingStats);
+
+        trainingStatsButtonLabel = AddDialogLabel(
+            image.transform, "Text", "TRAINING STATS",
+            19f, UITheme.TextColor, FontStyles.Bold);
+        StretchRect(trainingStatsButtonLabel.rectTransform);
+        RefreshTrainingStatsButton();
+    }
+
+    private void RefreshTrainingStatsButton()
+    {
+        AIType? selectedAI = GameSession.SelectedAIType;
+        string track = currentMode != null
+            ? DataManager.ResolveTrackId(currentMode.SceneToLoad)
+            : null;
+
+        statsButtonAI = selectedAI;
+        statsButtonTrack = track;
+
+        if (trainingStatsButton == null) return;
+        bool hasSave = selectedAI.HasValue
+                       && !string.IsNullOrEmpty(track)
+                       && DataManager.HasTrainingState(track, selectedAI.Value);
+        trainingStatsButton.interactable = hasSave;
+        if (trainingStatsButtonLabel != null)
+            trainingStatsButtonLabel.text = hasSave
+                ? "TRAINING STATS"
+                : "NO SAVED STATS";
+    }
+
+    private void ShowTrainingStats()
+    {
+        if (currentMode == null || GameSession.SelectedAIType is not AIType aiType)
+            return;
+
+        string track = DataManager.ResolveTrackId(currentMode.SceneToLoad);
+        TrainingSaveData data = DataManager.LoadTrainingState(track, aiType);
+        if (data == null)
+        {
+            RefreshTrainingStatsButton();
+            return;
+        }
+
+        Canvas canvas = heroButton != null
+            ? heroButton.GetComponentInParent<Canvas>()
+            : null;
+        trainingStatsOverlay ??= TrainingStatsOverlay.Ensure(canvas);
+        trainingStatsOverlay?.Show(currentMode, data);
+    }
 
     // Code-built modal in the SettingsMenu style: full-screen dim (click = cancel),
     // centred panel with the accent top stroke, title, body, and two buttons.
@@ -255,10 +377,10 @@ public class GameModeSelectionController : MonoBehaviour
         dimButton.onClick.AddListener(HideContinueDialog);
 
         Image panel = AddImage(root.transform, "Panel", UITheme.Panel);
-        CenterRect(panel.rectTransform, new Vector2(640f, 300f));
+        CenterRect(panel.rectTransform, new Vector2(680f, 380f));
 
         Image accent = AddImage(panel.transform, "AccentLine", UITheme.Accent);
-        TopRect(accent.rectTransform, new Vector2(640f, 2f), Vector2.zero);
+        TopRect(accent.rectTransform, new Vector2(680f, 2f), Vector2.zero);
 
         TextMeshProUGUI title = AddDialogLabel(panel.transform, "Title", "Continue training?", 30f, UITheme.Accent, FontStyles.Bold);
         TopRect(title.rectTransform, new Vector2(600f, 44f), new Vector2(0f, -26f));
@@ -266,9 +388,12 @@ public class GameModeSelectionController : MonoBehaviour
         continueDialogBody = AddDialogLabel(panel.transform, "Body", string.Empty, 20f, UITheme.TextColor, FontStyles.Normal);
         TopRect(continueDialogBody.rectTransform, new Vector2(560f, 90f), new Vector2(0f, -84f));
 
+        challengeButton = BuildDialogButton(panel.transform, "Challenge best run", new Vector2(0f, 108f));
+        challengeButton.onClick.AddListener(OnChallengeSave);
+        UITheme.StylePrimary(challengeButton);
+
         Button continueButton = BuildDialogButton(panel.transform, "Continue save", new Vector2(-150f, 36f));
         continueButton.onClick.AddListener(OnContinueSave);
-        UITheme.StylePrimary(continueButton); // resuming progress is the safe default
 
         Button freshButton = BuildDialogButton(panel.transform, "Start from default", new Vector2(150f, 36f));
         freshButton.onClick.AddListener(OnStartFresh);

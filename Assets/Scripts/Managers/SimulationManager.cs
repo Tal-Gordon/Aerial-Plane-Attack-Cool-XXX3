@@ -39,6 +39,39 @@ public class SimulationManager : MonoBehaviour
     // toggle key rebuilds the training run from the same save (LoadState).
     private bool inInferenceMode = false;
 
+    // Saved-run challenge state: one frozen-policy AI versus one human clone.
+    private bool inChallengeMode;
+    private bool challengeReturnToMenu;
+    private bool challengeRaceRunning;
+    private bool challengeResultsShown;
+    private bool challengeWaitingForPolicy;
+    private bool challengePlayerFinished;
+    private bool challengeAIFinished;
+    private float challengeCountdownEndsAt;
+    private float challengeRaceStartedAt;
+    private JetAgent challengePlayer;
+    private JetAgent challengeAI;
+    private PlayerController challengePlayerController;
+    private FlightSchoolObjective challengeObjective;
+    private ChallengeRaceStats playerChallengeStats;
+    private ChallengeRaceStats aiChallengeStats;
+    private ChallengeModeUI challengeUI;
+    private ChallengeFollowCamera challengeCamera;
+
+    public JetAgent ChallengePlayer => challengePlayer;
+    public JetAgent ChallengeAI => challengeAI;
+    public PlayerController ChallengePlayerController => challengePlayerController;
+    public ChallengeRaceStats PlayerChallengeStats => playerChallengeStats;
+    public ChallengeRaceStats AIChallengeStats => aiChallengeStats;
+    public bool IsChallengeRaceRunning => inChallengeMode && challengeRaceRunning;
+    public bool IsChallengeWaitingForAI => inChallengeMode && challengeWaitingForPolicy;
+    public float ChallengeRaceElapsed =>
+        challengeRaceRunning ? Mathf.Max(0f, Time.time - challengeRaceStartedAt) : 0f;
+    public float ChallengeCountdownRemaining =>
+        inChallengeMode && !challengeRaceRunning
+            ? Mathf.Max(0f, challengeCountdownEndsAt - Time.unscaledTime)
+            : 0f;
+
     // Save-slot key for this run: the active scene (track). Each scene saves
     // independently, so two tracks sharing an objective type (e.g. the FlightSchool
     // tracks) never clobber each other. The objective's Mode is still used for
@@ -114,10 +147,22 @@ public class SimulationManager : MonoBehaviour
             else
                 Debug.LogWarning($"[SimulationManager] Continue requested but no save exists for {Track}/{settings.AIType}; starting fresh.");
         }
+
+        if (GameSession.StartChallengeOnStart)
+        {
+            GameSession.StartChallengeOnStart = false;
+            EnterChallengeMode(returnToMenu: true);
+        }
     }
 
     private void FixedUpdate()
     {
+        if (inChallengeMode)
+        {
+            TickChallenge();
+            return;
+        }
+
         if (inInferenceMode)
         {
             // The paradigm owns the replay loop (evo pumps the objective + respawns;
@@ -133,6 +178,10 @@ public class SimulationManager : MonoBehaviour
 
     private void OnDestroy()
     {
+        // Unity's destroyed-object "fake null" is not respected by ?. — use its
+        // overloaded comparison before touching a component that may have been
+        // destroyed by an older rematch path.
+        if (challengeCamera != null) challengeCamera.Restore();
         activeParadigm?.Dispose();
         if (ParameterTuners.Reward != null) ParameterTuners.Reward = null;
         if (ParameterTuners.Hyperparameters != null) ParameterTuners.Hyperparameters = null;
@@ -332,6 +381,9 @@ public class SimulationManager : MonoBehaviour
         snapshot.SelectedAgent = selectedAgent;
         snapshot.TracksAttrition = objective != null && objective.TracksAttrition;
         snapshot.InInferenceMode = inInferenceMode;
+        snapshot.InChallengeMode = inChallengeMode;
+        snapshot.ChallengeUnavailableReason = GetChallengeUnavailableReason();
+        snapshot.ChallengeAvailable = string.IsNullOrEmpty(snapshot.ChallengeUnavailableReason);
         snapshot.AIName = settings != null ? settings.AIType.DisplayName() : "—";
         snapshot.ObjectiveName = objective != null ? objective.Mode.DisplayName() : "—";
 
@@ -500,6 +552,376 @@ public class SimulationManager : MonoBehaviour
     }
 
     // ── Private helpers ──────────────────────────────────────────────
+
+    // ── Saved-run challenge ──────────────────────────────────────────
+
+    /// <summary>
+    /// Telemetry entry point. A challenge deliberately uses the last manual save,
+    /// so the confirmation explains that unsaved live progress is not part of it.
+    /// </summary>
+    public void RequestChallengeFromTraining()
+    {
+        string reason = GetChallengeUnavailableReason();
+        if (!string.IsNullOrEmpty(reason))
+        {
+            Debug.LogWarning($"[SimulationManager] Challenge unavailable: {reason}");
+            return;
+        }
+
+        challengeUI = ChallengeModeUI.Ensure(this);
+        challengeUI.ShowConfirmation(() => EnterChallengeMode(returnToMenu: false));
+    }
+
+    private string GetChallengeUnavailableReason()
+    {
+        if (inChallengeMode) return "CHALLENGE IN PROGRESS";
+        if (inInferenceMode) return "EXIT INFERENCE FIRST";
+        if (objective == null || settings == null) return "CHALLENGE UNAVAILABLE";
+        if (objective.Mode != DataManager.GameMode.FlightSchool) return "FLIGHT SCHOOL ONLY";
+        if (!DataManager.HasTrainingState(Track, settings.AIType)) return "SAVE REQUIRED";
+        return string.Empty;
+    }
+
+    /// <summary>
+    /// Replaces the current run with one frozen-policy AI and one human-controlled
+    /// clone. No save is written and no learning occurs.
+    /// </summary>
+    private bool EnterChallengeMode(bool returnToMenu)
+    {
+        if (inChallengeMode) return false;
+
+        string reason = GetChallengeUnavailableReason();
+        if (!string.IsNullOrEmpty(reason))
+        {
+            Debug.LogWarning($"[SimulationManager] Challenge unavailable: {reason}");
+            return false;
+        }
+
+        TrainingSaveData data = DataManager.LoadTrainingState(Track, settings.AIType);
+        if (data == null || data.Mode != DataManager.GameMode.FlightSchool)
+        {
+            Debug.LogWarning("[SimulationManager] The selected save is not a Flight School run.");
+            return false;
+        }
+
+        challengeObjective = objective as FlightSchoolObjective;
+        if (challengeObjective == null)
+        {
+            Debug.LogWarning("[SimulationManager] Flight School challenge requires FlightSchoolObjective.");
+            return false;
+        }
+
+        // The opponent must be exactly the saved run, including architecture,
+        // decision cadence, and objective parameters.
+        if (data.Settings != null) settings = data.Settings;
+        objective.SetParameters(data.ObjectiveParameters);
+
+        activeParadigm?.Dispose();
+        activeParadigm = null;
+
+        DestroyPopulation();
+
+        population = InstantiatePopulation(1);
+        ConfigureSensors(population, objective);
+        activeParadigm = CreateParadigm(settings.AIType);
+        if (activeParadigm == null) return false;
+        activeParadigm.Initialize(population, settings, objective);
+
+        if (!activeParadigm.CanRunInference || !activeParadigm.StartInference())
+        {
+            Debug.LogWarning("[SimulationManager] Saved AI could not start; restoring training from the save.");
+            LoadState();
+            return false;
+        }
+
+        challengeAI = population[0];
+        JetMLAgent policyAgent = challengeAI.GetComponent<JetMLAgent>();
+        if (policyAgent != null) policyAgent.SetChallengeMode(true);
+        ChallengeGhostVisual.Apply(challengeAI.gameObject);
+
+        GameObject playerObject = Instantiate(jetPrefab, GetOrCreateJetParent());
+        playerObject.name = "Player Challenge Jet";
+        challengePlayer = playerObject.GetComponent<JetAgent>();
+        var playerList = new List<JetAgent> { challengePlayer };
+        ConfigureSensors(playerList, objective);
+
+        challengePlayer.Brain = null;
+        challengePlayerController = playerObject.GetComponent<PlayerController>();
+        if (challengePlayerController == null)
+        {
+            Debug.LogError("[SimulationManager] Jet prefab is missing PlayerController; challenge cancelled.");
+            Destroy(playerObject);
+            activeParadigm.Dispose();
+            activeParadigm = null;
+            DestroyPopulation();
+            LoadState();
+            return false;
+        }
+        challengePlayerController.ConfigureForChallenge();
+
+        // Race only: projectiles can disturb the otherwise non-colliding comparison.
+        WeaponSystem playerWeapons = playerObject.GetComponent<WeaponSystem>();
+        if (playerWeapons != null) playerWeapons.enabled = false;
+        WeaponSystem aiWeapons = challengeAI.GetComponent<WeaponSystem>();
+        if (aiWeapons != null) aiWeapons.enabled = false;
+
+        playerChallengeStats = new ChallengeRaceStats { TotalHoops = challengeObjective.WaypointCount };
+        aiChallengeStats = new ChallengeRaceStats { TotalHoops = challengeObjective.WaypointCount };
+        challengePlayerFinished = false;
+        challengeAIFinished = false;
+        challengeRaceRunning = false;
+        challengeResultsShown = false;
+        challengeReturnToMenu = returnToMenu;
+        inChallengeMode = true;
+        inInferenceMode = false;
+
+        PrepareChallengeStartingGrid();
+        SetChallengeParticipantActive(challengePlayer, false);
+        SetChallengeParticipantActive(challengeAI, false, keepPolicyListening: true);
+        IgnoreParticipantCollisions();
+
+        Time.timeScale = 1f;
+        Time.fixedDeltaTime = 0.02f;
+        challengeWaitingForPolicy = policyAgent != null;
+        challengeCountdownEndsAt = challengeWaitingForPolicy
+            ? float.PositiveInfinity
+            : Time.unscaledTime + 3f;
+
+        challengeCamera = ChallengeFollowCamera.Attach(challengePlayer.transform);
+        challengeUI = ChallengeModeUI.Ensure(this);
+        challengeUI.ShowCountdown();
+        if (UIManager.Instance != null) UIManager.Instance.SetTelemetryVisible(false);
+
+        Debug.Log($"<color=yellow>[SimulationManager]</color> Challenge starting for {Track}/{settings.AIType}.");
+        return true;
+    }
+
+    private void TickChallenge()
+    {
+        if (!challengeRaceRunning)
+        {
+            if (challengeResultsShown) return;
+            if (challengeWaitingForPolicy)
+            {
+                JetMLAgent policyAgent = challengeAI != null
+                    ? challengeAI.GetComponent<JetMLAgent>()
+                    : null;
+                if (policyAgent == null || policyAgent.HasReceivedAction)
+                {
+                    challengeWaitingForPolicy = false;
+                    challengeCountdownEndsAt = Time.unscaledTime + 3f;
+                }
+                return;
+            }
+            if (Time.unscaledTime >= challengeCountdownEndsAt)
+                BeginChallengeRace();
+            return;
+        }
+
+        float elapsed = ChallengeRaceElapsed;
+
+        if (!challengePlayerFinished && challengePlayer != null)
+        {
+            playerChallengeStats.Sample(challengePlayer, challengeObjective, elapsed);
+            challengePlayer.CurrentFitness += challengeObjective.GetStepReward(challengePlayer);
+            if (challengeObjective.CheckTerminalState(challengePlayer))
+                FinishChallengeParticipant(challengePlayer, playerChallengeStats, isPlayer: true);
+        }
+
+        if (!challengeAIFinished && challengeAI != null)
+        {
+            aiChallengeStats.Sample(challengeAI, challengeObjective, elapsed);
+
+            // Evolutionary brains only drive controls themselves; their containing
+            // paradigm normally pumps objective progression. RL's JetMLAgent already
+            // performs reward/progression/terminal checks in OnActionReceived.
+            bool aiTerminal;
+            if (challengeAI.GetComponent<JetMLAgent>() == null)
+            {
+                challengeAI.CurrentFitness += challengeObjective.GetStepReward(challengeAI);
+                aiTerminal = challengeObjective.CheckTerminalState(challengeAI);
+            }
+            else
+            {
+                // A crashed ML-Agent stops receiving actions, so its normal
+                // OnActionReceived terminal check may never run. The race manager
+                // still owns the participant lifetime and must freeze its clock.
+                aiTerminal = challengeObjective.CheckTerminalState(challengeAI);
+            }
+
+            if (aiTerminal || challengeObjective.HasFinished(challengeAI))
+                FinishChallengeParticipant(challengeAI, aiChallengeStats, isPlayer: false);
+        }
+
+        if (challengePlayerFinished && challengeAIFinished)
+            CompleteChallenge();
+    }
+
+    private void BeginChallengeRace()
+    {
+        // SetStartingState assigns the objective's 600 m/s launch velocity, which
+        // Unity rejects on a kinematic body. Unfreeze physics first while leaving
+        // all control scripts disabled until the starting grid is ready.
+        SetChallengeKinematic(challengePlayer, false);
+        SetChallengeKinematic(challengeAI, false);
+        PrepareChallengeStartingGrid();
+        IgnoreParticipantCollisions();
+
+        JetMLAgent policyAgent = challengeAI != null
+            ? challengeAI.GetComponent<JetMLAgent>()
+            : null;
+        if (policyAgent != null) policyAgent.SetChallengeRaceActive(true);
+
+        SetChallengeParticipantActive(challengePlayer, true);
+        SetChallengeParticipantActive(challengeAI, true);
+        challengeRaceStartedAt = Time.time;
+        challengeRaceRunning = true;
+        challengeUI?.ShowRace();
+    }
+
+    private void PrepareChallengeStartingGrid()
+    {
+        if (challengePlayer == null || challengeAI == null || challengeObjective == null) return;
+
+        challengeAI.ResetAgent();
+        challengeObjective.SetStartingState(challengeAI, 0, 2);
+        challengePlayer.ResetAgent();
+        challengeObjective.SetStartingState(challengePlayer, 1, 2);
+
+        // Both competitors keep the objective's exact spawn. The saved policy may
+        // intentionally be overfit to this line; visibility comes from ghosting the
+        // AI renderer rather than perturbing its initial state.
+    }
+
+    private static void SetChallengeKinematic(JetAgent jet, bool kinematic)
+    {
+        if (jet == null) return;
+        Rigidbody rb = jet.GetComponent<Rigidbody>();
+        if (rb == null) return;
+
+        rb.isKinematic = kinematic;
+
+        // Challenge cameras render between FixedUpdate ticks. Interpolating both
+        // competitors prevents their 600 m/s motion from appearing as 50 Hz steps.
+        rb.interpolation = RigidbodyInterpolation.Interpolate;
+    }
+
+    private void SetChallengeParticipantActive(
+        JetAgent jet, bool active, bool keepPolicyListening = false)
+    {
+        if (jet == null) return;
+
+        SetChallengeKinematic(jet, !active);
+
+        PlayerController player = jet.GetComponent<PlayerController>();
+        if (player != null) player.enabled = active && jet == challengePlayer;
+
+        JetMLAgent mlAgent = jet.GetComponent<JetMLAgent>();
+        if (mlAgent != null) mlAgent.enabled = active || keepPolicyListening;
+
+        // Avoid coupling this manager to ML-Agents' DecisionRequester type.
+        foreach (MonoBehaviour behaviour in jet.GetComponents<MonoBehaviour>())
+            if (behaviour != null && behaviour.GetType().Name == "DecisionRequester")
+                behaviour.enabled = active || keepPolicyListening;
+
+        jet.enabled = active;
+    }
+
+    private void FinishChallengeParticipant(
+        JetAgent jet, ChallengeRaceStats stats, bool isPlayer)
+    {
+        if (jet == null || stats == null || stats.Finished) return;
+        stats.Finish(jet, challengeObjective, ChallengeRaceElapsed);
+        SetChallengeParticipantActive(jet, false);
+
+        if (isPlayer) challengePlayerFinished = true;
+        else challengeAIFinished = true;
+    }
+
+    private void CompleteChallenge()
+    {
+        challengeRaceRunning = false;
+        challengeResultsShown = true;
+        string winner = DetermineChallengeWinner();
+        challengeUI?.ShowResults(winner, playerChallengeStats, aiChallengeStats);
+    }
+
+    private string DetermineChallengeWinner()
+    {
+        if (playerChallengeStats.HoopsPassed != aiChallengeStats.HoopsPassed)
+            return playerChallengeStats.HoopsPassed > aiChallengeStats.HoopsPassed
+                ? "YOU WIN"
+                : "AI WINS";
+
+        // Average race speed is a stable interpretation of the requested speed
+        // tie-breaker; it avoids deciding the race from one noisy physics frame.
+        float delta = playerChallengeStats.AverageSpeed - aiChallengeStats.AverageSpeed;
+        if (Mathf.Abs(delta) < 0.5f) return "DRAW";
+        return delta > 0f ? "YOU WIN" : "AI WINS";
+    }
+
+    private void IgnoreParticipantCollisions()
+    {
+        if (challengePlayer == null || challengeAI == null) return;
+        Collider[] playerColliders = challengePlayer.GetComponentsInChildren<Collider>(true);
+        Collider[] aiColliders = challengeAI.GetComponentsInChildren<Collider>(true);
+        foreach (Collider playerCollider in playerColliders)
+            foreach (Collider aiCollider in aiColliders)
+                Physics.IgnoreCollision(playerCollider, aiCollider, true);
+    }
+
+    public void RematchChallenge()
+    {
+        if (!inChallengeMode) return;
+        bool returnToMenu = challengeReturnToMenu;
+        CleanupChallengeRuntime();
+        EnterChallengeMode(returnToMenu);
+    }
+
+    public void ExitChallengeMode()
+    {
+        if (!inChallengeMode) return;
+        bool returnToMenu = challengeReturnToMenu;
+        CleanupChallengeRuntime();
+
+        if (returnToMenu)
+        {
+            GameSession.Clear();
+            const string menu = "MainMenu";
+            if (LoadingOverlay.Instance != null) LoadingOverlay.Instance.LoadScene(menu);
+            else SceneManager.LoadScene(menu);
+            return;
+        }
+
+        LoadState();
+        if (UIManager.Instance != null) UIManager.Instance.SetTelemetryVisible(true);
+    }
+
+    private void CleanupChallengeRuntime()
+    {
+        challengeRaceRunning = false;
+        challengeResultsShown = false;
+        challengeWaitingForPolicy = false;
+        inChallengeMode = false;
+
+        activeParadigm?.Dispose();
+        activeParadigm = null;
+        challengeObjective?.ForgetAgent(challengeAI);
+        challengeObjective?.ForgetAgent(challengePlayer);
+        DestroyPopulation();
+
+        if (challengePlayer != null) Destroy(challengePlayer.gameObject);
+        challengePlayer = null;
+        challengeAI = null;
+        challengePlayerController = null;
+
+        if (challengeCamera != null) challengeCamera.Restore();
+        challengeCamera = null;
+        challengeUI?.HideAll();
+
+        Time.timeScale = 1f;
+        Time.fixedDeltaTime = 0.02f;
+    }
 
     private void ConfigureSensors(List<JetAgent> population, IObjective objective)
     {

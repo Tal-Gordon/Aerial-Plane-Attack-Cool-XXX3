@@ -44,6 +44,7 @@ public class TrainingSaveData
     public float ChampionScore;     // all-time best across the run
     public float TopScore;          // best jet in the population at save time
     public float AverageScore;      // mean fitness of the population at save time
+    public float TrainingElapsedSeconds; // accumulated scaled simulation time across resumes
     public string SavedAtUtc;
 
     // ── Engine brain payload (opaque, engine-specific JSON) ──
