@@ -187,7 +187,7 @@ RL saves can only capture progress after the trainer has written at least one ch
 
 ```text
 Assets/
-├── Scenes/                    Training tracks and menus
+├── Scenes/                   Training tracks and menus
 ├── Scripts/
 │   ├── Agents/               Jet controller, physics, and ML-Agents wrapper
 │   ├── AI/                   Brain interfaces and implementations
