@@ -15,6 +15,8 @@ public class JetMLAgent : Agent
     private int totalPopulation;
 
     private bool wasSwitching = false;
+    private bool challengeMode;
+    private bool challengeRaceActive;
 
     // The continuous actions from the most recent decision, copied out for the brain
     // visualizer. The PPO/SAC policy itself lives in the external Python trainer and
@@ -22,6 +24,20 @@ public class JetMLAgent : Agent
     // inputs (observations) and these outputs. Null until the first action arrives.
     private float[] lastActions;
     public float[] LastActions => lastActions;
+    public bool HasReceivedAction { get; private set; }
+
+    /// <summary>
+    /// In a saved-run challenge the policy gets one life. Terminal states stop the
+    /// agent in place instead of calling EndEpisode (which would auto-respawn it).
+    /// </summary>
+    public void SetChallengeMode(bool enabled)
+    {
+        challengeMode = enabled;
+        challengeRaceActive = !enabled;
+    }
+
+    /// <summary>Keeps the policy registered during countdown while suppressing actions.</summary>
+    public void SetChallengeRaceActive(bool active) => challengeRaceActive = active;
 
     public void Inject(IObjective objective, RLParadigm paradigm, int agentIndex, int totalPopulation)
     {
@@ -68,6 +84,8 @@ public class JetMLAgent : Agent
     public override void OnActionReceived(ActionBuffers actions)
     {
         if (jetAgent.HasCrashed) return;
+        HasReceivedAction = true;
+        if (challengeMode && !challengeRaceActive) return;
 
         var cont = actions.ContinuousActions;
 
@@ -108,6 +126,12 @@ public class JetMLAgent : Agent
             {
                 AddReward(-5000f);
                 jetAgent.CurrentFitness -= 5000f;
+            }
+
+            if (challengeMode)
+            {
+                enabled = false;
+                return;
             }
 
             EndEpisode();

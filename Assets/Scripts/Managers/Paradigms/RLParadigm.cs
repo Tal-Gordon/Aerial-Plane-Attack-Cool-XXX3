@@ -27,6 +27,7 @@ public class RLParadigm : ITrainingParadigm
     // stays comparable to the AVG). Starts at -inf so the first episode registers.
     private float bestEpisodeScore = float.NegativeInfinity;
     private float trainingStartTime;
+    private float elapsedBeforeCurrentSession;
 
     // bestEpisodeScore before any episode completes is the -inf sentinel; report 0
     // instead so the save metadata never shows "-Infinity".
@@ -262,7 +263,8 @@ public class RLParadigm : ITrainingParadigm
         cachedSnapshot.IterationNumber = totalEpisodes;
         cachedSnapshot.ChampionScore = ReportedBest; // all-time, used by inference/save
         cachedSnapshot.RLData.TotalEpisodes = totalEpisodes;
-        cachedSnapshot.RLData.TrainingTime = Time.time - trainingStartTime;
+        cachedSnapshot.RLData.TrainingTime =
+            elapsedBeforeCurrentSession + Mathf.Max(0f, Time.time - trainingStartTime);
         cachedSnapshot.ElapsedTime = cachedSnapshot.RLData.TrainingTime;
         cachedSnapshot.RLData.CurrentMax = curMax;
         cachedSnapshot.RLData.CurrentAvg = curAvg;
@@ -384,6 +386,8 @@ public class RLParadigm : ITrainingParadigm
             ChampionScore = ReportedBest,
             TopScore = topScore,
             AverageScore = average,
+            TrainingElapsedSeconds =
+                elapsedBeforeCurrentSession + Mathf.Max(0f, Time.time - trainingStartTime),
             SavedAtUtc = DateTime.UtcNow.ToString("o"),
             // Opaque marker for the RL path: the run-id whose checkpoint snapshot
             // backs this save. Non-empty so HasTrainingState / load checks pass.
@@ -413,6 +417,8 @@ public class RLParadigm : ITrainingParadigm
             // old save will show an inflated BEST until you re-save with current code.)
             bestEpisodeScore = data.ChampionScore;
             totalEpisodes = data.Generation;
+            elapsedBeforeCurrentSession = Mathf.Max(0f, data.TrainingElapsedSeconds);
+            trainingStartTime = Time.time;
         }
 
         bool resume = StageSavedCheckpoint();

@@ -44,6 +44,43 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
     // TODO REMOVE
     private JetAgent debugAgent = null;
 
+    /// <summary>Total number of hoops on this track.</summary>
+    public int WaypointCount => waypoints?.Length ?? 0;
+
+    /// <summary>Number of hoops this jet has successfully cleared in its current run.</summary>
+    public int GetPassedHoopCount(JetAgent agent) =>
+        agent != null && agentTargetIndices.TryGetValue(agent, out int count)
+            ? Mathf.Clamp(count, 0, WaypointCount)
+            : 0;
+
+    /// <summary>True after this objective has reported a terminal state for the jet.</summary>
+    public bool HasFinished(JetAgent agent) => agent != null && terminalReported.Contains(agent);
+
+    /// <summary>Distance from the jet to its next hoop, or zero after completing all hoops.</summary>
+    public float GetDistanceToNextHoop(JetAgent agent)
+    {
+        if (agent == null || waypoints == null
+            || !agentTargetIndices.TryGetValue(agent, out int index)
+            || index < 0 || index >= waypoints.Length)
+            return 0f;
+
+        return Vector3.Distance(agent.transform.position, waypoints[index].position);
+    }
+
+    /// <summary>Releases per-run bookkeeping for a jet that is being destroyed.</summary>
+    public void ForgetAgent(JetAgent agent)
+    {
+        if (agent == null) return;
+        agentTargetIndices.Remove(agent);
+        lastEffortSums.Remove(agent);
+        lastDistanceToHoop.Remove(agent);
+        lastLocalZ.Remove(agent);
+        lastHoopTime.Remove(agent);
+        agentBreakdowns.Remove(agent);
+        terminalReported.Remove(agent);
+        if (debugAgent == agent) debugAgent = null;
+    }
+
 
     private void Awake()
     {
@@ -140,8 +177,14 @@ public class FlightSchoolObjective : MonoBehaviour, IObjective
 
         // Give it starting velocity so it doesn't stall, and clear any spin
         Rigidbody rb = agent.GetComponent<Rigidbody>();
-        rb.linearVelocity = agent.transform.forward * 600;
-        rb.angularVelocity = Vector3.zero;
+        // Challenge countdowns freeze their rigidbodies. Unity rejects velocity
+        // writes while kinematic; the challenge reapplies the start after
+        // unfreezing at GO, so defer these two assignments in that case.
+        if (!rb.isKinematic)
+        {
+            rb.linearVelocity = agent.transform.forward * 600f;
+            rb.angularVelocity = Vector3.zero;
+        }
 
         // Initiate trackers
         agentTargetIndices[agent] = 0;

@@ -78,6 +78,11 @@ public class UIManager : MonoBehaviour
 
         foreach (var widget in allWidgets)
             widget.Initialize(this);
+
+        // The challenge entry is code-built so it appears in both the legacy
+        // scene-authored telemetry and config-built telemetry without prefab/scene
+        // migrations. It is inserted immediately after the Inference widget.
+        ChallengeButton.Install(this, telemetryWindow != null ? telemetryWindow.transform : transform);
     }
 
     // Builds the telemetry window from the layout config. Sections and widgets come
@@ -147,6 +152,15 @@ public class UIManager : MonoBehaviour
     {
         if (on) simManager.EnterInferenceMode();
         else simManager.ExitInferenceMode();
+    }
+
+    /// <summary>Shows the confirmation for racing the champion from the latest save.</summary>
+    public void RequestChallenge() => simManager?.RequestChallengeFromTraining();
+
+    /// <summary>Challenge HUD takes over the screen; restore telemetry on return.</summary>
+    public void SetTelemetryVisible(bool visible)
+    {
+        if (telemetryWindow != null) telemetryWindow.SetActive(visible);
     }
 
     /// <summary>

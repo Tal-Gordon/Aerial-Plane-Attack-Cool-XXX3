@@ -24,10 +24,18 @@ public static class GameSession
     /// </summary>
     public static bool LoadSaveOnStart { get; set; }
 
+    /// <summary>
+    /// One-shot request from the main menu to enter the saved-run challenge as soon
+    /// as the selected track has loaded. The challenge returns to the main menu
+    /// instead of rebuilding training when it ends.
+    /// </summary>
+    public static bool StartChallengeOnStart { get; set; }
+
     /// <summary>Clears any carried selection (e.g. when returning to the menu).</summary>
     public static void Clear()
     {
         SelectedAIType = null;
         LoadSaveOnStart = false;
+        StartChallengeOnStart = false;
     }
 }

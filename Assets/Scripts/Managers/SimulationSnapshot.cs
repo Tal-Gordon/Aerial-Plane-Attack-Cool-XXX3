@@ -31,6 +31,12 @@ public class SimulationSnapshot
     // from SimulationManager.
     public bool InInferenceMode;
 
+    // Saved-run player challenge state. ChallengeAvailable already includes the
+    // current objective/save checks, so UI buttons do not need storage knowledge.
+    public bool InChallengeMode;
+    public bool ChallengeAvailable;
+    public string ChallengeUnavailableReason;
+
     // Whether the population thins out gradually within an iteration (jets
     // crashing at different times). True for FlightSchool, false for objectives
     // like MaxAltitude where every jet ends on the same shared time limit, so an
