@@ -202,6 +202,7 @@ public class GameModeSelectionController : MonoBehaviour
         if (!hasSave)
         {
             GameSession.LoadSaveOnStart = false;
+            GameSession.ResetSettingsOnStart = false;
             GameSession.StartChallengeOnStart = false;
             mode.LoadScene();
             return;
@@ -253,6 +254,7 @@ public class GameModeSelectionController : MonoBehaviour
         HideContinueDialog();
         GameSession.StartChallengeOnStart = false;
         GameSession.LoadSaveOnStart = true; // consumed by SimulationManager.Start
+        GameSession.ResetSettingsOnStart = false;
         pendingMode?.LoadScene();
     }
 
@@ -261,6 +263,7 @@ public class GameModeSelectionController : MonoBehaviour
         HideContinueDialog();
         GameSession.StartChallengeOnStart = false;
         GameSession.LoadSaveOnStart = false;
+        GameSession.ResetSettingsOnStart = true;
         pendingMode?.LoadScene();
     }
 
@@ -268,6 +271,7 @@ public class GameModeSelectionController : MonoBehaviour
     {
         HideContinueDialog();
         GameSession.LoadSaveOnStart = false;
+        GameSession.ResetSettingsOnStart = false;
         GameSession.StartChallengeOnStart = true; // consumed by SimulationManager.Start
         pendingMode?.LoadScene();
     }

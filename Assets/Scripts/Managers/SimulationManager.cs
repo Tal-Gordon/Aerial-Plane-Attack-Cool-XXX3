@@ -88,10 +88,31 @@ public class SimulationManager : MonoBehaviour
             return;
         }
 
-        // Load settings for this track (per-scene), seeded from the mode's defaults
-        // on first run so each track keeps its own tuning.
+        // "Start from default" is distinct from merely starting without loading a
+        // checkpoint. The latter normally keeps per-track tuning, while the explicit
+        // dialog choice must discard it; otherwise a weak experimental PPO shape or
+        // entropy value silently becomes the configuration of every later "fresh" run.
         var mode = objective.Mode;
-        settings = DataManager.LoadSettings(Track, mode);
+        bool resetSettings = GameSession.ResetSettingsOnStart;
+        GameSession.ResetSettingsOnStart = false;
+
+        if (resetSettings)
+        {
+            settings = GameSession.SelectedAIType is AIType resetAI
+                ? DataManager.GetDefaults(mode, resetAI)
+                : DataManager.ResetToDefaults(Track, mode);
+
+            // The selected-AI branch above returns a clone but does not persist it.
+            // Keep settings.json aligned with the run the player explicitly requested.
+            DataManager.SaveSettings(Track, settings);
+            Debug.Log($"[SimulationManager] Restored default settings for {Track}/{settings.AIType}.");
+        }
+        else
+        {
+            // Load settings for this track (per-scene), seeded from the mode's defaults
+            // on first run so each track keeps its own tuning.
+            settings = DataManager.LoadSettings(Track, mode);
+        }
 
         // Apply the AI type chosen in the main menu, if any. When it differs from
         // the loaded settings we swap in a fresh default for the (mode, AIType)

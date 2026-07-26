@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Policies;
@@ -61,6 +62,8 @@ public class RLParadigm : ITrainingParadigm
     private SimulationSnapshot cachedSnapshot;
     private TrainerProcessLauncher trainerLauncher;
     private DateTime trainerLaunchedUtc;
+    private const int CommunicatorBindAttempts = 4;
+    private const int CommunicatorRetryDelayMs = 750;
 
     // ML-Agents binds the Unity<->trainer connection when the first agent (or
     // DecisionRequester) touches Academy.Instance. Academy.Dispose() resets that
@@ -135,7 +138,7 @@ public class RLParadigm : ITrainingParadigm
     // only then wires up the agents: the first agent/DecisionRequester to touch
     // Academy.Instance creates the Academy, which immediately tries to bind to
     // the trainer — so the trainer must already be listening on the port.
-    private void StartTrainer(bool resume, bool inference = false)
+    private bool StartTrainer(bool resume, bool inference = false)
     {
         trainerStarted = true;
 
@@ -159,17 +162,10 @@ public class RLParadigm : ITrainingParadigm
             ClearLiveResults();
 
         trainerLauncher = new TrainerProcessLauncher();
-        if (!trainerLauncher.Launch($"config/{YamlFileName}", RunId, resume, inference))
+        bool trainerReady = trainerLauncher.Launch($"config/{YamlFileName}", RunId, resume, inference);
+        if (!trainerReady)
         {
             Debug.LogError($"[RLParadigm] Python trainer failed to start ({AlgorithmName}). Agents will fall back to heuristic mode.");
-        }
-        else if (inference)
-        {
-            Debug.Log($"[RLParadigm] Replaying saved {AlgorithmName} policy in inference mode (no learning, run-id {RunId}).");
-        }
-        else if (resume)
-        {
-            Debug.Log($"[RLParadigm] Resumed {AlgorithmName} training from saved checkpoint (run-id {RunId}).");
         }
 
         // Anything in results/ written after this moment was checkpointed by
@@ -205,6 +201,78 @@ public class RLParadigm : ITrainingParadigm
             jetAgent.ResetAgent();
             objective.SetStartingState(jetAgent, i, population.Count);
             go.SetActive(true);
+        }
+
+        bool communicatorReady = trainerReady && EnsureTrainerCommunicator();
+        if (!communicatorReady)
+        {
+            if (trainerReady)
+                Debug.LogError($"[RLParadigm] Python is listening, but Unity could not establish the ML-Agents communicator after {CommunicatorBindAttempts} attempts. Agents will fall back to heuristic mode.");
+            return false;
+        }
+
+        if (inference)
+            Debug.Log($"[RLParadigm] Replaying saved {AlgorithmName} policy in inference mode (no learning, run-id {RunId}).");
+        else if (resume)
+            Debug.Log($"[RLParadigm] Resumed {AlgorithmName} training from saved checkpoint (run-id {RunId}).");
+
+        return true;
+    }
+
+    // A listening TCP socket is not the same thing as a trainer that is ready to
+    // complete ML-Agents' first gRPC exchange. Academy only tries that exchange
+    // once and permanently falls back to inference when it loses the startup race.
+    // Recycle only the Unity side and retry against the same live Python process.
+    private bool EnsureTrainerCommunicator()
+    {
+        if (Academy.IsInitialized && Academy.Instance.IsCommunicatorOn)
+            return true;
+
+        for (int attempt = 2; attempt <= CommunicatorBindAttempts; attempt++)
+        {
+            int delayMs = CommunicatorRetryDelayMs * (attempt - 1);
+            Debug.LogWarning($"[RLParadigm] Trainer port is open but the ML-Agents handshake failed. Retrying communicator bind ({attempt}/{CommunicatorBindAttempts}) in {delayMs} ms...");
+
+            PrepareAgentsForAcademyRecycle();
+
+            if (Academy.IsInitialized)
+                Academy.Instance.Dispose();
+
+            Thread.Sleep(delayMs);
+
+            foreach (var mlAgent in mlAgents)
+            {
+                if (mlAgent != null)
+                    mlAgent.enabled = true;
+            }
+
+            foreach (var mlAgent in mlAgents)
+            {
+                if (mlAgent != null)
+                    ConfigureDecisionRequester(mlAgent.gameObject);
+            }
+
+            if (Academy.IsInitialized && Academy.Instance.IsCommunicatorOn)
+            {
+                Debug.Log($"[RLParadigm] ML-Agents communicator connected on attempt {attempt}.");
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void PrepareAgentsForAcademyRecycle()
+    {
+        foreach (var mlAgent in mlAgents)
+        {
+            if (mlAgent == null) continue;
+
+            var requester = mlAgent.GetComponent<DecisionRequester>();
+            if (requester != null)
+                UnityEngine.Object.DestroyImmediate(requester);
+
+            mlAgent.enabled = false;
         }
     }
 
@@ -332,8 +400,7 @@ public class RLParadigm : ITrainingParadigm
         // learning. The single jet the manager spawned binds to this trainer and
         // its episodes auto-respawn, looping the course exactly like training but
         // with a frozen policy.
-        StartTrainer(resume: true, inference: true);
-        return true;
+        return StartTrainer(resume: true, inference: true);
     }
 
     public void TickInference()
@@ -449,6 +516,8 @@ public class RLParadigm : ITrainingParadigm
         bool resume = StageSavedCheckpoint();
         if (!resume)
             Debug.LogWarning($"[RLParadigm] No usable checkpoint in the save for {DataManager.CurrentTrack}/{settings.AIType}; starting a fresh run instead.");
+        else
+            EnsureResumeStepHeadroom();
 
         StartTrainer(resume);
     }
@@ -486,6 +555,51 @@ public class RLParadigm : ITrainingParadigm
 
     private static bool HasCheckpointFile(string dir) =>
         Directory.Exists(dir) && Directory.GetFiles(dir, "*.pt", SearchOption.AllDirectories).Length > 0;
+
+    // mlagents-learn's max_steps is absolute, not "steps to run this session".
+    // Resuming a checkpoint near an old five-million-step limit therefore exports the
+    // policy and tells a standalone Unity player to quit a few minutes later. Extend
+    // only when the saved run is running out of room, preserving deliberately larger
+    // limits while making legacy saves safe to continue.
+    private void EnsureResumeStepHeadroom()
+    {
+        if (!TryGetHighestCheckpointStep(ResultsDir, out int checkpointStep))
+            return;
+
+        long remaining = (long)settings.RLSettings.MaxSteps - checkpointStep;
+        if (remaining >= RLSettings.MinimumResumeStepHeadroom)
+            return;
+
+        long extended = (long)checkpointStep + RLSettings.MinimumResumeStepHeadroom;
+        settings.RLSettings.MaxSteps = (int)Math.Min(extended, int.MaxValue);
+        DataManager.SaveSettings(DataManager.CurrentTrack, settings);
+
+        Debug.Log(
+            $"[RLParadigm] Extended max_steps to {settings.RLSettings.MaxSteps:N0} " +
+            $"while resuming checkpoint {checkpointStep:N0}; prevents the trainer " +
+            "from immediately completing and closing the standalone player.");
+    }
+
+    private static bool TryGetHighestCheckpointStep(string dir, out int step)
+    {
+        step = 0;
+        if (!Directory.Exists(dir))
+            return false;
+
+        foreach (string file in Directory.GetFiles(dir, "*.pt", SearchOption.AllDirectories))
+        {
+            string name = Path.GetFileNameWithoutExtension(file);
+            int dash = name.LastIndexOf('-');
+            if (dash >= 0 &&
+                int.TryParse(name.Substring(dash + 1), out int fileStep) &&
+                fileStep > step)
+            {
+                step = fileStep;
+            }
+        }
+
+        return step > 0;
+    }
 
     // Finds the newest numbered checkpoint (JetBrain-<step>.pt) in the live
     // results by write time, and whether the running trainer wrote it — files
@@ -581,10 +695,10 @@ public class RLParadigm : ITrainingParadigm
 
     // Tears down the live ML-Agents stack so a new trainer can be bound later in
     // the SAME Play session. Order matters: agents are disabled first so their
-    // unregistration runs against the still-live Academy; the trainer tree is
-    // killed before the Academy is disposed so the Python side never sees a
-    // disconnect (it would start respawning its env worker, racing the kill);
-    // disposing the Academy last resets its lazy singleton so the next agent
+    // unregistration runs against the still-live Academy. Dispose Academy while
+    // Python is alive so the communicator can complete its close exchange, then
+    // terminate the trainer tree if it did not exit on its own. Resetting Academy
+    // creates a fresh singleton so the next agent
     // enable can bind a fresh one (the package is built for this — see
     // Agent.OnDisable).
     private void ShutdownTrainer()
@@ -598,11 +712,11 @@ public class RLParadigm : ITrainingParadigm
             }
         }
 
-        trainerLauncher?.Dispose();
-        trainerLauncher = null;
-
         if (Academy.IsInitialized)
             Academy.Instance.Dispose();
+
+        trainerLauncher?.Dispose();
+        trainerLauncher = null;
 
         trainerStarted = false;
     }

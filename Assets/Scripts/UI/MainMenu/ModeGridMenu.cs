@@ -397,21 +397,22 @@ public class ModeGridMenu : MonoBehaviour
 
         if (!hasSave || continueDialog == null)
         {
-            StartRun(loadSave: false);
+            StartRun(loadSave: false, resetSettings: false);
             return;
         }
 
         continueDialog.Show(
             $"'{currentMode.modeName}' has a saved {PrettyAIName(GameSession.SelectedAIType.Value)} training run.\n" +
             "Continue from the latest save, or start over from the default settings?",
-            () => StartRun(loadSave: true),
-            () => StartRun(loadSave: false));
+            () => StartRun(loadSave: true, resetSettings: false),
+            () => StartRun(loadSave: false, resetSettings: true));
     }
 
-    private void StartRun(bool loadSave)
+    private void StartRun(bool loadSave, bool resetSettings)
     {
         GameSession.StartChallengeOnStart = false;
         GameSession.LoadSaveOnStart = loadSave; // consumed by SimulationManager.Start
+        GameSession.ResetSettingsOnStart = resetSettings;
         currentMode.LoadScene();
     }
 
@@ -425,6 +426,7 @@ public class ModeGridMenu : MonoBehaviour
         }
 
         GameSession.LoadSaveOnStart = false;
+        GameSession.ResetSettingsOnStart = false;
         GameSession.StartChallengeOnStart = true; // consumed by SimulationManager.Start
         currentMode.LoadScene();
     }

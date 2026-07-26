@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>Aerial Plane Attack - מדריך הכנה לבוחנים</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #dfe8ee; }
+  body {
+    font-family: Arial, "Segoe UI", sans-serif;
+    color: #14212b;
+    direction: rtl;
+    font-size: 9.45pt;
+    line-height: 1.33;
+  }
+  .page {
+    width: 210mm;
+    height: 297mm;
+    padding: 15mm 17mm 14mm;
+    margin: 0 auto;
+    background: white;
+    position: relative;
+    overflow: hidden;
+    break-after: page;
+    page-break-after: always;
+  }
+  .page:last-child { break-after: auto; page-break-after: auto; }
+  .header {
+    direction: ltr;
+    text-align: left;
+    color: #5d6b75;
+    font-weight: 700;
+    font-size: 7.2pt;
+    letter-spacing: .2px;
+    border-bottom: .35mm solid #bed0dc;
+    padding-bottom: 2.5mm;
+    margin-bottom: 7mm;
+  }
+  .footer {
+    position: absolute;
+    left: 17mm;
+    right: 17mm;
+    bottom: 7mm;
+    border-top: .35mm solid #bed0dc;
+    color: #5d6b75;
+    font-size: 7pt;
+    text-align: left;
+    padding-top: 1.5mm;
+    direction: ltr;
+  }
+  .eyebrow {
+    color: #1a78a8;
+    font-weight: 700;
+    font-size: 8pt;
+    letter-spacing: .15px;
+    margin-bottom: 2.2mm;
+  }
+  h1 {
+    color: #071828;
+    font-size: 20.5pt;
+    line-height: 1.08;
+    margin: 0 0 4mm;
+  }
+  h2 {
+    color: #1a78a8;
+    font-size: 13.6pt;
+    line-height: 1.15;
+    margin: 4.2mm 0 2.2mm;
+  }
+  h3 {
+    color: #0e2a3d;
+    font-size: 10.2pt;
+    margin: 3mm 0 1mm;
+  }
+  p { margin: 0 0 2.2mm; }
+  ul, ol { margin: 1.2mm 0 2.2mm; padding-right: 6mm; }
+  li { margin-bottom: 1.5mm; padding-right: 1mm; }
+  bdi, .ltr { direction: ltr; unicode-bidi: isolate; }
+  .ltr-block { direction: ltr; text-align: left; }
+  .muted { color: #5d6b75; font-size: 8pt; }
+  .lead { font-weight: 700; font-size: 10.3pt; line-height: 1.42; color: #071828; }
+  .callout {
+    display: grid;
+    grid-template-columns: 32mm 1fr;
+    direction: rtl;
+    background: #eaf2f7;
+    border: .35mm solid #bed0dc;
+    border-right: 1.6mm solid #62b8e8;
+    padding: 3.2mm 3.2mm;
+    margin: 2.2mm 0 3.2mm;
+    align-items: start;
+    gap: 3mm;
+  }
+  .callout.amber { border-right-color: #e8a33b; }
+  .callout.green { border-right-color: #2d8667; }
+  .callout-label {
+    color: #071828;
+    font-weight: 700;
+    font-size: 7.6pt;
+    line-height: 1.15;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    direction: rtl;
+    margin: 2mm 0 3mm;
+    table-layout: fixed;
+  }
+  th, td {
+    border: .3mm solid #bed0dc;
+    padding: 2.15mm 2.3mm;
+    text-align: right;
+    vertical-align: middle;
+    font-size: 7.8pt;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+  }
+  th { background: #0e2a3d; color: white; font-weight: 700; }
+  tbody tr:nth-child(odd) td { background: #f5f8fa; }
+  .flow {
+    direction: ltr;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 2mm;
+    margin: 3mm 0 4mm;
+  }
+  .flow.four { grid-template-columns: repeat(4, 1fr); }
+  .flowbox {
+    min-height: 29mm;
+    border-radius: 2.2mm;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 2mm;
+    direction: rtl;
+  }
+  .flowbox strong { display: block; font-size: 9pt; margin-bottom: 2mm; }
+  .flowbox span { font-size: 7.1pt; line-height: 1.25; }
+  .navy { background: #0e2a3d; }
+  .blue { background: #247fad; }
+  .green-bg { background: #328d70; }
+  .amber-bg { background: #eda638; }
+  .stack { margin: 2mm 0 4mm; }
+  .layer {
+    color: white;
+    border-radius: 2mm;
+    min-height: 19mm;
+    padding: 3mm 4mm;
+    margin-bottom: 2mm;
+  }
+  .layer strong { display: block; font-size: 10pt; margin-bottom: 2.4mm; direction: ltr; text-align: left; }
+  .layer span { font-size: 7.7pt; }
+  .code {
+    margin: 2mm 0 3mm;
+    border: .3mm solid #071828;
+    direction: ltr;
+    text-align: left;
+  }
+  .code-title {
+    background: #247fad;
+    color: white;
+    font-weight: 700;
+    padding: 2mm 3mm;
+    font-size: 7.8pt;
+    direction: rtl;
+    text-align: right;
+  }
+  pre {
+    margin: 0;
+    background: #071828;
+    color: #dce8ef;
+    padding: 3mm;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 6.75pt;
+    line-height: 1.25;
+    white-space: pre-wrap;
+    tab-size: 4;
+  }
+  .cover {
+    padding-top: 35mm;
+  }
+  .cover h1 {
+    direction: ltr;
+    text-align: left;
+    font-size: 31pt;
+    margin-bottom: 3mm;
+  }
+  .cover-sub {
+    font-size: 15pt;
+    color: #1a78a8;
+    margin-bottom: 6mm;
+  }
+  .rule { width: 45%; height: 1.2mm; background: #62b8e8; margin: 0 0 7mm auto; }
+  .step {
+    display: grid;
+    grid-template-columns: 9mm 1fr;
+    gap: 2mm;
+    margin-bottom: 2mm;
+    align-items: start;
+  }
+  .step-num {
+    color: #0e2a3d;
+    font-weight: 700;
+    font-size: 10pt;
+    text-align: center;
+  }
+  .compact li { margin-bottom: 1.1mm; }
+  .tight th, .tight td { padding-top: 1.7mm; padding-bottom: 1.7mm; font-size: 7.45pt; }
+  .tiny th, .tiny td { font-size: 7.05pt; padding: 1.55mm 1.8mm; }
+  .cols-3 th:nth-child(1), .cols-3 td:nth-child(1) { width: 22%; }
+  .cols-3 th:nth-child(2), .cols-3 td:nth-child(2) { width: 37%; }
+  .cols-3 th:nth-child(3), .cols-3 td:nth-child(3) { width: 41%; }
+  .quote { font-weight: 700; font-size: 10.4pt; line-height: 1.45; color: #071828; }
+  .no-break { break-inside: avoid; page-break-inside: avoid; }
+  @media print {
+    html, body { background: white; }
+    .page { margin: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 1 -->
+<section class="page cover">
+  <div class="eyebrow">הכנה לראיון במעבר אחד</div>
+  <h1>Aerial Plane Attack</h1>
+  <div class="cover-sub">מדריך לימוד לארכיטקטורה ולקוד</div>
+  <div class="rule"></div>
+  <p>מדריך תמציתי למטרת הפרויקט, לזרימת הריצה, למשפחות ה־AI, לשמירה, למגבלות ולמסלול הקוד שבחרת ללמוד.</p>
+
+  <div class="callout amber" style="margin-top:6mm">
+    <div class="callout-label">מוקד הקוד</div>
+    <div>
+      <div class="ltr-block"><strong>SimulationManager -&gt; ITrainingParadigm -&gt; IEvolutionEngine</strong></div>
+      <div>להבין מי אחראי על מה, מדוע הגבולות קיימים, וכיצד הזרימה שונה בין אבולוציה ללמידת חיזוק.</div>
+    </div>
+  </div>
+
+  <table style="margin-top:9mm">
+    <thead><tr><th style="width:22%">זמן</th><th>כיצד להשתמש במדריך</th></tr></thead>
+    <tbody>
+      <tr><td>10 דקות</td><td>עמודים 2-5: סיפור הפרויקט והארכיטקטורה.</td></tr>
+      <tr><td>12-15 דקות</td><td>עמודים 6-9: מסלול הקוד שבחרת.</td></tr>
+      <tr><td>8-10 דקות</td><td>עמודים 10-13: שמירה, סיכונים ושאלות בוחנים.</td></tr>
+    </tbody>
+  </table>
+
+  <p class="muted" style="margin-top:8mm"><strong>בסיס המקורות.</strong> נעשה שימוש בשני דוחות הארכיטקטורה שסיפקת: הדוח התמציתי לקביעת סדרי עדיפויות להצגה, והדוח הארוך לעומק טכני ולסיכונים. קובץ ה־Mermaid שימש למיפוי היחסים. במקרה של הבדל, קוד ה־C# הנוכחי תחת <bdi>Assets/Scripts</bdi> נחשב למקור הסמכות.</p>
+  <p class="muted" style="margin-top:6mm">הוכן לפי סביבת העבודה הנוכחית, 25 ביולי 2026</p>
+</section>
+
+<!-- 2 -->
+<section class="page">
+  <div class="header">AERIAL PLANE ATTACK&nbsp;&nbsp;/&nbsp;&nbsp;מדריך הכנה לבוחנים</div>
+  <div class="eyebrow">לקרוא קודם</div>
+  <h1>1. הפרויקט בעמוד אחד</h1>
+
+  <div class="callout">
+    <div class="callout-label">נאום של 60 שניות</div>
+    <div><bdi>Aerial Plane Attack</bdi> הוא סימולטור טיסה ולמידה ב־Unity 6. ארבעה סוגי AI - <bdi>Fixed NeuroEvo</bdi>, ‏<bdi>NEAT</bdi>, ‏<bdi>PPO</bdi> ו־<bdi>SAC</bdi> - שולטים באותה פיזיקת מטוס ומבצעים אותן משימות. הארכיטקטורה מפרידה בין הסימולציה המשותפת למחזור החיים של הלמידה, כדי להשוות בין האלגוריתמים בלי לשכפל את המטוס או את היעדים.</div>
+  </div>
+
+  <h2>חמש העובדות החשובות</h2>
+  <ul>
+    <li><strong>שני יעדי אימון ממומשים:</strong> <bdi>Max Altitude</bdi> ו־<bdi>Flight School</bdi>. ל־<bdi>Dogfight</bdi> קיימים מצלמה, בחירה ונשק, אך אין יעד קרבי או חיישן קרב.</li>
+    <li><strong>סביבה משותפת אחת:</strong> חיישנים מייצרים תצפיות; בקר מייצר <bdi>pitch, roll, yaw, throttle</bdi>; ‏<bdi>JetPhysics</bdi> מזיז את אותו מטוס; והיעד מעניק ציון ומחליט מתי הריצה מסתיימת.</li>
+    <li><strong>שתי משפחות אימון:</strong> השיטות האבולוציוניות מריצות את המוחות ואת האבולוציה בתוך Unity; ‏<bdi>PPO/SAC</bdi> משתמשים ב־ML-Agents ובמאמן Python חיצוני.</li>
+    <li><strong>ההפשטה המרכזית:</strong> <bdi>SimulationManager</bdi> מרכיב את הריצה; <bdi>Paradigm</bdi> מנהל את מחזור האימון; ו־<bdi>Engine</bdi> מנהל אבולוציית אוכלוסייה. ל־RL אין <bdi>IEvolutionEngine</bdi>.</li>
+    <li><strong>רציפות ניסויים:</strong> ההגדרות והשמירות מזוהות לפי <bdi>(track scene, AI type)</bdi>, ולכן שני מסלולי Flight School אינם דורסים זה את זה.</li>
+  </ul>
+
+  <h2>תשובת פתיחה טובה</h2>
+  <p class="quote">"הפרויקט הוא קודם כול פלטפורמת ניסויים, ולא רק משחק טיסה. ההחלטה הארכיטקטונית החשובה היא שכל שיטות ה־AI חולקות את אותם חיישנים, פעולות, פיזיקה וחוזי יעד. <bdi>SimulationManager</bdi> מרכיב את הריצה, <bdi>ITrainingParadigm</bdi> מסתיר את ההבדל בין דורות לפרקים, ו־<bdi>IEvolutionEngine</bdi> מפריד בין שני האלגוריתמים האבולוציוניים."</p>
+
+  <h2>מה באמת ממומש</h2>
+  <table class="tight">
+    <thead><tr><th style="width:45%">ניסוח לראיון</th><th style="width:24%">מצב</th><th>יכולת</th></tr></thead>
+    <tbody>
+      <tr><td>משימת בסיס רציפה: לצבור גובה עם מאמץ בקרה נמוך.</td><td>ממומש</td><td><bdi>Max Altitude</bdi></td></tr>
+      <tr><td>ניווט דרך חישוקים מסודרים עם תגמולי התקדמות ויישור.</td><td>ממומש</td><td><bdi>Flight School</bdi></td></tr>
+      <tr><td>אבולוציית האוכלוסייה מתרחשת בתוך Unity.</td><td>ממומש</td><td><bdi>Fixed NeuroEvo / NEAT</bdi></td></tr>
+      <tr><td>הלמידה מתרחשת במאמן ML-Agents חיצוני.</td><td>ממומש עם תלות חיצונית</td><td><bdi>PPO / SAC</bdi></td></tr>
+      <tr><td>שחקן אנושי מתחרה מול AI שמור וקפוא; אין למידה או שמירה.</td><td>ממומש ב־Flight School</td><td>אתגר מדיניות שמורה</td></tr>
+      <tr><td>יש תשתית משחקית, אך חסרים יעד וחיישן קרביים.</td><td>לא שלם</td><td>אימון <bdi>Dogfight</bdi></td></tr>
+    </tbody>
+  </table>
+  <div class="footer">2</div>
+</section>
+
+<!-- 3 -->
+<section class="page">
+  <div class="header">AERIAL PLANE ATTACK&nbsp;&nbsp;/&nbsp;&nbsp;מדריך הכנה לבוחנים</div>
+  <div class="eyebrow">ארכיטקטורת הליבה</div>
+  <h1>2. כיצד המערכת מחולקת</h1>
+  <p>אפשר לחשוב על הפרויקט כעל ארבע שכבות אחריות. שלוש שכבות הקוד שבחרת יושבות מעל סביבת טיסה משותפת. השכבות מתארות בעלות על אחריות, לא תיקיות ב־Unity.</p>
+
+  <div class="stack">
+    <div class="layer navy"><strong>SIMULATION MANAGER</strong><span>הרכבה, בחירת מצב, אוכלוסייה, חיישנים, שמירה/טעינה, כוונון ו־snapshots</span></div>
+    <div class="layer blue"><strong>TRAINING PARADIGM</strong><span>מחזור חיים אבולוציוני או מחזור תהליך/פרק של RL</span></div>
+    <div class="layer green-bg"><strong>ENGINE / TRAINER</strong><span><bdi>Classic NeuroEvo</bdi> או <bdi>NEAT</bdi>; לחלופין מאמן Python חיצוני עבור <bdi>PPO/SAC</bdi></span></div>
+    <div class="layer amber-bg"><strong>SHARED ENVIRONMENT</strong><span>חיישנים -&gt; בקר -&gt; <bdi>JetPhysics</bdi> -&gt; תגמול ותנאי סיום</span></div>
+  </div>
+
+  <h2>מבחן האחריות</h2>
+  <table class="tiny cols-3">
+    <thead><tr><th>לא אחראי על</th><th>אחראי על</th><th>שכבה</th></tr></thead>
+    <tbody>
+      <tr><td>מתמטיקת בחירה/מוטציה או נוסחאות תגמול.</td><td>הרכבה, יצירת אוכלוסייה, הפעלת חיישן, מעבר מצבים, שמירה/טעינה ברמת המנהל ונתוני UI.</td><td><bdi>SimulationManager</bdi></td></tr>
+      <tr><td>אווירודינמיקה או הגדרת היעד.</td><td>גבולות דור באבולוציה; מחזור המאמן, ה־Academy וה־checkpoint ב־RL; שמירה והסקה לפי המשפחה.</td><td>מימוש <bdi>ITrainingParadigm</bdi></td></tr>
+      <tr><td>מטוסים, אובייקטי סצנה, פיזיקה או יעדים.</td><td>יצירת מוחות, בחירה/מיון למינים, מוטציה/אבולוציה, אלוף וסריאליזציה אטומה.</td><td>מימוש <bdi>IEvolutionEngine</bdi></td></tr>
+      <tr><td>איזה אלגוריתם למידה פעיל.</td><td>תצפיות, פקדים, פיזיקה, spawn, תגמולים, התקדמות ותנאי סיום.</td><td>הסביבה המשותפת</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout amber">
+    <div class="callout-label">ניואנס קריטי</div>
+    <div>השרשרת בת שלוש השכבות נכונה בדיוק עבור <bdi>Fixed NeuroEvo</bdi> ו־<bdi>NEAT</bdi>. עבור <bdi>PPO/SAC</bdi> השרשרת היא <span class="ltr"><strong>SimulationManager -&gt; RLParadigm -&gt; ML-Agents/Python trainer</strong></span>. לא נכון לומר ש־RL משתמש ב־<bdi>IEvolutionEngine</bdi>.</div>
+  </div>
+
+  <h2>חוזים תומכים חשובים</h2>
+  <ul class="compact">
+    <li><bdi><strong>IObjective</strong></bdi>: בוחר חיישן, מציב מטוסים, מחשב תגמול וכושר סופי, בודק סיום וחושף פרמטרים לכוונון.</li>
+    <li><bdi><strong>ISensor</strong></bdi>: מחזיר מערך תצפית ברוחב קבוע ואת מספר הערכים.</li>
+    <li><bdi><strong>IBrain</strong></bdi>: מדיניות שניתן לקרוא לה בתוך Unity. ‏<bdi>PPO/SAC</bdi> אינם חושפים מוח כזה.</li>
+    <li><bdi><strong>SimulationSnapshot</strong></bdi>: מודל קריאה יציב שמונע מה־UI להכיר מימוש Paradigm מסוים.</li>
+  </ul>
+  <div class="footer">3</div>
+</section>
+
+<!-- 4 -->
+<section class="page">
+  <div class="header">AERIAL PLANE ATTACK&nbsp;&nbsp;/&nbsp;&nbsp;מדריך הכנה לבוחנים</div>
+  <div class="eyebrow">סיפור הריצה</div>
+  <h1>3. לולאת התצפית-החלטה-פעולה</h1>
+
+  <div class="flow">
+    <div class="flowbox navy"><strong>5. הערכה</strong><span>תגמול, התקדמות וסיום</span></div>
+    <div class="flowbox amber-bg"><strong>4. סימולציה</strong><span><bdi>JetPhysics</bdi> בכל fixed tick</span></div>
+    <div class="flowbox green-bg"><strong>3. פעולה</strong><span><bdi>pitch, roll, yaw, throttle</bdi></span></div>
+    <div class="flowbox blue"><strong>2. החלטה</strong><span><bdi>IBrain</bdi> או מדיניות ML-Agents</span></div>
+    <div class="flowbox navy"><strong>1. תצפית</strong><span>12 ערכי טיסה או 19 ערכי waypoint</span></div>
+  </div>
+
+  <h2>מדוע ההשוואה משמעותית</h2>
+  <p>כל ארבעת סוגי ה־AI מקבלים תצפיות מאותו חיישן פעיל, מפעילים אותם ארבעה פקדי טיסה, ונשפטים בידי אותו יעד מול אותו <bdi>JetPhysics</bdi>. מה שמשתנה הוא מנגנון הלמידה ומחזור החיים שלו. המנהל גם מעתיק את רוחב החיישן הפעיל אל הגדרות המודל כדי למנוע אי־התאמה במספר הקלטים.</p>
+
+  <h2>תצפיות ופעולות</h2>
+  <table class="tight">
+    <thead><tr><th style="width:23%">מספר/טווח</th><th>מה הוא מכיל</th><th style="width:24%">רכיב</th></tr></thead>
+    <tbody>
+      <tr><td>12 ערכים מנורמלים</td><td>מהירות מקומית, מהירות זוויתית מקומית, וקטור קדימה ווקטור למעלה.</td><td><bdi>BasicFlightSensors</bdi></td></tr>
+      <tr><td>19 ערכים</td><td>כל הערכים הבסיסיים ועוד כיוון מקומי ליעד, מרחק מנורמל וכיוון החישוק.</td><td><bdi>WaypointSensors</bdi></td></tr>
+      <tr><td>4 פלטים רציפים</td><td><bdi>Pitch, roll, yaw, throttle</bdi>. המצערת מומרת מ־<bdi>[-1,1]</bdi> ל־<bdi>[0,1]</bdi>.</td><td>פעולות טיסה</td></tr>
+      <tr><td>פלטים 5-6</td><td>ירי והחלפת נשק; אינם מקבלים ציון מיעד ממומש.</td><td>פעולות נשק אופציונליות</td></tr>
+    </tbody>
+  </table>
+
+  <h2>היעדים</h2>
+  <table class="tiny">
+    <thead><tr><th style="width:14%">חיישן</th><th style="width:31%">תנאי סיום</th><th>רעיון התגמול</th><th style="width:19%">יעד</th></tr></thead>
+    <tbody>
+      <tr><td><bdi>BasicFlight</bdi></td><td>התרסקות או תום הזמן.</td><td>תוספת גובה פחות lambda כפול מאמץ הבקרה. הכושר הסופי משתמש בגובה ובמאמץ הכוללים.</td><td><bdi>Max Altitude</bdi></td></tr>
+      <tr><td><bdi>Waypoint</bdi></td><td>התרסקות, תום זמן, יותר מדי זמן מהחישוק האחרון, סיום המסלול, או חציית מישור החישוק מחוץ לטבעת.</td><td>התקדמות, יישור קדימה, בונוס מעבר, קנס כיוון מבט, קנס מאמץ, קנס סחיפה ובונוס זמן.</td><td><bdi>Flight School</bdi></td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout amber">
+    <div class="callout-label">התנהגות עדינה</div>
+    <div><bdi>Flight School</bdi> מעביר ליעד הבא ומעדכן את <bdi>WaypointSensors</bdi> בתוך <bdi>GetStepReward()</bdi>. לכן גם inference אבולוציוני חייב לקרוא לפונקציה, אף שאין למידה מהערך המוחזר.</div>
+  </div>
+  <div class="footer">4</div>
+</section>
+
+<!-- 5 -->
+<section class="page">
+  <div class="header">AERIAL PLANE ATTACK&nbsp;&nbsp;/&nbsp;&nbsp;מדריך הכנה לבוחנים</div>
+  <div class="eyebrow">מפת האלגוריתמים</div>
+  <h1>4. מה משתנה בין ארבעת סוגי ה־AI</h1>
+
+  <table class="tiny">
+    <thead><tr><th style="width:22%">היכן מתרחשת הלמידה</th><th style="width:29%">גבול האימון</th><th style="width:31%">ייצוג המדיניות</th><th>סוג AI</th></tr></thead>
+    <tbody>
+      <tr><td>בתוך Unity: ‏<bdi>ClassicNeuroEvoEngine</bdi>.</td><td>מחכים לכל האוכלוסייה ואז מפתחים דור חדש.</td><td>רשת צפופה בעלת מבנה שכבות קבוע.</td><td><bdi>Fixed NeuroEvo</bdi></td></tr>
+      <tr><td>בתוך Unity: ‏<bdi>NeatEngine + SharpNEAT</bdi>.</td><td>מחכים לאוכלוסייה, מצמידים fitness ומקדמים דור.</td><td>גנומים שמפתחים משקלים וטופולוגיה ומפוענחים ל־<bdi>NeatBrain</bdi>.</td><td><bdi>NEAT</bdi></td></tr>
+      <tr><td>תהליך Python חיצוני.</td><td>מטוסים מסיימים פרקים עצמאית; המאמן מעדכן מדיניות משותפת.</td><td>מדיניות ומצב optimizer של ML-Agents.</td><td><bdi>PPO</bdi></td></tr>
+      <tr><td>תהליך Python חיצוני.</td><td>פרקים עצמאיים ועדכוני מאמן off-policy.</td><td>מצב actor/critic והתנהגות replay של ML-Agents.</td><td><bdi>SAC</bdi></td></tr>
+    </tbody>
+  </table>
+
+  <h2>המשפחה האבולוציונית</h2>
+  <ul>
+    <li><strong>אצווה סינכרונית:</strong> מטוס סופי מקבל fitness סופי ומושבת; האבולוציה מחכה עד ש־<bdi>aliveCount</bdi> מגיע לאפס.</li>
+    <li><strong>טופולוגיה קבועה:</strong> הטובים נשמרים באליטיזם; שאר המוחות נוצרים מבחירת טורניר ומוטציה.</li>
+    <li><strong>NEAT:</strong> ‏SharpNEAT מטפל במינים ובאבולוציה מבנית. ציונים שליליים מוזזים כלפי מעלה משום שהספרייה דורשת fitness לא־שלילי.</li>
+  </ul>
+
+  <h2>משפחת למידת החיזוק</h2>
+  <ul>
+    <li><strong>פרקים עצמאיים:</strong> <bdi>JetMLAgent</bdi> מקבל פעולה, מפעיל אותה, מבקש תגמול מהיעד ומסיים את הפרק שלו כשמגיעים למצב סופי.</li>
+    <li><strong>בעלות חיצונית:</strong> <bdi>RLParadigm</bdi> כותב YAML, מפעיל <bdi>mlagents-learn</bdi>, מגדיר <bdi>BehaviorParameters</bdi> ו־<bdi>DecisionRequester</bdi>, ומנהל resume/כיבוי.</li>
+    <li><strong>אין אובייקט IBrain:</strong> ‏<bdi>GetChampionBrain</bdi> מחזיר null עבור PPO/SAC. ה־UI יכול לראות קלטים ופעולות אחרונות, לא את משקלי המאמן.</li>
+  </ul>
+
+  <h2>טענת ההוגנות - והגבול שלה</h2>
+  <div class="callout green">
+    <div class="callout-label">מה ניתן לטעון</div>
+    <div>ממשק הסביבה משותף, ולכן ההשוואה שולטת במשתני מימוש רבים. עם זאת, דורות אבולוציוניים ופרקי RL משתמשים במשטרי דגימה ועדכון שונים; זמן קיר זהה או מספר פרקים זהה אינם בהכרח תקציב ניסויי זהה.</div>
+  </div>
+
+  <h2>תשובת השוואה שימושית</h2>
+  <p><strong>למה לא מחלקת AI ענקית אחת?</strong> מפני שלאבולוציה מבוססת דורות ול־RL עם פרקים עצמאיים אין לולאה טבעית משותפת. הממשק מאחד רק את מחזור החיים שהאפליקציה באמת צריכה: initialize, tick, snapshot, persistence, inference ו־dispose.</p>
+  <div class="footer">5</div>
+</section>
+
+<!-- 6 -->
+<section class="page">
+  <div class="header">AERIAL PLANE ATTACK&nbsp;&nbsp;/&nbsp;&nbsp;מדריך הכנה לבוחנים</div>
+  <div class="eyebrow">צלילה לקוד 1 מתוך 3</div>
+  <h1>5. <bdi>SimulationManager</bdi>: הרכבה וניתוב</h1>
+
+  <div class="callout">
+    <div class="callout-label">משפט לזיכרון</div>
+    <div><strong>המנהל מחליט מה קיים ולאן הקריאות נשלחות; הוא אינו מבצע את הלמידה.</strong></div>
+  </div>
+
+  <h2>רצף האתחול ב־<bdi>Start()</bdi></h2>
+  <div class="step"><div class="step-num">1</div><div>להמיר את <bdi>objectiveProvider</bdi> של הסצנה ל־<bdi>IObjective</bdi> ולעצור אם הסצנה אינה מוגדרת נכון.</div></div>
+  <div class="step"><div class="step-num">2</div><div>לטעון הגדרות למסלול הפעיל; אם נבחר סוג AI אחר בתפריט, להשתמש בברירות המחדל המתאימות.</div></div>
+  <div class="step"><div class="step-num">3</div><div>ליצור את האוכלוסייה, להפעיל בדיוק את החיישן שהיעד דורש, ולהפיק ממנו את רוחב הקלט של המודל.</div></div>
+  <div class="step"><div class="step-num">4</div><div>ליצור שירותי כוונון לתגמולים, hyperparameters וצורת הרשת.</div></div>
+  <div class="step"><div class="step-num">5</div><div>למפות <bdi>AIType</bdi> ל־Paradigm הנכון ולאתחל אותו עם האוכלוסייה, ההגדרות והיעד.</div></div>
+  <div class="step"><div class="step-num">6</div><div>אופציונלית, לטעון ריצה שמורה או להיכנס למצב challenge שהתפריט ביקש.</div></div>
+
+  <div class="code">
+    <div class="code-title">Managers/SimulationManager.cs - ניתוב ה־tick המרכזי</div>
+<pre>private void FixedUpdate()
+{
+    if (inChallengeMode) { TickChallenge(); return; }
+    if (inInferenceMode)
+    {
+        activeParadigm?.TickInference();
+        return;
+    }
+    activeParadigm?.Tick();
+}</pre>
+  </div>
+
+  <div class="code">
+    <div class="code-title">Managers/SimulationManager.cs - מיפוי סוג AI למחזור חיים</div>
+<pre>private ITrainingParadigm CreateParadigm(AIType type)
+{
+    switch (type)
+    {
+        case AIType.FixedNeuroEvo:
+            return new EvolutionaryParadigm(new ClassicNeuroEvoEngine());
+        case AIType.NEAT:
+            return new EvolutionaryParadigm(new NeatEngine());
+        case AIType.PPO_MLAgents:
+        case AIType.SAC_MLAgents:
+            return new RLParadigm();
+        default:
+            return null;
+    }
+}</pre>
+  </div>
+
+  <h2>מה לציין בקוד</h2>
+  <ul class="compact">
+    <li>זוהי הזרקת תלות דרך constructor: אותו <bdi>EvolutionaryParadigm</bdi> מקבל אחד משני Engines.</li>
+    <li>PPO ו־SAC חולקים <bdi>RLParadigm</bdi>; סוג ה־AI משנה את ה־YAML וההגדרות.</li>
+    <li>המנהל מפעיל בכל FixedUpdate מחזור חיים אחד בלבד: training, inference או challenge.</li>
+  </ul>
+  <div class="footer">6</div>
+</section>
+
+<!-- 7 -->
+<section class="page">
+  <div class="header">AERIAL PLANE ATTACK&nbsp;&nbsp;/&nbsp;&nbsp;מדריך הכנה לבוחנים</div>
+  <div class="eyebrow">צלילה לקוד 2 מתוך 3</div>
+  <h1>6. <bdi>ITrainingParadigm</bdi>: הסתרת הבדלי מחזור החיים</h1>
+  <p>זהו Strategy הפונה אל שכבת האפליקציה. המנהל יכול לאתחל, לבצע tick, לקרוא telemetry, לשמור/לטעון, להיכנס ל־inference ולנקות משאבים בלי לדעת אם האלגוריתם רץ באצוות C# או בפרקים דרך Python.</p>
+
+  <div class="code">
+    <div class="code-title">Managers/Paradigms/ITrainingParadigm.cs - המתודות שכדאי לזכור</div>
+<pre>void Initialize(List&lt;JetAgent&gt; population,
+                SimulationSettings settings,
+                IObjective objective);
+void Tick();
+SimulationSnapshot GetSnapshot();
+void SaveState();
+void LoadState();
+bool CanRunInference { get; }
+bool StartInference();
+void TickInference();
+void Dispose();</pre>
+  </div>
+
+  <h2><bdi>EvolutionaryParadigm</bdi> מנהל דור</h2>
+  <div class="flow">
+    <div class="flowbox navy"><strong>5. spawn מחדש</strong><span>שיוך מוחות חדשים</span></div>
+    <div class="flowbox amber-bg"><strong>4. אבולוציה</strong><span>כאשר <bdi>aliveCount == 0</bdi></span></div>
+    <div class="flowbox green-bg"><strong>3. הוצאה</strong><span>סיום מטוסים terminal</span></div>
+    <div class="flowbox blue"><strong>2. הערכה</strong><span>תגמול לכל מטוס חי</span></div>
+    <div class="flowbox navy"><strong>1. שיוך</strong><span>ה־engine יוצר מוחות</span></div>
+  </div>
+  <ul>
+    <li>במהלך ההערכה: <bdi>CurrentFitness += GetStepReward()</bdi>. בסיום: <bdi>CalculateTotalFitness()</bdi>, השבתה והקטנת <bdi>aliveCount</bdi>.</li>
+    <li>בגבול הדור: איסוף ציונים, קריאה ל־<bdi>EvolveNextGeneration()</bdi>, עדכון סטטיסטיקה, שיוך מוחות ו־spawn מחדש.</li>
+  </ul>
+
+  <h2><bdi>RLParadigm</bdi> מנהל את מחזור המאמן</h2>
+  <ul>
+    <li><bdi>Initialize</bdi> אינו מפעיל Python. ה־Tick הראשון מתחיל ריצה חדשה; <bdi>LoadState</bdi> יכול להכין checkpoint ולהתחיל ישירות ב־resume.</li>
+    <li><bdi>BehaviorParameters</bdi> מוגדר לפני הוספה/הפעלה של <bdi>JetMLAgent</bdi>, כדי למנוע רישום עם ברירת מחדל של אפס פעולות.</li>
+    <li><bdi>JetMLAgent</bdi>, ולא <bdi>RLParadigm.Tick</bdi>, מנהל את לולאת הפעולה-תגמול-סיום. ה־Paradigm מנהל תהליך, סטטיסטיקה, persistence, Academy וניקוי.</li>
+  </ul>
+
+  <div class="callout green">
+    <div class="callout-label">הסבר תכנוני טוב</div>
+    <div>הממשק אינו מעמיד פנים שהלולאות זהות. הוא מאחד רק את מה ששאר האפליקציה באמת צריכה. זהו Strategy ברמת מחזור החיים של האימון.</div>
+  </div>
+  <div class="footer">7</div>
+</section>
+
+<!-- 8 -->
+<section class="page">
+  <div class="header">AERIAL PLANE ATTACK&nbsp;&nbsp;/&nbsp;&nbsp;מדריך הכנה לבוחנים</div>
+  <div class="eyebrow">צלילה לקוד 3 מתוך 3</div>
+  <h1>7. <bdi>IEvolutionEngine</bdi>: בידוד אלגוריתם האוכלוסייה</h1>
+
+  <div class="code">
+    <div class="code-title">Managers/Engines/IEvolutionEngine.cs - גבול ה־engine</div>
+<pre>List&lt;IEvolvableBrain&gt; InitializeGeneration(SimulationSettings settings);
+List&lt;IEvolvableBrain&gt; EvolveNextGeneration(List&lt;float&gt; fitnessScores);
+int GetLastGenerationBestEliteIndex();
+IEvolvableBrain GetChampionBrain();
+float GetChampionScore();
+string CaptureState();
+List&lt;IEvolvableBrain&gt; RestoreState(
+    string stateJson, SimulationSettings settings);</pre>
+  </div>
+
+  <h2><bdi>ClassicNeuroEvoEngine</bdi></h2>
+  <ul>
+    <li>יוצר <bdi>NeuroEvoBrain</bdi> צפוף אחד לכל מקום באוכלוסייה לפי מבנה הרשת.</li>
+    <li>ממיין זוגות מוח/ציון, מעדכן אלוף היסטורי ושומר לפחות את האחוז העליון כ־elites.</li>
+    <li>לכל ילד שאינו elite מבצע טורניר של חמישה מועמדים, מעתיק את המנצח ומבצע מוטציה.</li>
+    <li>קורא הורים מ־<bdi>parentPool</bdi> בלתי משתנה, כדי שילדים שכבר נכתבו לא יהפכו בטעות להורים.</li>
+    <li><bdi>CaptureState</bdi> שומר shape, כל המוחות השטוחים, אלוף, ציון ודור ב־JSON.</li>
+  </ul>
+
+  <h2><bdi>NeatEngine</bdi></h2>
+  <ul>
+    <li>בונה את מפעל הגנומים, decoder, speciation ואת אלגוריתם האבולוציה של SharpNEAT.</li>
+    <li>מצמיד ציונים לאובייקטי הגנום הנוכחיים לפני <bdi>StepOneGeneration</bdi>, משום שהספרייה בונה ומסדרת מחדש את הרשימה.</li>
+    <li>מזיז ציונים שליליים ומוסיף baseline כך שכל ערכי ה־fitness חיוביים.</li>
+    <li>מגן על שני האחוזים העליונים מפני אובדן elite הסתברותי ומאתר מחדש את מקום המנצח לצורך המצלמה.</li>
+    <li><bdi>CaptureState</bdi> שומר XML מלא של האוכלוסייה ושל האלוף בתוך payload JSON אטום.</li>
+  </ul>
+
+  <div class="callout">
+    <div class="callout-label">למה מצב אטום חשוב</div>
+    <div><bdi>EvolutionaryParadigm</bdi> אינו יודע אם המוח הוא משקלים שטוחים או גנום SharpNEAT. הוא שומר רק את מחרוזת <bdi>EngineState</bdi>, ופרטי הסריאליזציה נשארים ב־engine שבבעלותו.</div>
+  </div>
+
+  <h2>היכן ההפשטה אינה מושלמת</h2>
+  <p><bdi>IEvolvableBrain</bdi> חושף <bdi>Copy</bdi> ו־<bdi>Mutate</bdi>, דבר שמתאים לטופולוגיה קבועה אך לא ל־NEAT, שבו הפעולות שייכות לגנום/engine. פיצול נקי יותר יפריד בין phenotype שמסוגל לבצע inference לבין מוח fixed-topology שניתן לשנות ישירות.</p>
+  <div class="footer">8</div>
+</section>
+
+<!-- 9 -->
+<section class="page">
+  <div class="header">AERIAL PLANE ATTACK&nbsp;&nbsp;/&nbsp;&nbsp;מדריך הכנה לבוחנים</div>
+  <div class="eyebrow">חיבור חלקי הקוד</div>
+  <h1>8. שתי עקיבות מקצה לקצה</h1>
+
+  <h2>עקיבה א': דור אחד של <bdi>Fixed NeuroEvo</bdi></h2>
+  <ol>
+    <li><bdi>SimulationManager</bdi> יוצר <span class="ltr">EvolutionaryParadigm(new ClassicNeuroEvoEngine())</span>.</li>
+    <li><bdi>Initialize</bdi> מבקש מוחות מה־engine, משייך מוח לכל <bdi>JetAgent</bdi>, מגדיר cadence וקורא ל־<bdi>SetStartingState</bdi>.</li>
+    <li><bdi>JetAgent</bdi> קורא מדי כמה ticks את החיישן, מעביר תצפיות ל־<bdi>Brain.GetControlOutputs</bdi> ומשתמש באותה פעולה בין החלטות.</li>
+    <li><bdi>JetPhysics</bdi> משלב דחף, עילוי, גרר, מומנט, damping ויציבות בכל צעד פיזיקה.</li>
+    <li><bdi>EvolutionaryParadigm</bdi> צובר תגמול. מטוס terminal מקבל fitness סופי ומושבת.</li>
+    <li>כשכל המטוסים הסתיימו, ה־engine מקבל ציונים, מחזיר מוחות שהתפתחו, וה־Paradigm יוצר את הדור הבא.</li>
+  </ol>
+
+  <h2>עקיבה ב': פרק אחד של <bdi>PPO/SAC</bdi></h2>
+  <ol>
+    <li><bdi>SimulationManager</bdi> יוצר <bdi>RLParadigm</bdi>. ה־Tick הראשון כותב YAML ומפעיל <bdi>mlagents-learn</bdi>, אלא אם זה מסלול resume/inference.</li>
+    <li><bdi>RLParadigm</bdi> מגדיר <bdi>BehaviorParameters</bdi> ו־<bdi>DecisionRequester</bdi>, ומזריק הפניות ל־<bdi>JetMLAgent</bdi>.</li>
+    <li><bdi>CollectObservations</bdi> מעתיק את וקטור החיישן אל ML-Agents.</li>
+    <li>מדיניות Python מחזירה פעולות רציפות; <bdi>JetMLAgent</bdi> מפעיל אותן על אותו <bdi>JetPhysics</bdi>.</li>
+    <li><bdi>JetMLAgent</bdi> מבקש תגמול מאותו <bdi>IObjective</bdi>, קורא ל־<bdi>AddReward</bdi> ומסיים את הפרק במצב terminal.</li>
+    <li><bdi>OnEpisodeBegin</bdi> מדווח את הציון הקודם, מאפס את המטוס ומבקש מצב התחלה חדש.</li>
+  </ol>
+
+  <div class="callout amber">
+    <div class="callout-label">אם שואלים היכן מתרחשת הלמידה</div>
+    <div><strong><bdi>Fixed/NEAT</bdi>:</strong> ‏<span class="ltr">Unity C# engine</span> מחזיר אוכלוסייה חדשה.<br><strong><bdi>PPO/SAC</bdi>:</strong> ‏Python מעדכן מדיניות משותפת מטרג'קטוריות שנשלחו דרך ML-Agents; ‏Unity היא הסביבה.</div>
+  </div>
+
+  <h2>התרשים הפשוט שכדאי לדעת לצייר</h2>
+  <div class="flow four">
+    <div class="flowbox amber-bg"><strong>Jet + Objective</strong><span>הסביבה</span></div>
+    <div class="flowbox green-bg"><strong>Engine / Trainer</strong><span>מעדכן מדיניות</span></div>
+    <div class="flowbox blue"><strong>Paradigm</strong><span>מנהל מחזור חיים</span></div>
+    <div class="flowbox navy"><strong>SimulationManager</strong><span>בוחר ומפעיל</span></div>
+  </div>
+  <div class="footer">9</div>
+</section>
+
+<!-- 10 -->
+<section class="page">
+  <div class="header">AERIAL PLANE ATTACK&nbsp;&nbsp;/&nbsp;&nbsp;מדריך הכנה לבוחנים</div>
+  <div class="eyebrow">התנהגות תומכת חשובה</div>
+  <h1>9. שמירה, inference, כוונון ו־challenge</h1>
+
+  <h2>זהות השמירה וה־payload</h2>
+  <ul>
+    <li><strong>זהות:</strong> <span class="ltr">GameData/&lt;Track&gt;/save_&lt;AIType&gt;.json</span>. ‏Track הוא שם הסצנה המסונן; mode עדיין בוחר ברירות מחדל וחיישן.</li>
+    <li><strong>תוכן משותף:</strong> עותק של <bdi>SimulationSettings</bdi>, פרמטרי יעד, מספר דור/פרק, סטטיסטיקה והיסטוריה, זמן ומצב engine אטום.</li>
+  </ul>
+
+  <table class="tiny">
+    <thead><tr><th style="width:39%">התנהגות resume</th><th style="width:41%">מה נשמר</th><th>מסלול</th></tr></thead>
+    <tbody>
+      <tr><td>ה־engine משחזר מוחות; ה־Paradigm משייך אותם ומבצע spawn.</td><td>כל המוחות השטוחים והאלוף ב־JSON.</td><td><bdi>Fixed NeuroEvo</bdi></td></tr>
+      <tr><td>נבנית תשתית SharpNEAT, הגנומים נקראים ומספרי ה־ID מאותחלים מעל המקסימום.</td><td>XML מלא של האוכלוסייה והאלוף בתוך JSON.</td><td><bdi>NEAT</bdi></td></tr>
+      <tr><td>ה־checkpoint מועתק חזרה ל־results ו־Python מופעל עם <bdi>--resume</bdi>.</td><td>תיקיית results של המאמן מועתקת לחריץ checkpoint יציב לפי track.</td><td><bdi>PPO/SAC</bdi></td></tr>
+    </tbody>
+  </table>
+
+  <h2>Inference</h2>
+  <ul>
+    <li><strong>אבולוציה:</strong> טעינת <bdi>IBrain</bdi> של האלוף למטוס יחיד והרצת היעד בלולאה בלי אבולוציה.</li>
+    <li><strong>RL:</strong> הכנת checkpoint והפעלת <span class="ltr">mlagents-learn --resume --inference</span>. המדיניות קפואה, אך עדיין דרושים Python ו־Academy.</li>
+  </ul>
+
+  <h2>כוונון בזמן ריצה</h2>
+  <ul>
+    <li><strong>Hot:</strong> שינוי תגמול או scalar תואם משתמש ב־<bdi>Save -&gt; Load</bdi> מוגן, כך שהמצב הנלמד נשמר. גיבוי מונע דריסה של השמירה הידנית.</li>
+    <li><strong>Cold:</strong> שינוי גודל אוכלוסייה או ארכיטקטורת רשת אינו תואם למשקלים הישנים. שומרים הגדרות ובונים מחדש מאפס; השמירה הידנית נשארת.</li>
+  </ul>
+
+  <h2>אתגר מול מדיניות שמורה</h2>
+  <p>המנהל הנוכחי תומך גם במרוץ Flight School בין מטוס אנושי ל־AI שמור וקפוא. הוא טוען את ההגדרות והיעד השמורים, מפעיל inference עבור ה־AI, יוצר עותק אנושי, מבטל נשק והתנגשויות הדדיות, משתמש באותו קו זינוק ומדרג לפי מספר חישוקים ולאחר מכן מהירות ממוצעת. אין למידה ואין שמירה.</p>
+
+  <div class="callout amber">
+    <div class="callout-label">הסתייגות שמירת RL</div>
+    <div>כפתור Save יכול להעתיק רק את ה־checkpoint האחרון שהמאמן כתב. התקדמות מאז אותו checkpoint אינה נשמרת, ולכן זו שמירה מוגבלת checkpoint ולא snapshot מדויק של הפריים הנוכחי.</div>
+  </div>
+  <div class="footer">10</div>
+</section>
+
+<!-- 11 -->
+<section class="page">
+  <div class="header">AERIAL PLANE ATTACK&nbsp;&nbsp;/&nbsp;&nbsp;מדריך הכנה לבוחנים</div>
+  <div class="eyebrow">הצגה ותפעול</div>
+  <h1>10. סיפור הדגמה נקי לבוחנים</h1>
+
+  <h2>רצף מומלץ בהדגמה</h2>
+  <ol>
+    <li><strong>בחר מסלול וסוג AI.</strong> הסבר שהבחירה נשמרת ב־<bdi>GameSession</bdi>, ושהיעד בסצנה קובע את החיישן ואת חוזה התגמול.</li>
+    <li><strong>הצג כמה מטוסים באימון.</strong> ציין שהאוכלוסייה והפיזיקה משותפות לכל האלגוריתמים.</li>
+    <li><strong>פתח telemetry.</strong> הסבר generation לעומת episode, ‏max/average נוכחיים מול best היסטורי, בחירת מטוס ומגבלות visualizer ב־RL.</li>
+    <li><strong>בחר מטוס.</strong> חבר בין ההתנהגות, התצפיות, הפעולות ופירוט התגמול.</li>
+    <li><strong>הצג save/load או inference.</strong> הסבר את ההבדל בין מצב אימון מלא לבין replay של מדיניות אחת.</li>
+    <li><strong>אם יציב, הצג tuning או challenge.</strong> השתמש בו כדי להסביר hot/cold או הערכת מדיניות קפואה.</li>
+  </ol>
+
+  <h2>נקודות תפעול שכדאי להכיר</h2>
+  <table class="tight">
+    <thead><tr><th>מה לומר</th><th style="width:24%">נושא</th></tr></thead>
+    <tbody>
+      <tr><td>Unity 6, גרסת בסיס <bdi>6000.3.10f1</bdi>.</td><td>גרסת Unity</td></tr>
+      <tr><td>אין צעד build חיצוני; הכול רץ בתוך Unity.</td><td>ריצה אבולוציונית</td></tr>
+      <tr><td>נדרשת סביבת Python תואמת ML-Agents; ‏<bdi>RLParadigm</bdi> יוצר YAML בכל ריצה.</td><td>ריצת RL</td></tr>
+      <tr><td>חיפוש המפרש מעדיף סביבה ארוזה ב־StreamingAssets, אחריה <bdi>MLAGENTS_PYTHON</bdi>, ואז Conda.</td><td>Windows build</td></tr>
+      <tr><td>ה־player חייב לרוץ עם <bdi>--mlagents-port 5004</bdi>; ‏<bdi>AppBootstrap</bdi> מפעיל אותו מחדש אם הפרמטר חסר.</td><td>חיבור standalone</td></tr>
+      <tr><td>Thin build מוריד סביבה נעולה בהרצה הראשונה; build עצמאי כולל את הסביבה שחולצה.</td><td>אריזה</td></tr>
+    </tbody>
+  </table>
+
+  <h2>לא להפריז בטענות</h2>
+  <ul>
+    <li>אל תציג Dogfight כמצב אימון AI ממומש. קיימת תשתית משחקית, אך חסרים יעד, חיישן קרב, צוותים, שיוך תגמול ותנאי סיום.</li>
+    <li>אל תאמר ש־RL inference מוטמע ב־Unity. הוא מפעיל את המאמן החיצוני במצב inference.</li>
+    <li>אל תאמר ש־Save לוכד את משקלי PPO/SAC של הרגע הנוכחי. הוא לוכד את ה־checkpoint הזמין האחרון.</li>
+    <li>אל תאמר שלכל אלגוריתם יש <bdi>IBrain</bdi> או <bdi>IEvolutionEngine</bdi>. אלה מושגים של השיטות האבולוציוניות בתוך התהליך.</li>
+  </ul>
+  <div class="footer">11</div>
+</section>
+
+<!-- 12 -->
+<section class="page">
+  <div class="header">AERIAL PLANE ATTACK&nbsp;&nbsp;/&nbsp;&nbsp;מדריך הכנה לבוחנים</div>
+  <div class="eyebrow">אם מבקשים ביקורת</div>
+  <h1>11. מגבלות ותשובות שיפור חזקות</h1>
+
+  <table class="tiny">
+    <thead><tr><th style="width:41%">שיפור טוב</th><th style="width:36%">למה זה חשוב</th><th>בעיה</th></tr></thead>
+    <tbody>
+      <tr><td>Coroutine/state machine אסינכרוני וסטטוס starting/ready/failed ב־telemetry.</td><td>המתנה לפורט יכולה לגרום ל־Editor/player להיראות קפוא.</td><td>הפעלת המאמן חוסמת</td></tr>
+      <tr><td>לייצא ONNX ולהריץ inference ב־Unity עם Sentis.</td><td>עדיין דרושים Python, port, ‏Academy והסביבה הגדולה.</td><td>RL inference יקר</td></tr>
+      <tr><td>להציג צעד וגיל checkpoint; אפשר גם פקודת checkpoint מצד המאמן.</td><td>ה־UI עלול לרמוז על snapshot מדויק כשצעדים אחרונים חסרים.</td><td>שמירת RL מוגבלת checkpoint</td></tr>
+      <tr><td>להוציא שירותי challenge ומעברי ריצה, ולהשאיר את המנהל כ־composition root.</td><td>אימון, persistence, tuning, inference ו־challenge מגדילים אחריות וקושי בבדיקה.</td><td><bdi>SimulationManager</bdi> גדל</td></tr>
+      <tr><td>להפריד התקדמות סביבה מחישוב תגמול טהור.</td><td>קידום חישוקים בתוך <bdi>GetStepReward</bdi> יוצר תלות נסתרת ב־inference.</td><td>לתגמול Flight School יש side effects</td></tr>
+      <tr><td>להזריק שירותים והפניות מפורשות ב־composition root.</td><td>static tuners, session, events ו־singletons מקשים על בדיקות מבודדות.</td><td>צימוד global/static</td></tr>
+      <tr><td>לרכז defaults, לאמת assets באתחול ולהוסיף migrations/tests.</td><td>ערכי Inspector גוברים על C# initializers ועלולים לסטות בשקט.</td><td>סטיית defaults סריאליים</td></tr>
+    </tbody>
+  </table>
+
+  <h2>התשובה הטובה ל"מה היית משפר ראשון?"</h2>
+  <div class="callout green">
+    <div class="callout-label">עדיפות מומלצת</div>
+    <div>להפוך את הפעלת מאמן ה־RL לאסינכרונית ומפורשת. זה משפר מיד את חוויית המשתמש, מונע תחושת קיפאון ויוצר גבול מצב ברור לכשל חיבור, retry, telemetry, load ו־inference. אחר כך, ONNX/Sentis מוטמע יפשט מאוד את ההפצה.</div>
+  </div>
+
+  <h2>התשובה הטובה ל"איך היית מוסיף Dogfight?"</h2>
+  <p>ראשית לממש <bdi>DogfightObjective</bdi> וחיישן קרב, ואז להגדיר צוותים ו־spawn, בעלות על damage, תגמולי kill/death, תנאי סיום ופלט של לפחות שש פעולות. לאחר מכן להוסיף defaults, לאמת save/inference ורק אז להציג את המצב כשלם. הנשק, הבחירה והמצלמה הקיימים הם תמיכת gameplay, לא חוזה הלמידה החסר.</p>
+
+  <h2>בדיקות שיקנו ביטחון במהירות</h2>
+  <ul class="compact">
+    <li>שכפול settings ונתיבי שמירה לפי track.</li>
+    <li>רוחבי חיישנים וגודל פעולות לכל צמד יעד/AI.</li>
+    <li>Round trip של <bdi>CaptureState/RestoreState</bdi> ב־Classic וב־NEAT.</li>
+    <li>סיווג hot/cold והגנת השמירה הידנית.</li>
+    <li>התקדמות ותנאי סיום של היעדים, במיוחד מעבר חישוק ו־inference.</li>
+  </ul>
+  <div class="footer">12</div>
+</section>
+
+<!-- 13 -->
+<section class="page">
+  <div class="header">AERIAL PLANE ATTACK&nbsp;&nbsp;/&nbsp;&nbsp;מדריך הכנה לבוחנים</div>
+  <div class="eyebrow">חזרה אחרונה</div>
+  <h1>12. שאלות סבירות של בוחנים - תשובות קצרות</h1>
+
+  <table class="tiny">
+    <thead><tr><th>תשובה שכדאי לפתוח בה</th><th style="width:30%">שאלה</th></tr></thead>
+    <tbody>
+      <tr><td><bdi>SimulationManager</bdi> הוא composition root ונתב ה־tick; הוא מאציל את מחזור החיים ל־<bdi>ITrainingParadigm</bdi>.</td><td>מהו המרכז הארכיטקטוני?</td></tr>
+      <tr><td>Paradigm מפשיט את מחזור האימון כולו. Engine הוא הפשטה נמוכה, אבולוציונית בלבד, ליצירת אוכלוסייה, אבולוציה, אלוף וסריאליזציה.</td><td>למה גם Paradigm וגם Engine?</td></tr>
+      <tr><td>כולם חולקים תצפיות שבחר היעד, ארבע פעולות טיסה, <bdi>JetPhysics</bdi>, spawn, תגמול ותנאי סיום.</td><td>כיצד משווים אלגוריתמים בצורה הוגנת?</td></tr>
+      <tr><td><bdi>JetAgent</bdi> מפעיל IBrain בתוך התהליך. ‏<bdi>JetMLAgent</bdi> מתאים את אותו מטוס/פיזיקה/יעד לתקשורת עם ML-Agents ולמדיניות החיצונית.</td><td>למה גם JetAgent וגם JetMLAgent?</td></tr>
+      <tr><td>המנהל מנתב ל־challenge, inference או training. מחזור החיים הפעיל מתקדם, והפיזיקה ממשיכה ב־fixed timestep.</td><td>מה קורה בכל FixedUpdate?</td></tr>
+      <tr><td>הגדרות, פרמטרי יעד, סטטיסטיקה/היסטוריה ומצב engine. אבולוציה שומרת אוכלוסייה; RL מצלם checkpoints של המאמן.</td><td>מה נשמר?</td></tr>
+      <tr><td>אימון Dogfight: יש רכיבי gameplay אך אין חוזי יעד ותצפית/תגמול קרביים.</td><td>מה היכולת החסרה הגדולה ביותר?</td></tr>
+      <tr><td>Strategy ל־paradigms ול־engines, ממשקים ליעדים/חיישנים/מוחות, composition root במנהל ו־snapshot read model ל־UI.</td><td>באילו patterns משתמשים?</td></tr>
+    </tbody>
+  </table>
+
+  <h2>רשימת בדיקה למעבר אחד</h2>
+  <ul class="compact">
+    <li>אני יכול לתת את נאום 60 השניות בלי דף.</li>
+    <li>אני יכול לצייר <span class="ltr">Manager -&gt; Paradigm -&gt; Engine/Trainer -&gt; Environment</span>.</li>
+    <li>אני יכול להסביר מדוע שכבת ה־engine אינה חלה על PPO/SAC.</li>
+    <li>אני יכול לעקוב אחר דור Fixed NeuroEvo ואחר פרק PPO/SAC.</li>
+    <li>אני מכיר BasicFlight ‏(12), ‏Waypoint ‏(19) וארבעה פלטי טיסה.</li>
+    <li>אני יכול להסביר שמירות לפי track, מצב אבולוציוני מול checkpoint של RL, ושינויים hot/cold.</li>
+    <li>אני מכיר את המגבלות: Dogfight לא שלם, RL חיצוני, save מוגבל checkpoint ו־inference דרך המאמן.</li>
+  </ul>
+
+  <h2>מילון זעיר</h2>
+  <table class="tiny">
+    <thead><tr><th>משמעות</th><th style="width:22%">מונח</th></tr></thead>
+    <tbody>
+      <tr><td>משפחת יעד: Max Altitude, ‏Flight School או Dogfight הלא־שלם.</td><td><bdi>Mode</bdi></td></tr>
+      <tr><td>זהות הסצנה הפעילה להגדרות, שמירות, checkpoints ו־RL run IDs.</td><td><bdi>Track</bdi></td></tr>
+      <tr><td>אסטרטגיית מחזור האימון העליונה: evolutionary או RL.</td><td><bdi>Paradigm</bdi></td></tr>
+      <tr><td>אלגוריתם אוכלוסייה אבולוציוני בלבד: Classic NeuroEvo או NEAT.</td><td><bdi>Engine</bdi></td></tr>
+      <tr><td>מדיניות שניתן לקרוא לה בתוך Unity; מדיניות PPO/SAC הנוכחית אינה IBrain.</td><td><bdi>Brain</bdi></td></tr>
+      <tr><td>המוח האבולוציוני הטוב בכל הזמנים, או metadata של פרק RL הטוב ביותר.</td><td><bdi>Champion</bdi></td></tr>
+      <tr><td>הרצה חוזרת של מדיניות אחת, בלי למידה ובלי שמירה חדשה.</td><td><bdi>Inference</bdi></td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout amber">
+    <div class="callout-label">השורה האחרונה לזכור</div>
+    <div>הפרויקט מצליח ארכיטקטונית מפני שהמטוס והמשימה משותפים, בעוד שמחזורי החיים של הלמידה נשארים שונים בצורה נכונה.</div>
+  </div>
+  <div class="footer">13</div>
+</section>
+
+</body>
+</html>

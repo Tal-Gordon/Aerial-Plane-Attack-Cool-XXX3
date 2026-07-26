@@ -34,9 +34,11 @@ public static class AppBootstrap
         }
 
         // ML-Agents does not create a communicator in a standalone player unless
-        // --mlagents-port is present. Make the normal game executable its own launcher
-        // so users can double-click it instead of knowing about a special batch file.
-        if (RelaunchWithMLAgentsPortIfMissing())
+        // --mlagents-port is present. The Windows D3D12 path has also proved unstable
+        // during repeated CUDA-backed training sessions (device removal leaves later
+        // launches broken until the driver/PC is reset), so keep the player itself on
+        // D3D11. Make the normal executable its own launcher for both requirements.
+        if (RelaunchWithRequiredArgumentsIfMissing())
             return;
 #endif
 
@@ -47,27 +49,40 @@ public static class AppBootstrap
     }
 
 #if UNITY_STANDALONE_WIN && !UNITY_EDITOR
-    private static bool RelaunchWithMLAgentsPortIfMissing()
+    private static bool RelaunchWithRequiredArgumentsIfMissing()
     {
         string[] args = Environment.GetCommandLineArgs();
+        bool hasMLAgentsPort = false;
+        bool hasD3D11Override = false;
+
         for (int i = 0; i < args.Length; i++)
         {
             if (string.Equals(args[i], "--mlagents-port", StringComparison.OrdinalIgnoreCase) ||
                 args[i].StartsWith("--mlagents-port=", StringComparison.OrdinalIgnoreCase))
-                return false;
+                hasMLAgentsPort = true;
+
+            if (string.Equals(args[i], "-force-d3d11", StringComparison.OrdinalIgnoreCase))
+                hasD3D11Override = true;
         }
+
+        if (hasMLAgentsPort && hasD3D11Override)
+            return false;
 
         string executable = args.Length > 0 ? args[0] : null;
         if (string.IsNullOrEmpty(executable) || !File.Exists(executable))
         {
-            Debug.LogError("[AppBootstrap] Could not resolve the player executable for ML-Agents relaunch.");
+            Debug.LogError("[AppBootstrap] Could not resolve the player executable for safe RL relaunch.");
             return false;
         }
 
         var forwarded = new StringBuilder();
         for (int i = 1; i < args.Length; i++)
             forwarded.Append(QuoteArgument(args[i])).Append(' ');
-        forwarded.Append("--mlagents-port ").Append(MLAgentsPort);
+
+        if (!hasMLAgentsPort)
+            forwarded.Append("--mlagents-port ").Append(MLAgentsPort).Append(' ');
+        if (!hasD3D11Override)
+            forwarded.Append("-force-d3d11");
 
         try
         {
@@ -83,7 +98,7 @@ public static class AppBootstrap
         }
         catch (Exception e)
         {
-            Debug.LogError($"[AppBootstrap] Could not relaunch with the ML-Agents port: {e.Message}");
+            Debug.LogError($"[AppBootstrap] Could not relaunch with the required RL arguments: {e.Message}");
             return false;
         }
     }
