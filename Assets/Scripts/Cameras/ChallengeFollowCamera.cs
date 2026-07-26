@@ -90,6 +90,17 @@ public sealed class ChallengeFollowCamera : MonoBehaviour
             (focus - transform.position).normalized, target.up);
     }
 
+    /// <summary>
+    /// Smoothly transfers the spectator view to another challenge participant.
+    /// The current camera pose is preserved so the handoff does not cut abruptly.
+    /// </summary>
+    public void Follow(Transform followTarget)
+    {
+        if (followTarget == null || followTarget == target) return;
+        target = followTarget;
+        velocity = Vector3.zero;
+    }
+
     public void Restore()
     {
         target = null;

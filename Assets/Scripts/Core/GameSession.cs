@@ -25,6 +25,13 @@ public static class GameSession
     public static bool LoadSaveOnStart { get; set; }
 
     /// <summary>
+    /// True when the player explicitly chose "Start from default" beside an existing
+    /// save. SimulationManager consumes this before loading the track settings so a
+    /// fresh run cannot silently inherit the previous run's tuned hyperparameters.
+    /// </summary>
+    public static bool ResetSettingsOnStart { get; set; }
+
+    /// <summary>
     /// One-shot request from the main menu to enter the saved-run challenge as soon
     /// as the selected track has loaded. The challenge returns to the main menu
     /// instead of rebuilding training when it ends.
@@ -36,6 +43,7 @@ public static class GameSession
     {
         SelectedAIType = null;
         LoadSaveOnStart = false;
+        ResetSettingsOnStart = false;
         StartChallengeOnStart = false;
     }
 }

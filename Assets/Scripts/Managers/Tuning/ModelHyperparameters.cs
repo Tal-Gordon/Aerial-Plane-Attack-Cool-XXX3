@@ -86,7 +86,7 @@ public class ModelHyperparameters : ITunableParameters
         new("numEpoch", "Epochs", 1f, 10f, 2f),
         new("gamma", "Discount (gamma)", 0.8f, 0.999f, 0.99f),
         new("timeHorizon", "Time Horizon", 16f, 2048f, 128f),
-        new("maxSteps", "Max Steps", 10000f, 50000000f, 5000000f),
+        new("maxSteps", "Max Steps", 10000f, 2000000000f, RLSettings.DefaultMaxSteps),
         new("decisionPeriod", "Decision Period", 1f, 20f, 5f),
         // NOTE: trainingTimeScale is intentionally NOT exposed as a dial — it's a
         // headless-training speed knob, not a model hyperparameter. It still
@@ -108,7 +108,7 @@ public class ModelHyperparameters : ITunableParameters
         new("bufferInitSteps", "Buffer Init Steps", 0f, 100000f, 0f),
         new("gamma", "Discount (gamma)", 0.8f, 0.999f, 0.99f),
         new("timeHorizon", "Time Horizon", 16f, 2048f, 128f),
-        new("maxSteps", "Max Steps", 10000f, 50000000f, 5000000f),
+        new("maxSteps", "Max Steps", 10000f, 2000000000f, RLSettings.DefaultMaxSteps),
         new("decisionPeriod", "Decision Period", 1f, 20f, 5f),
         // trainingTimeScale intentionally not exposed — see PpoDescriptors note.
     };

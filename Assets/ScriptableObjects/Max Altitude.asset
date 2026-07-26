@@ -15,5 +15,5 @@ MonoBehaviour:
   modeName: Max Altitude
   description: No course and no hoops. Every jet gets one timed run to climb as high
     as it can, with a small penalty for thrashing the controls to get there.
-  heroArtwork: {fileID: 0}
+  heroArtwork: {fileID: 21300000, guid: 1bd0817af3ccaf14bac1712151c93a37, type: 3}
   sceneName: Max Altitude

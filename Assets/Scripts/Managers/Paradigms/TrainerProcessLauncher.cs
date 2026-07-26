@@ -12,6 +12,8 @@ public class TrainerProcessLauncher : IDisposable
     private readonly int port;
 
     private const string CondaEnvName = "mlagents";
+    private const int PortStabilityChecks = 3;
+    private const int PortPollIntervalMs = 250;
 
     public TrainerProcessLauncher(int port = 5004)
     {
@@ -114,6 +116,10 @@ public class TrainerProcessLauncher : IDisposable
 
         trainerProcess.Dispose();
         trainerProcess = null;
+
+        // taskkill can return just before the worker's listening socket disappears.
+        // Do not let an immediate load race the old listener.
+        WaitForPortToClose(5000);
     }
 
     // Process.Kill(entireProcessTree) is .NET Core 3+ and not available on Unity's
@@ -146,6 +152,7 @@ public class TrainerProcessLauncher : IDisposable
     private bool WaitForPort(int timeoutSeconds)
     {
         DateTime deadline = DateTime.UtcNow.AddSeconds(timeoutSeconds);
+        int consecutiveOpenChecks = 0;
 
         while (DateTime.UtcNow < deadline)
         {
@@ -156,12 +163,34 @@ public class TrainerProcessLauncher : IDisposable
             }
 
             if (IsPortOpen(port))
-                return true;
+            {
+                consecutiveOpenChecks++;
+                if (consecutiveOpenChecks >= PortStabilityChecks)
+                    return true;
+            }
+            else
+            {
+                consecutiveOpenChecks = 0;
+            }
 
-            Thread.Sleep(500);
+            Thread.Sleep(PortPollIntervalMs);
         }
 
         return false;
+    }
+
+    private void WaitForPortToClose(int timeoutMs)
+    {
+        DateTime deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+        while (DateTime.UtcNow < deadline)
+        {
+            if (!IsPortOpen(port))
+                return;
+
+            Thread.Sleep(100);
+        }
+
+        Debug.LogWarning($"[TrainerLauncher] Port {port} is still open after trainer shutdown; the next launch will clear the stale listener.");
     }
 
     private static bool IsPortOpen(int testPort)

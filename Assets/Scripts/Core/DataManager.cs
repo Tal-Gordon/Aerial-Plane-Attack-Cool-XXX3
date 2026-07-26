@@ -681,6 +681,14 @@ public class NeatSettings : EvoSettings
 [Serializable]
 public class RLSettings
 {
+    // ML-Agents interprets max_steps as an absolute lifetime step, including steps
+    // restored from a checkpoint. With a large parallel population, five million
+    // steps can finish in only a few minutes and the trainer then tells the standalone
+    // Unity player to quit. Keep the normal ceiling high; users can still stop/save
+    // manually, and RLParadigm preserves this much headroom when resuming old saves.
+    public const int DefaultMaxSteps = 500_000_000;
+    public const int MinimumResumeStepHeadroom = 500_000_000;
+
     // Network
     public int InputSize = 12;
     public int OutputSize = 4;
@@ -701,7 +709,7 @@ public class RLSettings
     public float Gamma = 0.99f;
 
     // Run settings
-    public int MaxSteps = 5000000;
+    public int MaxSteps = DefaultMaxSteps;
     public int TimeHorizon = 128;
     public int DecisionPeriod = 5;
 
